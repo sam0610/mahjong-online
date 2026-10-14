@@ -526,7 +526,7 @@ var PREFIX='hkmj-';
 var NET={peer:null,conn:null,members:[],lobby:null};
 
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function myName(){var n=(U.name||'').trim().slice(0,8);return n||'玩家';}
+function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host'?'房主':'玩家');}
 function netOK(){return typeof window!=='undefined'&&typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined';}
 function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function(){if(tok===S.token)res();else rej(CANCEL);},ms*S.speed);});}
 
@@ -816,7 +816,7 @@ function onHostConn(conn){
     if(S.running){safeSend(conn,{t:'full',msg:'遊戲已經開始,入唔到。'});setTimeout(function(){try{conn.close();}catch(e){}},300);return;}
     if(NET.members.length>=U.cfg.n-1){safeSend(conn,{t:'full',msg:'房已經夠人。'});setTimeout(function(){try{conn.close();}catch(e){}},300);return;}
     NET.members.push(m);
-    m.name='玩家'+(NET.members.length+1);
+    m.name='玩家'+NET.members.length;
     sendLobby();render();
   });
   conn.on('data',function(d){
@@ -1005,7 +1005,7 @@ function lobbyHTML(){
   if(host&&U.code){link=location.origin+location.pathname+'?room='+U.code;}
   var h='<div class="ov"><div class="sheet"><h2>'+(host?'房間':'等房主開始')+'</h2>';
   if(host){
-    h+=U.code?'<div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="linkbox">'+esc(link)+'</div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button></div>':'<p>開緊房…</p>';
+    h+=U.code?'<div class="opts"><button class="btn pri" data-act="startRoom">開始遊戲(撳咗,朋友嗰邊先會入牌桌)</button></div><div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="linkbox">'+esc(link)+'</div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button></div>':'<p>開緊房…</p>';
   }else{
     h+='<p>房號 <b>'+esc(U.code)+'</b>'+(l?'(連接咗)':'(連線中…)')+'</p>';
   }
