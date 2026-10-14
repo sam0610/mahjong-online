@@ -523,7 +523,9 @@ var S={n:4,minFan:3,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],
 var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
 var PREFIX='hkmj-';
-var NET={peer:null,conn:null,members:[],lobby:null};
+var NET={peer:null,conn:null,members:[],lobby:null,rx:0,state:''};
+var PEER_OPTS={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
+  {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}]}};
 
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host'?'房主':'玩家');}
@@ -799,7 +801,7 @@ function hostOpen(){
 }
 function openPeer(attempt){
   var code=randCode();
-  var peer=new window.Peer(PREFIX+code);
+  var peer=new window.Peer(PREFIX+code,PEER_OPTS);
   NET.peer=peer;
   peer.on('open',function(){if(NET.peer!==peer)return;U.code=code;render();});
   peer.on('connection',function(conn){if(NET.peer===peer)onHostConn(conn);});
@@ -836,14 +838,17 @@ function joinRoom(){
   if(!code){U.notice='請輸入房號。';render();return;}
   if(!netOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版,瀏覽器要支援 WebRTC)。';render();return;}
   U.role='client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;
-  var peer=new window.Peer();
+  var peer=new window.Peer(undefined,PEER_OPTS);
   NET.peer=peer;
+  NET.rx=0;NET.state='連線中…';
+  var helloIv=setInterval(function(){if(NET.peer!==peer){clearInterval(helloIv);return;}if(NET.conn&&NET.conn.open&&!NET.lobby)safeSend(NET.conn,{t:'hello',name:myName()});},2000);
   var timer=setTimeout(function(){if(NET.peer===peer&&!NET.conn){leaveAll();U.notice='搵唔到房間 '+code+',請確認房號。';render();}},15000);
   peer.on('open',function(){
     if(NET.peer!==peer)return;
-    var conn=peer.connect(PREFIX+code,{reliable:true});
+    var conn=peer.connect(PREFIX+code,{reliable:true,serialization:'json'});
     NET.conn=conn;
-    conn.on('open',function(){clearTimeout(timer);safeSend(conn,{t:'hello',name:myName()});});
+    conn.on('open',function(){clearTimeout(timer);NET.state='已連上房主';safeSend(conn,{t:'hello',name:myName()});render();});
+    conn.on('error',function(e){NET.state='連線錯誤:'+((e&&e.type)||e);render();});
     conn.on('data',function(d){if(NET.conn===conn)onClientData(d);});
     conn.on('close',function(){
       if(NET.conn!==conn)return;
@@ -859,6 +864,7 @@ function joinRoom(){
 }
 function onClientData(d){
   if(!d||typeof d.t!=='string')return;
+  NET.rx++;
   if(d.t==='lobby'){NET.lobby=d;if(!V)U.screen='lobby';render();}
   else if(d.t==='view'){V=d.v;U.screen='game';render();}
   else if(d.t==='full'){var m=d.msg;leaveAll();U.notice=m;render();}
@@ -1007,7 +1013,7 @@ function lobbyHTML(){
   if(host){
     h+=U.code?'<div class="opts"><button class="btn pri" data-act="startRoom">開始遊戲(撳咗,朋友嗰邊先會入牌桌)</button></div><div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="linkbox">'+esc(link)+'</div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button></div>':'<p>開緊房…</p>';
   }else{
-    h+='<p>房號 <b>'+esc(U.code)+'</b>'+(l?'(連接咗)':'(連線中…)')+'</p>';
+    h+='<p>房號 <b>'+esc(U.code)+'</b>'+(l?'(連接咗)':'(連線中…)')+'</p><p class="note">狀態:'+esc(NET.state||'連線中…')+' · 收到 '+NET.rx+' 個訊息'+(NET.rx>0&&!V?' · 等房主撳「開始遊戲」':'')+'</p>';
   }
   if(l){
     h+='<h3>玩家('+l.players.length+' / '+l.n+')</h3><div class="plist">'+l.players.map(function(nm,i){return '<div>'+esc(nm)+(i===0?'<span class="rel">房主</span>':'')+'</div>';}).join('')+
@@ -1130,6 +1136,7 @@ function boot(){
   var m=/[?&#]room=([A-Za-z0-9]+)/.exec((location.search||'')+(location.hash||''));
   if(m)U.roomInput=m[1].toUpperCase();
   setInterval(function(){
+    if(U.role==='host'&&!S.running&&NET.members.length)sendLobby();
     if(U.role==='host'&&S.running&&Object.keys(S.asks).some(function(k){return S.players[k]&&S.players[k].remote&&Date.now()-S.asks[k].since>25000;}))render();
   },3000);
   render();
