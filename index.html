@@ -130,6 +130,7 @@ button{font:inherit;color:inherit}
 <div id="overlay"></div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
 <script>
 (function(){
 'use strict';
@@ -523,13 +524,13 @@ var S={n:4,minFan:3,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],
 var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
 var PREFIX='hkmj-';
-var NET={peer:null,conn:null,members:[],lobby:null,rx:0,state:''};
+var NET={peer:null,conn:null,hub:null,pend:[],members:[],lobby:null,rx:0,state:''};
 var PEER_OPTS={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
   {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}]}};
 
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host'?'房主':'玩家');}
-function netOK(){return typeof window!=='undefined'&&typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined';}
+function netOK(){return (typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function'));}
 function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function(){if(tok===S.token)res();else rej(CANCEL);},ms*S.speed);});}
 
 /* ---------- asking a human seat (local or remote) ---------- */
@@ -794,23 +795,141 @@ function lobbyInfo(){
 function sendLobby(){var l=lobbyInfo();NET.members.forEach(function(m){safeSend(m.conn,l);});}
 function randCode(){var cs='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<5;i++)s+=cs[Math.floor(Math.random()*cs.length)];return s;}
 
-function hostOpen(){
-  if(!netOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版,瀏覽器要支援 WebRTC)。';render();return;}
-  U.role='host';U.screen='lobby';U.notice='';U.code='';NET.members=[];
-  openPeer(0);render();
+/* ---- MQTT fallback transport (works when WebRTC is blocked): speaks the same conn API as PeerJS ---- */
+var BROKERS=['wss://broker.hivemq.com:8884/mqtt','wss://broker.emqx.io:8084/mqtt'];
+var MQ_NS='hkmj1/';
+function mqOK(){return typeof window!=='undefined'&&window.mqtt&&typeof window.mqtt.connect==='function';}
+function rtcOK(){return typeof window!=='undefined'&&typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined';}
+function Em(){var h={};return {on:function(e,f){(h[e]=h[e]||[]).push(f);return this;},emit:function(e,a){(h[e]||[]).slice().forEach(function(f){try{f(a);}catch(x){console.error(x);}});}};}
+function mqConnect(cb){
+  var i=0;
+  (function next(){
+    if(i>=BROKERS.length)return cb(new Error('no broker'));
+    var c,done=false;
+    try{c=window.mqtt.connect(BROKERS[i++],{reconnectPeriod:0,connectTimeout:6000,clean:true,clientId:'hkmj_'+Math.random().toString(36).slice(2,10)});}catch(e){return next();}
+    c.on('connect',function(){if(done)return;done=true;cb(null,c);});
+    c.on('error',function(){if(done)return;done=true;try{c.end(true);}catch(e){}next();});
+    c.on('close',function(){if(done)return;done=true;next();});
+  })();
 }
-function openPeer(attempt){
-  var code=randCode();
-  var peer=new window.Peer(PREFIX+code,PEER_OPTS);
-  NET.peer=peer;
-  peer.on('open',function(){if(NET.peer!==peer)return;U.code=code;render();});
-  peer.on('connection',function(conn){if(NET.peer===peer)onHostConn(conn);});
-  peer.on('error',function(e){
-    if(NET.peer!==peer)return;
-    if(e&&e.type==='unavailable-id'&&attempt<5){try{peer.destroy();}catch(x){}openPeer(attempt+1);return;}
-    var msg='連線失敗('+((e&&e.type)||'未知')+'),請稍後再試。';
-    leaveAll();U.notice=msg;render();
+function mqPub(c,topic,obj){try{c.publish(topic,JSON.stringify(obj));}catch(e){}}
+function mqConn(sendFn){
+  var c=Em();c.open=false;c.seen=Date.now();
+  c.send=function(d){if(c.open)sendFn({t:'data',d:d});};
+  c.remoteClose=function(){if(!c.open)return;c.open=false;c.emit('close');};
+  c.close=function(){if(!c.open)return;sendFn({t:'bye'});c.open=false;c.emit('close');};
+  return c;
+}
+function mqHost(code,onConn,onReady,onFail){
+  var hub={conns:{},closed:false,c:null,iv:null};
+  mqConnect(function(err,c){
+    if(hub.closed){if(c)try{c.end(true);}catch(e){}return;}
+    if(err){onFail();return;}
+    hub.c=c;
+    var hostTopic=MQ_NS+code+'/h';
+    function toG(cid,o){mqPub(c,MQ_NS+code+'/g/'+cid,o);}
+    c.subscribe(hostTopic,function(e){if(!e&&!hub.closed)onReady();});
+    c.on('message',function(topic,payload){
+      var m;try{m=JSON.parse(payload.toString());}catch(e){return;}
+      if(!m||!m.c)return;
+      var conn=hub.conns[m.c];
+      if(m.t==='join'){
+        if(!conn){
+          conn=mqConn(function(o){toG(m.c,o);});hub.conns[m.c]=conn;conn.seen=Date.now();
+          onConn(conn);
+          conn.open=true;conn.emit('open');
+        }
+        toG(m.c,{t:'ack'});return;
+      }
+      if(!conn)return;
+      conn.seen=Date.now();
+      if(m.t==='data')conn.emit('data',m.d);
+      else if(m.t==='bye'){conn.remoteClose();delete hub.conns[m.c];}
+    });
+    c.on('close',function(){if(!hub.closed)onFail();});
+    hub.iv=setInterval(function(){
+      Object.keys(hub.conns).forEach(function(cid){
+        var cn=hub.conns[cid];
+        if(Date.now()-cn.seen>15000){cn.remoteClose();delete hub.conns[cid];}
+        else toG(cid,{t:'ping'});
+      });
+    },3000);
   });
+  hub.close=function(){
+    hub.closed=true;clearInterval(hub.iv);
+    Object.keys(hub.conns).forEach(function(k){try{hub.conns[k].close();}catch(e){}});
+    var c=hub.c;if(c)setTimeout(function(){try{c.end(true);}catch(e){}},300);
+  };
+  return hub;
+}
+function mqGuest(code){
+  var cid=Math.random().toString(36).slice(2,12),client=null,closed=false,tries=0,jiv=null,kiv=null;
+  var conn=mqConn(function(o){if(client){o.c=cid;mqPub(client,MQ_NS+code+'/h',o);}});
+  function cleanup(){closed=true;clearInterval(jiv);clearInterval(kiv);var c=client;if(c)setTimeout(function(){try{c.end(true);}catch(e){}},200);}
+  var origClose=conn.close;
+  conn.close=function(){origClose();cleanup();};
+  var origRemote=conn.remoteClose;
+  conn.remoteClose=function(){origRemote();cleanup();};
+  mqConnect(function(err,c){
+    if(closed){if(c)try{c.end(true);}catch(e){}return;}
+    if(err){conn.emit('error',{type:'broker'});return;}
+    client=c;
+    c.on('message',function(topic,payload){
+      var m;try{m=JSON.parse(payload.toString());}catch(e){return;}
+      if(!m)return;
+      conn.seen=Date.now();
+      if(m.t==='ack'){if(!conn.open&&!closed){conn.open=true;clearInterval(jiv);conn.emit('open');}}
+      else if(m.t==='data'&&conn.open)conn.emit('data',m.d);
+      else if(m.t==='bye')conn.remoteClose();
+    });
+    c.subscribe(MQ_NS+code+'/g/'+cid,function(e){
+      if(e||closed){conn.emit('error',{type:'broker'});return;}
+      function join(){
+        if(conn.open||closed)return;
+        if(++tries>8){conn.emit('error',{type:'peer-unavailable'});return;}
+        mqPub(c,MQ_NS+code+'/h',{t:'join',c:cid});
+      }
+      join();jiv=setInterval(join,1500);
+      kiv=setInterval(function(){
+        if(!conn.open)return;
+        mqPub(c,MQ_NS+code+'/h',{t:'ping',c:cid});
+        if(Date.now()-conn.seen>15000)conn.remoteClose();
+      },3000);
+    });
+  });
+  return conn;
+}
+
+/* ---------- host: open room over PeerJS (WebRTC) and MQTT at the same time ---------- */
+function hostOpen(){
+  if(!rtcOK()&&!mqOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  U.role='host';U.screen='lobby';U.notice='';U.code='';NET.members=[];
+  openRoom(0);render();
+}
+function openRoom(attempt){
+  var code=randCode(),peer=null,hub=null,peerErr=!rtcOK(),mqErr=!mqOK();
+  function setCode(){if(U.role==='host'&&(NET.peer===peer||NET.hub===hub)&&U.code!==code){U.code=code;render();}}
+  function check(){
+    if(peerErr&&mqErr&&U.role==='host'){leaveAll();U.notice='連線失敗,請稍後再試。';render();}
+  }
+  if(rtcOK()){
+    peer=new window.Peer(PREFIX+code,PEER_OPTS);NET.peer=peer;
+    peer.on('open',function(){if(NET.peer!==peer)return;NET.peerReady=true;setCode();});
+    peer.on('connection',function(conn){if(NET.peer===peer)onHostConn(conn);});
+    peer.on('error',function(e){
+      if(NET.peer!==peer)return;
+      if(e&&e.type==='unavailable-id'&&attempt<5){
+        try{peer.destroy();}catch(x){}
+        if(hub){hub.close();NET.hub=null;}
+        U.code='';openRoom(attempt+1);return;
+      }
+      peerErr=true;check();
+    });
+  }
+  if(mqOK()){
+    hub=mqHost(code,function(conn){if(NET.hub===hub)onHostConn(conn);},setCode,function(){mqErr=true;check();});
+    NET.hub=hub;
+  }
 }
 function onHostConn(conn){
   var m={conn:conn,name:'玩家',seat:-1};
@@ -833,33 +952,49 @@ function onHostConn(conn){
     else{var seat=m.seat;m.seat=-1;NET.members.splice(i,1);if(seat>=0){takeover(seat);checkReady();}}
   });
 }
+
+/* ---------- guest: try WebRTC first, fall back to MQTT after 6s ---------- */
 function joinRoom(){
   var code=(U.roomInput||'').trim().toUpperCase();
   if(!code){U.notice='請輸入房號。';render();return;}
-  if(!netOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版,瀏覽器要支援 WebRTC)。';render();return;}
-  U.role='client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;
-  var peer=new window.Peer(undefined,PEER_OPTS);
-  NET.peer=peer;
-  NET.rx=0;NET.state='連線中…';
-  var helloIv=setInterval(function(){if(NET.peer!==peer){clearInterval(helloIv);return;}if(NET.conn&&NET.conn.open&&!NET.lobby)safeSend(NET.conn,{t:'hello',name:myName()});},2000);
-  var timer=setTimeout(function(){if(NET.peer===peer&&!NET.conn){leaveAll();U.notice='搵唔到房間 '+code+',請確認房號。';render();}},15000);
-  peer.on('open',function(){
-    if(NET.peer!==peer)return;
-    var conn=peer.connect(PREFIX+code,{reliable:true,serialization:'json'});
-    NET.conn=conn;
-    conn.on('open',function(){clearTimeout(timer);NET.state='已連上房主';safeSend(conn,{t:'hello',name:myName()});render();});
-    conn.on('error',function(e){NET.state='連線錯誤:'+((e&&e.type)||e);render();});
-    conn.on('data',function(d){if(NET.conn===conn)onClientData(d);});
-    conn.on('close',function(){
-      if(NET.conn!==conn)return;
-      leaveAll();U.notice='同房主斷咗線。';render();
+  if(!rtcOK()&&!mqOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  U.role='client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;NET.rx=0;NET.state='連線中…';NET.pend=[];
+  var peer=null,chosen=null,dead=false;
+  function fail(msg){if(dead)return;dead=true;leaveAll();U.notice=msg;render();}
+  function attach(conn,kind){
+    NET.pend.push(conn);
+    conn.on('open',function(){
+      if(dead||chosen){try{conn.close();}catch(e){}return;}
+      chosen=conn;NET.conn=conn;clearTimeout(tFallback);clearTimeout(tAll);
+      NET.state='已連上房主('+kind+')';
+      NET.pend.forEach(function(c){if(c!==conn){try{c.close();}catch(e){}}});
+      safeSend(conn,{t:'hello',name:myName()});render();
     });
-  });
-  peer.on('error',function(){
-    if(NET.peer!==peer)return;
-    clearTimeout(timer);
-    leaveAll();U.notice='搵唔到房間 '+code+',請確認房號。';render();
-  });
+    conn.on('error',function(e){if(!chosen)NET.state='('+kind+')錯誤:'+((e&&e.type)||e);render();});
+    conn.on('data',function(d){if(NET.conn===conn)onClientData(d);});
+    conn.on('close',function(){if(NET.conn!==conn)return;fail('同房主斷咗線。');});
+  }
+  var mqStarted=false;
+  function startMq(){
+    if(chosen||dead||!mqOK()||mqStarted)return;
+    mqStarted=true;
+    NET.state='WebRTC 連唔到,轉用備用線路…';render();
+    attach(mqGuest(code),'備用線路');
+  }
+  var helloIv=setInterval(function(){
+    if(dead||NET.peer!==peer&&peer){clearInterval(helloIv);return;}
+    if(NET.conn&&NET.conn.open&&!NET.lobby)safeSend(NET.conn,{t:'hello',name:myName()});
+  },2000);
+  var tFallback=rtcOK()?setTimeout(startMq,6000):null;
+  var tAll=setTimeout(function(){if(!chosen)fail('連唔到房間 '+code+',請確認房號,或者再試一次。');},22000);
+  if(rtcOK()){
+    peer=new window.Peer(undefined,PEER_OPTS);NET.peer=peer;
+    peer.on('open',function(){
+      if(NET.peer!==peer||dead)return;
+      attach(peer.connect(PREFIX+code,{reliable:true,serialization:'json'}),'直連');
+    });
+    peer.on('error',function(){if(NET.peer===peer&&!chosen){NET.state='直連唔到,轉用備用線路…';startMq();}});
+  }else startMq();
   render();
 }
 function onClientData(d){
@@ -878,6 +1013,8 @@ function leaveAll(){
   NET.conn=null;NET.peer=null;NET.members=[];NET.lobby=null;
   mem.forEach(function(m){safeSend(m.conn,{t:'closed'});setTimeout(function(){try{m.conn.close();}catch(e){}},200);});
   if(conn){try{conn.close();}catch(e){}}
+  var pend=NET.pend||[];NET.pend=[];pend.forEach(function(c){try{c.close();}catch(e){}});
+  var hub=NET.hub;NET.hub=null;if(hub)setTimeout(function(){hub.close();},250);
   if(peer){setTimeout(function(){try{peer.destroy();}catch(e){}},300);}
   U.role='solo';U.screen='setup';U.code='';V=null;U.modalHidden=false;U.rules=false;
 }
@@ -1002,7 +1139,7 @@ function setupHTML(){
     '<h3>電腦強度</h3>'+chipRow('cfgL',[1,2],c.level,function(v){return v===1?'普通':'高手(識防守、計番數)';})+
     '<div class="opts"><button class="btn pri" data-act="solo">單人對電腦</button><button class="btn" data-act="host"'+(ok?'':' disabled')+'>開房同朋友打</button><button class="btn" data-act="rules">睇規則</button></div>'+
     '<h3>加入朋友嘅房間</h3><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="房號" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
-    (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版,而且瀏覽器要支援 WebRTC。</p>')+
+    (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
     '</div></div>';
 }
 function lobbyHTML(){
@@ -1034,7 +1171,7 @@ function rulesHTML(){
   '<dt>7–8 番</dt><dd>清一色 7、混么九 7、大三元 8</dd>'+
   '<dt>滿貫</dt><dd>十三么、天糊、字一色、清么九、大四喜、十八羅漢、八仙過海(封頂 10 番)</dd></dl>'+
   '<h3>番數對照</h3><dl class="ft"><dt>3 / 4 / 5 / 6</dt><dd>8 / 16 / 24 / 32</dd><dt>7 / 8 / 9 / 10</dt><dd>48 / 64 / 96 / 128</dd></dl>'+
-  '<h3>多人對戰</h3><ul><li>房主嘅瀏覽器負責行牌局,其他人經 WebRTC 直接連去房主。房主要保持網頁開住。</li><li>有人斷線,佢嗰個座位會由電腦代打。有人太耐冇反應,房主可以按「由電腦代打」。</li><li>每局完要所有真人都按「下一局」先會開下一局。</li></ul>'+
+  '<h3>多人對戰</h3><ul><li>房主嘅瀏覽器負責行牌局,其他人先試 WebRTC 直連房主,連唔到會自動轉用備用線路(公共 MQTT 伺服器)。房主要保持網頁開住。</li><li>有人斷線,佢嗰個座位會由電腦代打。有人太耐冇反應,房主可以按「由電腦代打」。</li><li>每局完要所有真人都按「下一局」先會開下一局。</li></ul>'+
   '<p>未有搶槓、七對子、坎坎糊、地糊。</p>'+
   '<div class="opts"><button class="btn pri" data-act="closeRules">明白</button></div></div></div>';
 }
