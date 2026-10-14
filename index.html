@@ -1,5 +1,9 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>港式麻雀</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;700&display=swap">
 <style>
@@ -111,6 +115,46 @@ button{font:inherit;color:inherit}
 .plist{display:grid;gap:6px}
 .plist div{display:flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-weight:700}
 .plist .empty{color:var(--muted);font-weight:400;border-style:dashed}
+
+.cnt{display:none}
+/* ===== phone layout ===== */
+@media (max-width:640px){
+  :root{--rw:clamp(20px,6.2vw,28px);--mw:clamp(22px,6.6vw,30px)}
+  body{font-size:15px;padding-block:8px 0;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+  .app{min-height:calc(100dvh - 8px);grid-template-rows:auto auto auto 1fr auto;gap:8px;align-content:start}
+  .top{flex-wrap:nowrap;gap:6px}
+  .top h1{font-size:17px;margin:0;letter-spacing:.12em;white-space:nowrap}
+  .top .btn.sm{height:36px;padding:0 10px;font-size:13px}
+  .opps{grid-template-columns:1fr;gap:8px}
+  .seat{padding:8px 10px 10px;gap:6px;border-radius:12px}
+  .sh{gap:6px}
+  .nm{font-size:15px}
+  .cnt{display:inline;color:var(--muted);font:500 12px var(--sans);white-space:nowrap}
+  .backs{display:none}
+  .row{min-height:0;gap:4px 8px}
+  .row:empty{display:none}
+  .river{padding-top:6px;gap:3px 2px;min-height:0}
+  .river:empty{display:none}
+  .mid{padding:8px 10px;gap:4px 10px;min-height:0;border-radius:12px}
+  .mid .msg{font-size:16px;min-width:0;flex-basis:100%;order:-1}
+  .mid .lastd{--tw:34px}
+  .dock{position:sticky;bottom:0;margin:0 -10px;padding:10px 10px max(10px,env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line-2);box-shadow:0 -6px 18px rgba(30,40,60,.1)}
+  .actions{min-height:0;gap:8px;margin-bottom:8px}
+  .actions:empty{display:none}
+  .actions .btn{height:48px;font-size:16px;padding:0 20px;flex:1 1 auto;justify-content:center}
+  .actions .btn.win{font-size:19px;flex:1 1 100%}
+  .actions .note{font-size:14px;flex:1 1 100%}
+  .claimtile{--tw:40px}
+  .bt{--tw:22px}
+  .hand{--hw:calc((100vw - 20px - 6*5px) / 7);flex-wrap:wrap;justify-content:center;gap:10px 5px;padding-top:12px;min-height:0}
+  .hand .gap{display:none}
+  .hand .t:hover{transform:none}
+  .hand .t.sel{transform:translateY(-8px);outline-width:3px}
+  .hand .t.dr{outline:2px solid var(--hot);outline-offset:1px}
+  .sheet{padding:16px;border-radius:14px}
+  .hands{--tw:clamp(20px,6.4vw,30px)}
+  .btn,.chip{min-height:44px}
+}
 @media (prefers-reduced-motion:reduce){.call{animation:none}.hand .t{transition:none}}
 </style>
 
@@ -1050,7 +1094,7 @@ function riverHTML(p,i){
 }
 function headHTML(p,i,k){
   var call=(V.call&&V.call.i===i)?'<span class="call">'+esc(V.call.text)+'</span>':'';
-  var tag=k===0?(p.name==='你'?'':'<span class="rel">你</span>'):'<span class="rel">'+relLabel(k,V.n)+(p.human&&V.players.filter(function(q){return q.human;}).length>1?' · 真人':'')+'</span>';
+  var tag=k===0?(p.name==='你'?'':'<span class="rel">你</span>'):'<span class="rel">'+relLabel(k,V.n)+(p.human&&V.players.filter(function(q){return q.human;}).length>1?' · 真人':'')+'</span><span class="cnt">手牌 '+p.n+'</span>';
   return call+'<div class="sh"><span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span>'+tag+
     (i===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+
     '<span class="sc">'+p.score.toLocaleString()+'</span></div>';
@@ -1107,7 +1151,8 @@ function drawDock(){
         else acts+='<span class="note">已經可以糊,但只有 '+o.ev.fan+' 番(起糊 '+V.minFan+' 番)</span>';
       }
       o.kongs.forEach(function(t){acts+='<button class="btn" data-act="kong" data-t="'+t+'">槓 '+tname(t)+'</button>';});
-      acts+='<span class="note">'+(COARSE?'點一下選牌,再點一下打出':'點選一張牌打出')+'</span>';
+      if(COARSE&&U.sel&&U.selT!=null)acts+='<button class="btn pri" data-act="discardsel">打出 '+tname(U.selT)+'</button>';
+      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點選一張牌打出')+'</span>';
     }else{
       acts+='<span class="claimtile">'+tileEl(o.tile)+'</span>';
       if(o.ev)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+'</button>';
@@ -1124,7 +1169,7 @@ function drawDock(){
   if(me.drawn!==null&&me.drawn!==undefined&&!V.over&&list.length%3===2){removeOne(list,me.drawn);drawn=me.drawn;}
   var on=!!(a&&a.kind==='turn');
   var hh=list.map(function(t,i){return tileEl(t,U.sel==='h'+i?'sel':'','button').replace('<button','<button data-k="h'+i+'" aria-label="'+tname(t)+'"'+(on?'':' tabindex="-1"'));}).join('');
-  if(drawn!==null)hh+='<span class="gap"></span>'+tileEl(drawn,U.sel==='d'?'sel':'','button').replace('<button','<button data-k="d" aria-label="'+tname(drawn)+'"'+(on?'':' tabindex="-1"'));
+  if(drawn!==null)hh+='<span class="gap"></span>'+tileEl(drawn,(U.sel==='d'?'sel ':'')+'dr','button').replace('<button','<button data-k="d" aria-label="'+tname(drawn)+'"'+(on?'':' tabindex="-1"'));
   if(V.over)hh=faces(me.hand||[]);
   els.dock.innerHTML='<div class="actions">'+acts+'</div><div class="hand'+(on?'':' off')+'">'+hh+'</div>';
 }
@@ -1242,6 +1287,7 @@ function handleAct(act,b){
   }
   else if(act==='hideModal'){U.modalHidden=true;draw();}
   else if(act==='takeover'){if(U.role==='host')takeover(+b.getAttribute('data-seat'));}
+  else if(act==='discardsel'){if(U.selT!=null)answer({a:'discard',t:U.selT});}
   else if(act==='win')answer({a:'win'});
   else if(act==='kong')answer({a:'kong',t:+b.getAttribute('data-t')});
   else if(act==='claimkong')answer({a:'kong'});
@@ -1255,7 +1301,7 @@ function onClick(e){
   var k=e.target.closest('[data-k]');
   if(k&&V&&V.ask&&V.ask.kind==='turn'){
     var key=k.getAttribute('data-k'),t=+k.getAttribute('data-t');
-    if(COARSE&&U.sel!==key){U.sel=key;draw();return;}
+    if(COARSE&&U.sel!==key){U.sel=key;U.selT=t;draw();return;}
     answer({a:'discard',t:t});
   }
 }
