@@ -703,7 +703,7 @@ function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host
 function netOK(){return (typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function'));}
 function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function(){if(tok===S.token)res();else rej(CANCEL);},ms*S.speed);});}
 
-/* ---------- 自動聽牌: when 1–2 tiles from winning, the game waits for the winning tile and discards the rest ---------- */
+/* ---------- 自動聽牌: when exactly 1 tile from winning (tenpai), the game waits for the winning tile and discards the rest ---------- */
 function autoSh(p){if(!p||!S.running||S.over||!p.hand.length)return 99;return shanten(cnt(p.hand),p.melds.length);}
 function autoHumanAnswer(p,a){
   var o=a.opts;
@@ -728,7 +728,7 @@ function scheduleAuto(seat){
 }
 function setAuto(seat,on){
   var p=S.players[seat];if(!p||!p.human||!S.running)return;
-  if(on){if(S.over||autoSh(p)>1)return;p.auto=true;}else p.auto=false;
+  if(on){if(S.over||autoSh(p)>0)return;p.auto=true;}else p.auto=false;
   render();
   if(on)scheduleAuto(seat);
 }
@@ -1410,8 +1410,8 @@ function drawDock(){
   }
   if(V.auto){
     acts='<span class="note autoon">自動聽牌中:有牌食就自動胡,摸到唔啱嘅牌自動打出</span><button class="btn" data-act="auto">取消自動</button>'+acts;
-  }else if(!V.over&&V.autoSh<=1){
-    acts+='<button class="btn auto" data-act="auto">自動聽牌 · 欠'+(V.autoSh===0?'一':'兩')+'隻</button>';
+  }else if(!V.over&&V.autoSh===0){
+    acts+='<button class="btn auto" data-act="auto">自動聽牌 · 欠一隻</button>';
   }
   var list=(me.hand||[]).slice(),drawn=null;
   if(me.drawn!==null&&me.drawn!==undefined&&!V.over&&list.length%3===2){removeOne(list,me.drawn);drawn=me.drawn;}
