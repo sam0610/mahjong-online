@@ -117,6 +117,8 @@ button{font:inherit;color:inherit}
 .plist .empty{color:var(--muted);font-weight:400;border-style:dashed}
 
 .cnt{display:none}
+.btn.auto{border-color:var(--accent);color:var(--accent);font-weight:700;background:rgba(10,127,156,.08)}
+.note.autoon{color:var(--accent);font-weight:700}
 .resume{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--accent);background:rgba(10,127,156,.08);border-radius:12px}
 .resume span{color:var(--muted)}
 .mono{font-family:var(--mono);letter-spacing:.08em;color:var(--ink)}
@@ -701,11 +703,42 @@ function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host
 function netOK(){return (typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function'));}
 function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function(){if(tok===S.token)res();else rej(CANCEL);},ms*S.speed);});}
 
+/* ---------- 自動聽牌: when 1–2 tiles from winning, the game waits for the winning tile and discards the rest ---------- */
+function autoSh(p){if(!p||!S.running||S.over||!p.hand.length)return 99;return shanten(cnt(p.hand),p.melds.length);}
+function autoHumanAnswer(p,a){
+  var o=a.opts;
+  if(o.ev&&o.ev.fan>=S.minFan)return {a:'win'};
+  if(a.kind==='claim')return {a:'pass'};
+  if(o.claimed)return {a:'discard',t:chooseDiscard3(p)};
+  var d=p.drawn,m=p.melds.length;
+  if(d==null||p.hand.indexOf(d)<0)return {a:'discard',t:chooseDiscard3(p)};
+  var c=cnt(p.hand);c[d]--;var s13=shanten(c,m);c[d]++;var s14=shanten(c,m);
+  if(s14<s13)return {a:'discard',t:chooseDiscard3(p)};   /* drawn tile helps: keep it, throw the best other tile */
+  return {a:'discard',t:d};                              /* drawn tile useless: throw it straight back */
+}
+function scheduleAuto(seat){
+  var p=S.players[seat],a=S.asks[seat];
+  if(!p||!a||!p.auto)return;
+  var id=a.id;
+  setTimeout(function(){
+    var cur=S.asks[seat];
+    if(!cur||cur.id!==id||!p.auto||!p.human)return;
+    answerSeat(seat,id,autoHumanAnswer(p,cur));
+  },Math.round(500*S.speed));
+}
+function setAuto(seat,on){
+  var p=S.players[seat];if(!p||!p.human||!S.running)return;
+  if(on){if(S.over||autoSh(p)>1)return;p.auto=true;}else p.auto=false;
+  render();
+  if(on)scheduleAuto(seat);
+}
+
 /* ---------- asking a human seat (local or remote) ---------- */
 function ask(seat,kind,opts){
   return new Promise(function(res,rej){
     var p=S.players[seat];
     S.asks[seat]={id:++askSeq,kind:kind,opts:opts,res:res,rej:rej,since:Date.now()};
+    scheduleAuto(seat);
     S.msg=kind==='turn'?'輪到 '+p.name+(opts.claimed?'(碰/上之後打牌)':''):S.players[opts.from].name+' 打出 '+tname(opts.tile)+',等 '+p.name+' 決定';
     render();
   });
@@ -949,6 +982,7 @@ async function playHand(resume){
   var n=S.n,P=S.players,d=S.dealer,k;
   S.over=false;S.result=null;S.winTile=null;S.call=null;S.ready={};
   if(!resume){
+    S.players.forEach(function(q){q.auto=false;});
     S.wall=buildWall();S.last=null;S.discN=0;
     S.msg='洗牌、起牌…';
     P.forEach(function(p,i){p.hand=[];p.melds=[];p.flowers=[];p.discards=[];p.drawn=null;p.wind=(i-d+n)%n;});
@@ -1032,6 +1066,7 @@ function buildView(seat){
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,minFan:S.minFan,
     players:S.players.map(function(p,i){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:null,drawn:i===seat?p.drawn:null};}),
+    auto:!!S.players[seat].auto,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
     result:S.over?S.result:null,ready:Object.keys(S.ready).map(Number)};
 }
@@ -1195,6 +1230,7 @@ function onHostConn(conn){
     if(!d||typeof d.t!=='string')return;
     if(d.t==='hello'){m.name=String(d.name||m.name).slice(0,8);sendLobby();render();}
     else if(d.t==='ans'){if(m.seat>=0)answerSeat(m.seat,d.id,d.v);}
+    else if(d.t==='auto'){if(m.seat>=0)setAuto(m.seat,!!d.on);}
     else if(d.t==='ready'){if(m.seat>=0&&S.over){S.ready[m.seat]=1;render();checkReady();}}
   });
   conn.on('close',function(){
@@ -1372,6 +1408,11 @@ function drawDock(){
       acts+='<button class="btn" data-act="pass">過</button>';
     }
   }
+  if(V.auto){
+    acts='<span class="note autoon">自動聽牌中:有牌食就自動胡,摸到唔啱嘅牌自動打出</span><button class="btn" data-act="auto">取消自動</button>'+acts;
+  }else if(!V.over&&V.autoSh<=1){
+    acts+='<button class="btn auto" data-act="auto">自動聽牌 · 欠'+(V.autoSh===0?'一':'兩')+'隻</button>';
+  }
   var list=(me.hand||[]).slice(),drawn=null;
   if(me.drawn!==null&&me.drawn!==undefined&&!V.over&&list.length%3===2){removeOne(list,me.drawn);drawn=me.drawn;}
   var on=!!(a&&a.kind==='turn');
@@ -1512,6 +1553,11 @@ function handleAct(act,b){
   else if(act==='hideModal'){U.modalHidden=true;draw();}
   else if(act==='takeover'){if(U.role==='host')takeover(+b.getAttribute('data-seat'));}
   else if(act==='discardsel'){if(U.selT!=null)answer({a:'discard',t:U.selT});}
+  else if(act==='auto'){
+    if(!V)return;
+    if(U.role==='client'){safeSend(NET.conn,{t:'auto',on:!V.auto});}
+    else setAuto(0,!V.auto);
+  }
   else if(act==='win')answer({a:'win'});
   else if(act==='kong')answer({a:'kong',t:+b.getAttribute('data-t')});
   else if(act==='claimkong')answer({a:'kong'});
@@ -1551,7 +1597,7 @@ function boot(){
   },3000);
   render();
 }
-window.__mj={resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
+window.__mj={setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>
