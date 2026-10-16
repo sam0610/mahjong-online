@@ -349,7 +349,7 @@ function threatOf(q){
   var suits={},ns=0;
   q.melds.forEach(function(m){var t=m.tiles[0];if(t<27&&!suits[suitOf(t)]){suits[suitOf(t)]=1;ns++;}});
   if(q.melds.length>=2&&ns===1)th+=0.4;
-  var live=S.wall.length-14;
+  var live=S.wall.length;
   if(live<40)th+=0.1;
   if(live<20)th+=0.2;
   return Math.min(th,1.5);
@@ -533,7 +533,7 @@ function chooseDiscard3(p){
   var shs={},minSh=99;
   for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=shanten(c,m);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
   var maxTh=0;S.players.forEach(function(q){if(q!==p)maxTh=Math.max(maxTh,threatOf(q));});
-  var live=S.wall.length-14;
+  var live=S.wall.length;
   var fold=(minSh>=2&&maxTh>=LV3.f2)||(minSh===1&&maxTh>=LV3.f1&&live<70);
   var cands=[],bestBase=Infinity,bestT=-1;
   for(t=0;t<34;t++){
@@ -679,7 +679,7 @@ function aiChow1(p,t,opts){
 }
 function aiTurn(p,ev,kongs){
   if(ev&&ev.fan>=S.minFan)return {a:'win'};
-  if(kongs.length&&S.wall.length>16)return {a:'kong',t:kongs[0]};
+  if(kongs.length&&S.wall.length>4)return {a:'kong',t:kongs[0]};
   return {a:'discard',t:chooseDiscard(p)};
 }
 
@@ -835,7 +835,7 @@ function buildWall(){
 function sortHand(p){p.hand.sort(function(a,b){return a-b;});}
 function drawTile(p,fromBack){
   for(;;){
-    if(S.wall.length<=14)return false;
+    if(S.wall.length<=0)return false;
     var t=fromBack?S.wall.pop():S.wall.shift();
     if(t>=34){p.flowers.push(t);S.msg=p.name+' 補花 '+tname(t);fromBack=true;continue;}
     p.hand.push(t);sortHand(p);p.drawn=t;return true;
@@ -850,7 +850,7 @@ function replaceFlowers(p){
   }
 }
 function kongOptions(p){
-  if(S.wall.length<=14)return [];
+  if(S.wall.length<=0)return [];
   var c=cnt(p.hand),out=[];
   for(var t=0;t<34;t++){
     if(c[t]===4)out.push(t);
@@ -887,7 +887,7 @@ function doClaim(s,d,t,kind,seq){
 async function resolveClaims(d,t){
   var n=S.n,P=S.players,order=[],k;
   for(k=1;k<n;k++)order.push((d+k)%n);
-  var last=S.wall.length<=14,i,s,p,a;
+  var last=S.wall.length<=0,i,s,p,a;
   for(i=0;i<order.length;i++){
     s=order[i];p=P[s];
     var ev=evalWith(p,t,{self:false,round:S.round,last:last});
@@ -900,7 +900,7 @@ async function resolveClaims(d,t){
     s=order[i];p=P[s];
     var c=cnt(p.hand);
     if(c[t]<2)continue;
-    var canKong=c[t]>=3&&S.wall.length>14;
+    var canKong=c[t]>=3&&S.wall.length>0;
     if(p.human){
       var chows=(i===0)?chowOptions(p,t):[];
       asked[s]=true;
@@ -967,7 +967,7 @@ async function playHand(resume){
     render();
     var ev=null,kongs=[];
     if(mode!=='claimed'){
-      ev=evalWin(p,{self:true,round:S.round,kongDraw:kongDraw,last:S.wall.length<=14,heaven:heaven});
+      ev=evalWin(p,{self:true,round:S.round,kongDraw:kongDraw,last:S.wall.length<=0,heaven:heaven});
       kongs=kongOptions(p);
     }
     var act;
@@ -1028,7 +1028,7 @@ function checkReady(){
 function buildView(seat){
   if(!S.running||!S.players.length)return null;
   var a=S.asks[seat];
-  return {me:seat,n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length-14),cur:S.cur,over:S.over,msg:S.msg,
+  return {me:seat,n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,minFan:S.minFan,
     players:S.players.map(function(p,i){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:null,drawn:i===seat?p.drawn:null};}),
@@ -1427,7 +1427,7 @@ function lobbyHTML(){
 }
 function rulesHTML(){
   return '<div class="ov"><div class="sheet rules"><h2>規則</h2>'+
-  '<h3>基本</h3><ul><li>144 隻牌:萬、筒、索各 1–9 四隻,東南西北、中發白各四隻,另有 8 隻花牌。</li><li>每人 13 隻,莊家先摸牌。摸到花牌即時補花,由牌尾補一隻。</li><li>糊牌需要 4 組面子(順、刻、槓)加一對將,或者十三么。</li><li>「上」只可以上家(你左手邊)打出的牌;碰、槓任何人都可以。糊牌優先於碰槓,碰槓優先於上。</li><li>牌牆剩 14 隻即流局,莊家連莊。</li></ul>'+
+  '<h3>基本</h3><ul><li>144 隻牌:萬、筒、索各 1–9 四隻,東南西北、中發白各四隻,另有 8 隻花牌。</li><li>每人 13 隻,莊家先摸牌。摸到花牌即時補花,由牌尾補一隻。</li><li>糊牌需要 4 組面子(順、刻、槓)加一對將,或者十三么。</li><li>「上」只可以上家(你左手邊)打出的牌;碰、槓任何人都可以。糊牌優先於碰槓,碰槓優先於上。</li><li>牌牆摸晒(冇留牌尾)即流局,莊家連莊。</li></ul>'+
   '<h3>起糊與計分</h3><ul><li>要夠起糊番數(預設 3 番)先可以糊牌,否則唔可以糊。</li><li>食糊:出銃者全付。自摸:其餘每家各付一半。</li><li>莊家糊牌或流局連莊,否則輪莊;輪完一圈,風圈由東轉南。</li></ul>'+
   '<h3>番種</h3><dl class="ft">'+
   '<dt>1 番</dt><dd>無花、正花(每隻)、自摸、門前清、平糊、圈風、門風、三元牌(每副)、槓上開花、海底撈月、河底撈魚</dd>'+
