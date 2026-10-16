@@ -118,6 +118,7 @@ button{font:inherit;color:inherit}
 
 .cnt{display:none}
 .btn.auto{border-color:var(--accent);color:var(--accent);font-weight:700;background:rgba(10,127,156,.08)}
+.note.kq{color:var(--hot);font-weight:700;flex:1 1 100%}
 .note.autoon{color:var(--accent);font-weight:700}
 .resume{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--accent);background:rgba(10,127,156,.08);border-radius:12px}
 .resume span{color:var(--muted)}
@@ -719,6 +720,7 @@ function autoHumanAnswer(p,a){
 function scheduleAuto(seat){
   var p=S.players[seat],a=S.asks[seat];
   if(!p||!a||!p.auto)return;
+  if(a.kind==='turn'&&a.opts.kongDrawn!=null)return;   /* drawn tile can kong: ask the player instead of deciding */
   var id=a.id;
   setTimeout(function(){
     var cur=S.asks[seat];
@@ -747,6 +749,7 @@ function validAnswer(seat,a,v){
   var o=a.opts,p=S.players[seat];
   if(!v||typeof v.a!=='string')return false;
   if(a.kind==='turn'){
+    if(v.a==='auto')return !!p.auto;
     if(v.a==='discard')return p.hand.indexOf(v.t)>=0;
     if(v.a==='win')return !!(o.ev&&o.ev.fan>=S.minFan);
     if(v.a==='kong')return o.kongs.indexOf(v.t)>=0;
@@ -762,6 +765,7 @@ function validAnswer(seat,a,v){
 function answerSeat(seat,id,v){
   var a=S.asks[seat];
   if(!a||a.id!==id||!validAnswer(seat,a,v))return;
+  if(v.a==='auto')v=autoHumanAnswer(S.players[seat],a);
   delete S.asks[seat];a.res(v);render();
 }
 function autoAnswer(p,a){
@@ -1005,7 +1009,7 @@ async function playHand(resume){
       kongs=kongOptions(p);
     }
     var act;
-    if(p.human){snapshot('turn',{claimed:mode==='claimed',kongDraw:kongDraw,heaven:heaven});act=await ask(S.cur,'turn',{ev:ev,kongs:kongs,claimed:mode==='claimed'});}
+    if(p.human){snapshot('turn',{claimed:mode==='claimed',kongDraw:kongDraw,heaven:heaven});act=await ask(S.cur,'turn',{ev:ev,kongs:kongs,claimed:mode==='claimed',kongDrawn:(mode!=='claimed'&&p.drawn!=null&&kongs.indexOf(p.drawn)>=0)?p.drawn:null});}
     else{S.msg=p.name+' 思考中…';render();await T(650);act=aiTurn(p,ev,kongs);}
     if(act.a==='win')return endWin(S.cur,null,ev,true,p.drawn);
     if(act.a==='kong'){
@@ -1393,7 +1397,10 @@ function drawDock(){
         if(o.ev.fan>=V.minFan)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+'</button>';
         else acts+='<span class="note">已經可以糊,但只有 '+o.ev.fan+' 番(起糊 '+V.minFan+' 番)</span>';
       }
-      o.kongs.forEach(function(t){acts+='<button class="btn" data-act="kong" data-t="'+t+'">槓 '+tname(t)+'</button>';});
+      if(o.kongDrawn!=null&&U.kqDismiss!==a.id){
+        acts+='<span class="note kq">摸到 '+tname(o.kongDrawn)+',可以槓,槓唔槓?</span><button class="btn pri" data-act="kong" data-t="'+o.kongDrawn+'">槓 '+tname(o.kongDrawn)+'</button><button class="btn" data-act="nokong">唔槓</button>';
+      }
+      o.kongs.forEach(function(t){if(o.kongDrawn!=null&&U.kqDismiss!==a.id&&t===o.kongDrawn)return;acts+='<button class="btn" data-act="kong" data-t="'+t+'">槓 '+tname(t)+'</button>';});
       if(COARSE&&U.sel&&U.selT!=null)acts+='<button class="btn pri" data-act="discardsel">打出 '+tname(U.selT)+'</button>';
       else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點選一張牌打出')+'</span>';
     }else{
@@ -1558,6 +1565,7 @@ function handleAct(act,b){
     if(U.role==='client'){safeSend(NET.conn,{t:'auto',on:!V.auto});}
     else setAuto(0,!V.auto);
   }
+  else if(act==='nokong'){if(!V||!V.ask)return;if(V.auto)answer({a:'auto'});else{U.kqDismiss=V.ask.id;draw();}}
   else if(act==='win')answer({a:'win'});
   else if(act==='kong')answer({a:'kong',t:+b.getAttribute('data-t')});
   else if(act==='claimkong')answer({a:'kong'});
