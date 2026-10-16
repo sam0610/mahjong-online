@@ -751,7 +751,7 @@ function takeover(seat){
 /* ---------- saving progress ----------
    Always saved in this browser (localStorage). If CLOUD.url / CLOUD.key are filled in (Supabase), the same
    snapshot is also stored on the server under a private save code, so it survives cleared browsers and works on another device. */
-var CLOUD={url:'',key:''};
+var CLOUD={url:'https://xzuunzyxrackszianule.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6dXVuenl4cmFja3N6aWFudWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxMTIxOTEsImV4cCI6MjEwNzY4ODE5MX0.4LT0h02s9SIVTZu7Ebc-llPgRCO2sD5fbyeWZ3J-3ns'};
 var SAVE_KEY='mj_save_v1',CODE_KEY='mj_code_v1';
 function cloudOn(){return !!(CLOUD.url&&CLOUD.key);}
 function normCode(c){return String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
