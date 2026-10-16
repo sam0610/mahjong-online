@@ -723,6 +723,39 @@ function autoSh(p){
   p._ak=key;p._av=res;
   return res;
 }
+/* highest ron fan over all winning tiles for a 13-tile hand (0 if none reach minFan) */
+function bestWaitFan(p,h13,vis){
+  var c=cnt(h13),m=p.melds.length,best=0,u,save=p.hand;
+  p.hand=h13;
+  try{
+    for(u=0;u<34;u++){
+      if(c[u]>=4||vis[u]>=4)continue;
+      c[u]++;var win=shanten(c,m)<0;c[u]--;
+      if(!win)continue;
+      var ro=evalWith(p,u,{self:false,round:S.round,last:false});
+      if(ro&&ro.fan>=S.minFan&&ro.fan>best)best=ro.fan;
+    }
+  }finally{p.hand=save;}
+  return best;
+}
+/* would pung/kong of tile t keep the hand waiting AND raise the best winning fan? */
+function pungRaises(p,t){
+  var vis=visible(p),before=bestWaitFan(p,p.hand,vis);
+  var saveH=p.hand,saveM=p.melds,after=0;
+  try{
+    var h=p.hand.slice();removeN(h,t,2);
+    p.melds=saveM.concat([{type:'pung',tiles:[t,t,t],from:0}]);
+    var c=cnt(h),u;
+    for(u=0;u<34;u++){
+      if(!c[u])continue;
+      var h13=handWithout(h,u),c2=cnt(h13);
+      if(shanten(c2,p.melds.length)!==0)continue;
+      var f=bestWaitFan(p,h13,vis);
+      if(f>after)after=f;
+    }
+  }finally{p.hand=saveH;p.melds=saveM;}
+  return after>before;
+}
 function autoHumanAnswer(p,a){
   var o=a.opts;
   if(o.ev&&o.ev.fan>=S.minFan)return {a:'win'};
@@ -737,7 +770,10 @@ function autoHumanAnswer(p,a){
 function scheduleAuto(seat){
   var p=S.players[seat],a=S.asks[seat];
   if(!p||!a||!p.auto)return;
-  if(a.kind==='turn'&&a.opts.kongDrawn!=null)return;   /* drawn tile can kong: ask the player instead of deciding */
+  if(a.kind==='turn'&&a.opts.kongDrawn!=null)return;
+  if(a.kind==='claim'&&a.opts.pung&&pungRaises(p,a.opts.tile)){   /* pung would raise fan: hand control back to the player */
+    p.auto=false;S.msg='碰 '+tname(a.opts.tile)+' 可加番,已取消自動,等 '+p.name+' 決定';render();return;
+  }   /* drawn tile can kong: ask the player instead of deciding */
   var id=a.id;
   setTimeout(function(){
     var cur=S.asks[seat];
