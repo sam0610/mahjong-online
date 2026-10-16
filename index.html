@@ -117,6 +117,9 @@ button{font:inherit;color:inherit}
 .plist .empty{color:var(--muted);font-weight:400;border-style:dashed}
 
 .cnt{display:none}
+.resume{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--accent);background:rgba(10,127,156,.08);border-radius:12px}
+.resume span{color:var(--muted)}
+.mono{font-family:var(--mono);letter-spacing:.08em;color:var(--ink)}
 /* ===== phone layout ===== */
 @media (max-width:640px){
   :root{--rw:clamp(20px,6.2vw,28px);--mw:clamp(22px,6.6vw,30px)}
@@ -744,6 +747,82 @@ function takeover(seat){
   render();
 }
 
+
+/* ---------- saving progress ----------
+   Always saved in this browser (localStorage). If CLOUD.url / CLOUD.key are filled in (Supabase), the same
+   snapshot is also stored on the server under a private save code, so it survives cleared browsers and works on another device. */
+var CLOUD={url:'',key:''};
+var SAVE_KEY='mj_save_v1',CODE_KEY='mj_code_v1';
+function cloudOn(){return !!(CLOUD.url&&CLOUD.key);}
+function normCode(c){return String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function fmtCode(c){return c.replace(/(.{4})(?=.)/g,'$1-');}
+function saveCode(){
+  var c='';
+  try{c=localStorage.getItem(CODE_KEY)||'';}catch(e){}
+  if(c.length<16){
+    var cs='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';c='';
+    var buf=new Uint8Array(16);
+    try{crypto.getRandomValues(buf);}catch(e){for(var j=0;j<16;j++)buf[j]=Math.floor(Math.random()*256);}
+    for(var i=0;i<16;i++)c+=cs[buf[i]%32];
+    try{localStorage.setItem(CODE_KEY,c);}catch(e){}
+  }
+  return c;
+}
+function cloudCall(fn,body){
+  return fetch(CLOUD.url.replace(/\/$/,'')+'/rest/v1/rpc/'+fn,{method:'POST',keepalive:true,
+    headers:{'apikey':CLOUD.key,'Authorization':'Bearer '+CLOUD.key,'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.text();})
+    .then(function(t){try{return t?JSON.parse(t):null;}catch(e){return null;}});
+}
+var cloudBusy=false,cloudPending=null;
+function cloudPut(obj){
+  if(!cloudOn())return;
+  if(cloudBusy){cloudPending=obj;return;}
+  cloudBusy=true;
+  cloudCall('save_game',{p_code:saveCode(),p_state:obj}).then(function(){U.cloudErr='';},function(e){U.cloudErr=String(e&&e.message||e);})
+    .then(function(){cloudBusy=false;if(cloudPending){var o=cloudPending;cloudPending=null;cloudPut(o);}});
+}
+function snapshot(phase,turn){
+  if(U.role!=='solo'||!S.running||!S.players.length)return;
+  var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,
+    cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,
+    result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner}:S.result?{type:'draw'}:null,
+    players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,wind:p.wind,drawn:p.drawn};})};
+  var str;try{str=JSON.stringify(o);}catch(e){return;}
+  try{localStorage.setItem(SAVE_KEY,str);}catch(e){}
+  cloudPut(JSON.parse(str));
+}
+function validSave(o){
+  return !!(o&&o.v===1&&Array.isArray(o.players)&&o.players.length>=2&&o.players.length<=4&&Array.isArray(o.wall)&&(o.phase==='turn'||o.phase==='over'));
+}
+function readLocalSave(){try{var o=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');return validSave(o)?o:null;}catch(e){return null;}}
+function dropSave(skipCloud){
+  U.saved=null;
+  try{localStorage.removeItem(SAVE_KEY);}catch(e){}
+  if(cloudOn()&&!skipCloud){cloudPending=null;cloudCall('delete_game',{p_code:saveCode()}).catch(function(){});}
+}
+function loadCloudSave(code,manual){
+  if(!cloudOn())return;
+  cloudCall('load_game',{p_code:normCode(code)}).then(function(o){
+    if(validSave(o)&&(!U.saved||o.ts>U.saved.ts)){U.saved=o;if(manual){try{localStorage.setItem(CODE_KEY,normCode(code));}catch(e){}try{localStorage.setItem(SAVE_KEY,JSON.stringify(o));}catch(e){}}U.notice='';render();}
+    else if(manual){U.notice='搵唔到呢個存檔碼嘅牌局。';render();}
+  },function(){if(manual){U.notice='連唔到伺服器,請稍後再試。';render();}});
+}
+function resumeGame(){
+  var o=U.saved;if(!validSave(o))return;
+  U.role='solo';U.notice='';
+  S.token++;S.asks={};S.ready={};S.call=null;
+  S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+  S.wall=o.wall;S.discN=o.discN;S.last=o.last;S.cur=o.cur;
+  S.players=o.players.map(function(p){return {id:p.id,name:p.name,human:p.human,remote:false,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,wind:p.wind,drawn:p.drawn};});
+  S.running=true;U.screen='game';U.rules=false;U.modalHidden=false;U.saved=null;
+  if(o.phase==='over'){
+    S.over=true;S.result=o.result;S.msg='';
+    nextHand();
+  }else{S.over=false;S.result=null;runGame(o.turn||{});}
+  render();
+}
+
 /* ---------- game flow (host / single player) ---------- */
 function callout(i,text){var id=++callId;S.call={i:i,text:text,id:id};render();setTimeout(function(){if(S.call&&S.call.id===id){S.call=null;render();}},1100);}
 function buildWall(){
@@ -856,28 +935,34 @@ function endWin(w,from,ev,self,tile){
   S.over=true;S.ready={};S.winTile=tile;S.last=null;S.result={type:'win',winner:w,from:from,self:self,ev:ev,deltas:deltas};
   S.msg=P[w].name+(self?' 自摸':' 食糊');
   callout(w,self?'自摸':'胡');
+  snapshot('over');
   render();
 }
 function endDraw(){
   S.over=true;S.ready={};S.last=null;S.result={type:'draw'};S.msg='流局';
+  snapshot('over');
   S.players.forEach(function(p){p.drawn=null;});
   render();
 }
 
-async function playHand(){
+async function playHand(resume){
   var n=S.n,P=S.players,d=S.dealer,k;
-  S.wall=buildWall();S.over=false;S.last=null;S.result=null;S.winTile=null;S.discN=0;S.call=null;S.ready={};
-  S.msg='洗牌、起牌…';
-  P.forEach(function(p,i){p.hand=[];p.melds=[];p.flowers=[];p.discards=[];p.drawn=null;p.wind=(i-d+n)%n;});
-  for(var r=0;r<13;r++)for(k=0;k<n;k++)P[(d+k)%n].hand.push(S.wall.shift());
-  for(k=0;k<n;k++)replaceFlowers(P[(d+k)%n]);
-  P.forEach(sortHand);
-  S.cur=d;render();await T(700);
-  var mode='draw',kongDraw=false;
+  S.over=false;S.result=null;S.winTile=null;S.call=null;S.ready={};
+  if(!resume){
+    S.wall=buildWall();S.last=null;S.discN=0;
+    S.msg='洗牌、起牌…';
+    P.forEach(function(p,i){p.hand=[];p.melds=[];p.flowers=[];p.discards=[];p.drawn=null;p.wind=(i-d+n)%n;});
+    for(var r=0;r<13;r++)for(k=0;k<n;k++)P[(d+k)%n].hand.push(S.wall.shift());
+    for(k=0;k<n;k++)replaceFlowers(P[(d+k)%n]);
+    P.forEach(sortHand);
+    S.cur=d;render();await T(700);
+  }else{S.msg='繼續上次牌局';render();await T(400);}
+  var mode=resume?'resume':'draw',kongDraw=false;
   for(;;){
     var p=P[S.cur];
     var heaven=false;
-    if(mode==='draw'){if(!drawTile(p,false))return endDraw();kongDraw=false;heaven=(S.cur===d&&S.discN===0);}
+    if(mode==='resume'){kongDraw=!!resume.kongDraw;heaven=!!resume.heaven;mode=resume.claimed?'claimed':'resumed';}
+    else if(mode==='draw'){if(!drawTile(p,false))return endDraw();kongDraw=false;heaven=(S.cur===d&&S.discN===0);}
     else if(mode==='kongdraw'){if(!drawTile(p,true))return endDraw();kongDraw=true;}
     render();
     var ev=null,kongs=[];
@@ -886,7 +971,7 @@ async function playHand(){
       kongs=kongOptions(p);
     }
     var act;
-    if(p.human){act=await ask(S.cur,'turn',{ev:ev,kongs:kongs,claimed:mode==='claimed'});}
+    if(p.human){snapshot('turn',{claimed:mode==='claimed',kongDraw:kongDraw,heaven:heaven});act=await ask(S.cur,'turn',{ev:ev,kongs:kongs,claimed:mode==='claimed'});}
     else{S.msg=p.name+' 思考中…';render();await T(650);act=aiTurn(p,ev,kongs);}
     if(act.a==='win')return endWin(S.cur,null,ev,true,p.drawn);
     if(act.a==='kong'){
@@ -904,7 +989,7 @@ async function playHand(){
     await T(300);
   }
 }
-function runGame(){playHand().catch(function(e){if(e!==CANCEL)console.error(e);});}
+function runGame(resume){playHand(resume).catch(function(e){if(e!==CANCEL)console.error(e);});}
 
 function startGame(){
   S.token++;S.asks={};S.ready={};
@@ -922,6 +1007,7 @@ function startGame(){
   }
   mem.forEach(function(m,j){if(j>=n-1)m.seat=-1;});
   S.dealer=0;S.round=0;S.handNo=1;S.lian=0;S.over=false;S.running=true;
+  if(U.role==='solo')dropSave(true);
   U.screen='game';U.rules=false;U.modalHidden=false;
   runGame();render();
 }
@@ -1181,7 +1267,7 @@ function leaveAll(){
   var pend=NET.pend||[];NET.pend=[];pend.forEach(function(c){try{c.close();}catch(e){}});
   var hub=NET.hub;NET.hub=null;if(hub)setTimeout(function(){hub.close();},250);
   if(peer){setTimeout(function(){try{peer.destroy();}catch(e){}},300);}
-  U.role='solo';U.screen='setup';U.code='';V=null;U.modalHidden=false;U.rules=false;
+  U.role='solo';U.screen='setup';U.code='';V=null;U.modalHidden=false;U.rules=false;U.saved=readLocalSave();
 }
 function answer(v){
   var a=V&&V.ask;if(!a)return;
@@ -1295,10 +1381,24 @@ function drawDock(){
   els.dock.innerHTML='<div class="actions">'+acts+'</div><div class="hand'+(on?'':' off')+'">'+hh+'</div>';
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
+function savedHTML(){
+  var h='',o=U.saved;
+  if(o){
+    var me=o.players.filter(function(p){return p.human;})[0]||o.players[0];
+    h+='<div class="resume"><b>有一局未打完</b><span>'+WIND[o.round]+'風圈 · 第'+o.handNo+'局 · '+o.n+' 人 · 你 '+me.score.toLocaleString()+' 分'+
+       '</span><div class="opts"><button class="btn pri" data-act="resume">繼續牌局</button><button class="btn" data-act="dropsave">放棄</button></div></div>';
+  }
+  if(cloudOn()){
+    h+='<p class="note">存檔碼(換機輸入呢個碼就可以繼續):<b class="mono">'+esc(fmtCode(saveCode()))+'</b></p>'+
+       '<div class="opts"><input class="inp code" id="savecode" maxlength="19" autocomplete="off" placeholder="輸入存檔碼" value="'+esc(U.codeInput||'')+'"><button class="btn" data-act="loadcode">讀取存檔</button></div>';
+  }
+  return h;
+}
 function setupHTML(){
   var c=U.cfg,ok=netOK();
   return '<div class="ov"><div class="sheet"><h2>港式麻雀</h2><p>你坐東位。可以對電腦,亦可以開房叫朋友一齊打(同一個網頁,淨係用瀏覽器)。用 144 隻牌(連花牌)。</p>'+
     (U.notice?'<p class="warn">'+esc(U.notice)+'</p>':'')+
+    savedHTML()+
     '<h3>你嘅名(多人對戰用)</h3><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'">'+
     '<h3>幾多個座位?</h3>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+
     '<h3>起糊番數</h3>'+chipRow('cfgF',[1,2,3],c.minFan,function(v){return v+' 番'+(v===3?'(標準)':'');})+
@@ -1390,6 +1490,9 @@ function handleAct(act,b){
   else if(act==='cfgF'){U.cfg.minFan=+v;render();}
   else if(act==='cfgL'){U.cfg.level=+v;render();}
   else if(act==='solo'){U.role='solo';U.notice='';startGame();}
+  else if(act==='resume')resumeGame();
+  else if(act==='dropsave'){dropSave();render();}
+  else if(act==='loadcode'){loadCloudSave(U.codeInput||'',true);}
   else if(act==='host')hostOpen();
   else if(act==='join')joinRoom();
   else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code)startGame();}
@@ -1430,6 +1533,7 @@ function onInput(e){
   var id=e.target&&e.target.id;
   if(id==='pname'){U.name=e.target.value;try{localStorage.setItem('mj_name',U.name);}catch(x){}}
   else if(id==='roomcode'){U.roomInput=e.target.value.toUpperCase();}
+  else if(id==='savecode'){U.codeInput=e.target.value.toUpperCase();}
 }
 function boot(){
   els.opps=document.getElementById('opps');els.mid=document.getElementById('mid');els.me=document.getElementById('me');
@@ -1437,6 +1541,8 @@ function boot(){
   document.addEventListener('click',onClick);
   document.addEventListener('input',onInput);
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
+  U.saved=readLocalSave();
+  if(cloudOn())loadCloudSave(saveCode(),false);
   var m=/[?&#]room=([A-Za-z0-9]+)/.exec((location.search||'')+(location.hash||''));
   if(m)U.roomInput=m[1].toUpperCase();
   setInterval(function(){
@@ -1445,7 +1551,7 @@ function boot(){
   },3000);
   render();
 }
-window.__mj={LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
+window.__mj={resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>
