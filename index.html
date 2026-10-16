@@ -705,7 +705,24 @@ function netOK(){return (typeof window!=='undefined')&&((typeof window.Peer==='f
 function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function(){if(tok===S.token)res();else rej(CANCEL);},ms*S.speed);});}
 
 /* ---------- 自動聽牌: when exactly 1 tile from winning (tenpai), the game waits for the winning tile and discards the rest ---------- */
-function autoSh(p){if(!p||!S.running||S.over||!p.hand.length)return 99;return shanten(cnt(p.hand),p.melds.length);}
+/* returns 0 only when the hand is one tile from winning AND at least one of the winning tiles is worth enough fan (>= minFan) */
+function autoSh(p){
+  if(!p||!S.running||S.over||!p.hand.length)return 99;
+  var m=p.melds.length,key=p.hand.join(',')+'|'+m+'|'+S.minFan+'|'+S.discN+'|'+p.melds.map(function(x){return x.tiles.join('');}).join(';');
+  if(p._ak===key)return p._av;
+  var c=cnt(p.hand),res=99,vis=visible(p),t;
+  if(p.hand.length%3===2){
+    var seen={};
+    for(t=0;t<34&&res!==0;t++){
+      if(!c[t]||seen[t])continue;seen[t]=1;
+      c[t]--;
+      if(shanten(c,m)===0&&waitValue(p,handWithout(p.hand,t),vis)>0)res=0;
+      c[t]++;
+    }
+  }else if(shanten(c,m)===0&&waitValue(p,p.hand,vis)>0)res=0;
+  p._ak=key;p._av=res;
+  return res;
+}
 function autoHumanAnswer(p,a){
   var o=a.opts;
   if(o.ev&&o.ev.fan>=S.minFan)return {a:'win'};
