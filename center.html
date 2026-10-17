@@ -61,8 +61,13 @@ button{font:inherit;color:inherit}
 .meld,.fl,.reveal{display:inline-flex;gap:1px;--tw:var(--mw)}
 .fl{--tw:calc(var(--rw)*.95)}
 /* rack: hidden tiles, a divider, then open melds and flowers on one continuous strip */
-.rack{display:flex;flex-wrap:wrap;align-items:flex-end;gap:4px 0;min-width:0;padding:6px 8px 7px;border-radius:8px;background:linear-gradient(180deg,#2f6b58,#25574a);box-shadow:inset 0 1px 0 rgba(255,255,255,.15)}
-.rack .backs{--tw:11px;flex-wrap:nowrap}
+.rack{display:flex;flex-wrap:wrap;align-items:flex-end;gap:4px 0;min-width:0;padding:6px 8px 7px;border-radius:8px;background:linear-gradient(180deg,#2f3540,#262b34);border:1px solid #1c2027;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.rack .backs{--tw:15px;flex-wrap:nowrap;gap:6px}
+.rack .grp{display:inline-flex;gap:1px}
+.rack .t.back{background:repeating-linear-gradient(135deg,#9ed3dc 0 2px,#7fbfcb 2px 5px);box-shadow:inset 0 0 0 1px #5a9aa6,0 calc(var(--tw)*.07) 0 #3d7480,0 calc(var(--tw)*.12) calc(var(--tw)*.1) rgba(0,0,0,.3)}
+.numbadge{margin-left:auto;font:900 12px/1 var(--sans);background:var(--surface-2);border:1px solid var(--line-2);border-radius:999px;padding:3px 9px;white-space:nowrap}
+.numbadge b{font:900 17px/1 var(--sans);color:var(--accent);margin-right:2px}
+.numbadge+.sc{margin-left:8px}
 .rack .backs+.sep,.rack .reveal+.sep,.rack .backs+.fl,.rack .reveal+.fl{margin-left:auto}
 .rack .sep{flex:none;width:2px;align-self:stretch;margin:0 9px;background:rgba(255,255,255,.3);border-radius:1px}
 .rack .meld{--tw:var(--mw)}
@@ -160,8 +165,7 @@ button{font:inherit;color:inherit}
   .sh{gap:6px}
   .nm{font-size:15px}
   .cnt{display:inline;color:var(--muted);font:500 12px var(--sans);white-space:nowrap}
-  .backs{display:none}
-  .rack.bare{display:none}
+  .rack .backs{--tw:12px;gap:5px}
   .rack{padding:5px 8px 6px}
   .rack.me{flex-direction:column;align-items:stretch;padding:0 6px 8px}
   .rack.me .rm{justify-content:flex-end;border-top:1px solid rgba(255,255,255,.28);padding-top:6px;margin-top:2px}
@@ -1435,9 +1439,10 @@ function riverHTMLOld(p,i){
 }
 function headHTML(p,i,k){
   var call=(V.call&&V.call.i===i)?'<span class="call">'+esc(V.call.text)+'</span>':'';
-  var tag=k===0?(p.name==='你'?'':'<span class="rel">你</span>'):'<span class="rel">'+relLabel(k,V.n)+(p.human&&V.players.filter(function(q){return q.human;}).length>1?' · 真人':'')+'</span><span class="cnt">手牌 '+p.n+'</span>';
+  var tag=k===0?(p.name==='你'?'':'<span class="rel">你</span>'):'<span class="rel">'+relLabel(k,V.n)+(p.human&&V.players.filter(function(q){return q.human;}).length>1?' · 真人':'')+'</span>';
   return call+'<div class="sh"><span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span>'+tag+
     (i===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+
+    (k>0&&!V.over?'<span class="numbadge"><b>'+p.n+'</b>張</span>':'')+
     '<span class="sc">'+p.score.toLocaleString()+'</span></div>';
 }
 function seatClass(i){return 'seat'+((V&&V.cur===i&&!V.over)?' on':'');}
@@ -1447,7 +1452,7 @@ function drawOpps(){
     for(var k=1;k<V.n;k++){
       var i=(V.me+k)%V.n,p=V.players[i],body;
       if(V.over&&p.hand)body='<span class="reveal">'+faces(p.hand)+'</span>';
-      else body='<span class="backs">'+new Array(p.n+1).join(BACK)+'</span>';
+      else{var gs=[],rest=p.n;while(rest>0){var g=Math.min(5,rest);gs.push('<span class="grp">'+new Array(g+1).join(BACK)+'</span>');rest-=g;}body='<span class="backs">'+gs.join('')+'</span>';}
       var hasOpen=p.melds.length||p.flowers.length;
       h+='<article class="'+seatClass(i)+'">'+headHTML(p,i,k)+'<div class="rack'+(hasOpen?'':' bare')+'">'+body+(p.melds.length?'<span class="sep"></span>'+meldsHTML(p,false):'')+flowersHTML(p)+'</div></article>';
     }
