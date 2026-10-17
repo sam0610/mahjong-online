@@ -187,8 +187,10 @@ button{font:inherit;color:inherit}
 var CANCEL={cancel:true};
 var NUM=['一','二','三','四','五','六','七','八','九'];
 var SUIT=['萬','筒','索'], WIND=['東','南','西','北'], DRAG=['中','發','白'], FLOW=['春','夏','秋','冬','梅','蘭','菊','竹'];
-var PTS={0:1,1:2,2:4,3:8,4:16,5:24,6:32,7:48,8:64,9:96,10:128};
-var CAP=10;
+/* money per fan: PTS = discarder pays in full, PSELF = each player pays on a self-draw; cap is 8 fan */
+var PTS={0:1,1:2,2:5,3:16,4:32,5:48,6:64,7:96,8:128};
+var PSELF={0:1,1:1,2:3,3:8,4:16,5:24,6:32,7:48,8:64};
+var CAP=8;
 var AI_NAMES=['陳太','肥仔','阿Sir'];
 var COARSE=(typeof matchMedia!=='undefined')&&matchMedia('(pointer: coarse)').matches;
 
@@ -523,7 +525,7 @@ function waitValue(p,h13,vis){
       var ro=evalWith(p,u,{self:false,round:S.round,last:false});
       var v=0;
       if(ro&&ro.fan>=S.minFan)v+=PTS[ro.fan];
-      if(so&&so.fan>=S.minFan)v+=0.5*PTS[so.fan];
+      if(so&&so.fan>=S.minFan)v+=PSELF[so.fan];
       tot+=rem*v/8;
     }
   }finally{p.hand=save;}
@@ -1019,7 +1021,7 @@ function endWin(w,from,ev,self,tile){
   var P=S.players,base=PTS[ev.fan],deltas=P.map(function(){return 0;});
   if(!self){P[from].discards.pop();P[w].hand.push(tile);}
   sortHand(P[w]);
-  if(self){var each=Math.ceil(base/2);P.forEach(function(p,i){if(i!==w){deltas[i]-=each;deltas[w]+=each;}});}
+  if(self){var each=PSELF[ev.fan];P.forEach(function(p,i){if(i!==w){deltas[i]-=each;deltas[w]+=each;}});}
   else{deltas[from]-=base;deltas[w]+=base;}
   P.forEach(function(p,i){p.score+=deltas[i];p.drawn=null;});
   S.over=true;S.ready={};S.winTile=tile;S.last=null;S.result={type:'win',winner:w,from:from,self:self,ev:ev,deltas:deltas};
@@ -1529,15 +1531,15 @@ function lobbyHTML(){
 function rulesHTML(){
   return '<div class="ov"><div class="sheet rules"><h2>規則</h2>'+
   '<h3>基本</h3><ul><li>144 隻牌:萬、筒、索各 1–9 四隻,東南西北、中發白各四隻,另有 8 隻花牌。</li><li>每人 13 隻,莊家先摸牌。摸到花牌即時補花,由牌尾補一隻。</li><li>糊牌需要 4 組面子(順、刻、槓)加一對將,或者十三么。</li><li>「上」只可以上家(你左手邊)打出的牌;碰、槓任何人都可以。糊牌優先於碰槓,碰槓優先於上。</li><li>牌牆摸晒(冇留牌尾)即流局,莊家連莊。</li></ul>'+
-  '<h3>起糊與計分</h3><ul><li>要夠起糊番數(預設 3 番)先可以糊牌,否則唔可以糊。</li><li>食糊:出銃者全付。自摸:其餘每家各付一半。</li><li>莊家糊牌或流局連莊,否則輪莊;輪完一圈,風圈由東轉南。</li></ul>'+
+  '<h3>起糊與計分</h3><ul><li>要夠起糊番數(預設 3 番)先可以糊牌,否則唔可以糊。</li><li>食糊:出銃者全付。自摸:其餘每家各付自摸價(見下面番數對照)。封頂 8 番。</li><li>莊家糊牌或流局連莊,否則輪莊;輪完一圈,風圈由東轉南。</li></ul>'+
   '<h3>番種</h3><dl class="ft">'+
   '<dt>1 番</dt><dd>無花、正花(每隻)、自摸、門前清、平糊、圈風、門風、三元牌(每副)、槓上開花、海底撈月、河底撈魚</dd>'+
   '<dt>2 番</dt><dd>一台花(春夏秋冬或梅蘭菊竹齊四隻,額外計)</dd>'+
   '<dt>3 番</dt><dd>對對糊、混一色</dd>'+
   '<dt>5–6 番</dt><dd>小三元 5、小四喜 6</dd>'+
   '<dt>7–8 番</dt><dd>清一色 7、混么九 7、大三元 8</dd>'+
-  '<dt>滿貫</dt><dd>十三么、天糊、字一色、清么九、大四喜、十八羅漢、八仙過海(封頂 10 番)</dd></dl>'+
-  '<h3>番數對照</h3><dl class="ft"><dt>3 / 4 / 5 / 6</dt><dd>8 / 16 / 24 / 32</dd><dt>7 / 8 / 9 / 10</dt><dd>48 / 64 / 96 / 128</dd></dl>'+
+  '<dt>滿貫</dt><dd>十三么、天糊、字一色、清么九、大四喜、十八羅漢、八仙過海(封頂 8 番)</dd></dl>'+
+  '<h3>番數對照(出銃全付 / 自摸每家付)</h3><dl class="ft"><dt>1 番</dt><dd>$2 / $1</dd><dt>2 番</dt><dd>$5 / $3</dd><dt>3 番</dt><dd>$16 / $8</dd><dt>4 番</dt><dd>$32 / $16</dd><dt>5 番</dt><dd>$48 / $24</dd><dt>6 番</dt><dd>$64 / $32</dd><dt>7 番</dt><dd>$96 / $48</dd><dt>8 番(滿糊)</dt><dd>$128 / $64</dd></dl>'+
   '<h3>多人對戰</h3><ul><li>房主嘅瀏覽器負責行牌局,其他人先試 WebRTC 直連房主,連唔到會自動轉用備用線路(公共 MQTT 伺服器)。房主要保持網頁開住。</li><li>有人斷線,佢嗰個座位會由電腦代打。有人太耐冇反應,房主可以按「由電腦代打」。</li><li>每局完要所有真人都按「下一局」先會開下一局。</li></ul>'+
   '<p>未有搶槓、七對子、坎坎糊、地糊。</p>'+
   '<div class="opts"><button class="btn pri" data-act="closeRules">明白</button></div></div></div>';
