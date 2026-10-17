@@ -63,13 +63,14 @@ button{font:inherit;color:inherit}
 /* rack: hidden tiles, a divider, then open melds and flowers on one continuous strip */
 .rack{display:flex;flex-wrap:wrap;align-items:flex-end;gap:4px 0;min-width:0;padding:6px 8px 7px;border-radius:8px;background:linear-gradient(180deg,#2f6b58,#25574a);box-shadow:inset 0 1px 0 rgba(255,255,255,.15)}
 .rack .backs{--tw:11px;flex-wrap:nowrap}
+.rack .backs+.sep,.rack .reveal+.sep,.rack .backs+.fl,.rack .reveal+.fl{margin-left:auto}
 .rack .sep{flex:none;width:2px;align-self:stretch;margin:0 9px;background:rgba(255,255,255,.3);border-radius:1px}
 .rack .meld{--tw:var(--mw)}
 .rack .fl{--tw:var(--mw);gap:1px;margin-left:10px;align-self:flex-end}
 .rack .reveal{--tw:var(--mw)}
 .rack.me{padding:0 10px 8px;gap:4px 0;flex-wrap:wrap}
 .rack.me .hand{padding-top:16px;flex:0 1 auto;min-height:0}
-.rack.me .rm{display:flex;align-items:flex-end;min-width:0;padding-bottom:1px}
+.rack.me .rm{display:flex;align-items:flex-end;min-width:0;padding-bottom:1px;margin-left:auto}
 .rack.me .rm:empty{display:none}
 .rack.me .meld,.rack.me .fl{--tw:calc(var(--hw)*.8)}
 .reveal{flex-wrap:wrap}
@@ -163,7 +164,7 @@ button{font:inherit;color:inherit}
   .rack.bare{display:none}
   .rack{padding:5px 8px 6px}
   .rack.me{flex-direction:column;align-items:stretch;padding:0 6px 8px}
-  .rack.me .rm{justify-content:center;border-top:1px solid rgba(255,255,255,.28);padding-top:6px;margin-top:2px}
+  .rack.me .rm{justify-content:flex-end;border-top:1px solid rgba(255,255,255,.28);padding-top:6px;margin-top:2px}
   .rack.me .rm .sep{display:none}
   .rack.me .meld,.rack.me .fl{--tw:clamp(24px,7.4vw,34px)}
   .rack.me .hand{justify-content:center}
