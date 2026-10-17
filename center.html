@@ -88,6 +88,24 @@ button{font:inherit;color:inherit}
 .mid .lastd{display:inline-flex;align-items:center;gap:8px;--tw:28px}
 .mid b{color:var(--ink);font:700 14px var(--mono);font-variant-numeric:tabular-nums}
 
+
+/* new-game screen: two steps (settings, then how to play) */
+.sheet.setup{gap:12px}
+.shead{display:flex;align-items:center;gap:12px}
+.shead .t{--tw:38px}
+.shead h2{letter-spacing:.2em}
+.shead p{font-size:13px}
+.step{display:grid;gap:8px}
+.step>h4{margin:0;display:flex;gap:8px;align-items:center;font:900 14px var(--sans)}
+.step>h4 i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--surface);display:grid;place-items:center;font-size:12px}
+.step .card{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:12px}
+.step .lab{display:block;font:700 12px/1 var(--sans);letter-spacing:.08em;color:var(--muted);margin:0 0 6px}
+.step .opts .chip{flex:1 1 0;white-space:nowrap;padding:0 6px}
+.step .chip small{font-size:11px;font-weight:400;opacity:.75;margin-left:3px}
+.step .btn.block{width:100%;min-height:48px;justify-content:center;font-weight:700}
+.step .hr{height:1px;background:var(--line);border:0;margin:0}
+.step .note{margin:6px 0 0}
+.link{color:var(--accent);font:500 13px var(--sans);text-decoration:underline;background:none;border:0;padding:4px 0;cursor:pointer}
 /* central discard pool */
 .pond{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px 12px;display:grid;gap:8px;min-width:0}
 .pond .plg{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;font-size:12px;color:var(--muted)}
@@ -1559,16 +1577,23 @@ function savedHTML(){
 }
 function setupHTML(){
   var c=U.cfg,ok=netOK();
-  return '<div class="ov"><div class="sheet"><h2>港式麻雀</h2><p>你坐東位。可以對電腦,亦可以開房叫朋友一齊打(同一個網頁,淨係用瀏覽器)。用 144 隻牌(連花牌)。</p>'+
+  var lvNote=c.level===1?'普通:基本打法':c.level===2?'高手:識防守、計番數':'大師:深度計算、精準防守';
+  return '<div class="ov"><div class="sheet setup"><div class="shead">'+tileEl(27,'')+'<div><h2>港式麻雀</h2><p>你坐東位 · 144 隻牌(連花牌)</p></div></div>'+
     (U.notice?'<p class="warn">'+esc(U.notice)+'</p>':'')+
     savedHTML()+
-    '<h3>你嘅名(多人對戰用)</h3><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'">'+
-    '<h3>幾多個座位?</h3>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+
-    '<h3>起糊番數</h3>'+chipRow('cfgF',[1,2,3],c.minFan,function(v){return v+' 番'+(v===3?'(標準)':'');})+
-    '<h3>電腦強度</h3>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手(識防守、計番數)':'大師(深度計算、精準防守)';})+
-    '<div class="opts"><button class="btn pri" data-act="solo">單人對電腦</button><button class="btn" data-act="host"'+(ok?'':' disabled')+'>開房同朋友打</button><button class="btn" data-act="rules">睇規則</button></div>'+
-    '<h3>加入朋友嘅房間</h3><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="房號" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
-    (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
+    '<div class="step"><h4><i>1</i>牌局設定</h4><div class="card">'+
+      '<div><span class="lab">你嘅名(多人對戰用)</span><div class="opts"><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'"></div></div>'+
+      '<div><span class="lab">座位數</span>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+'</div>'+
+      '<div><span class="lab">起糊番數</span>'+chipRow('cfgF',[1,2,3],c.minFan,function(v){return v+' 番'+(v===3?' <small>標準</small>':'');})+'</div>'+
+      '<div><span class="lab">電腦強度</span>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手':'大師';})+'<p class="note">'+lvNote+'</p></div>'+
+    '</div></div>'+
+    '<div class="step"><h4><i>2</i>點樣玩</h4><div class="card">'+
+      '<button class="btn pri block" data-act="solo">單人對電腦</button>'+
+      '<button class="btn block" data-act="host"'+(ok?'':' disabled')+'>開房同朋友打</button>'+
+      '<hr class="hr"><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="輸入房號加入" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
+      (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
+    '</div></div>'+
+    '<div class="opts"><button class="link" data-act="rules">睇規則</button></div>'+
     '</div></div>';
 }
 function lobbyHTML(){
