@@ -525,7 +525,7 @@ function waitValue(p,h13,vis){
       var ro=evalWith(p,u,{self:false,round:S.round,last:false});
       var v=0;
       if(ro&&ro.fan>=S.minFan)v+=PTS[ro.fan];
-      if(so&&so.fan>=S.minFan)v+=PSELF[so.fan];
+      if(so&&so.fan>=S.minFan)v+=(S.n===2?PTS[so.fan]:PSELF[so.fan]);
       tot+=rem*v/8;
     }
   }finally{p.hand=save;}
@@ -1021,7 +1021,7 @@ function endWin(w,from,ev,self,tile){
   var P=S.players,base=PTS[ev.fan],deltas=P.map(function(){return 0;});
   if(!self){P[from].discards.pop();P[w].hand.push(tile);}
   sortHand(P[w]);
-  if(self){var each=PSELF[ev.fan];P.forEach(function(p,i){if(i!==w){deltas[i]-=each;deltas[w]+=each;}});}
+  if(self){var each=S.n===2?PTS[ev.fan]:PSELF[ev.fan];   /* 2 players: self-draw is paid in full like a discard win */P.forEach(function(p,i){if(i!==w){deltas[i]-=each;deltas[w]+=each;}});}
   else{deltas[from]-=base;deltas[w]+=base;}
   P.forEach(function(p,i){p.score+=deltas[i];p.drawn=null;});
   S.over=true;S.ready={};S.winTile=tile;S.last=null;S.result={type:'win',winner:w,from:from,self:self,ev:ev,deltas:deltas};
@@ -1531,7 +1531,7 @@ function lobbyHTML(){
 function rulesHTML(){
   return '<div class="ov"><div class="sheet rules"><h2>規則</h2>'+
   '<h3>基本</h3><ul><li>144 隻牌:萬、筒、索各 1–9 四隻,東南西北、中發白各四隻,另有 8 隻花牌。</li><li>每人 13 隻,莊家先摸牌。摸到花牌即時補花,由牌尾補一隻。</li><li>糊牌需要 4 組面子(順、刻、槓)加一對將,或者十三么。</li><li>「上」只可以上家(你左手邊)打出的牌;碰、槓任何人都可以。糊牌優先於碰槓,碰槓優先於上。</li><li>牌牆摸晒(冇留牌尾)即流局,莊家連莊。</li></ul>'+
-  '<h3>起糊與計分</h3><ul><li>要夠起糊番數(預設 3 番)先可以糊牌,否則唔可以糊。</li><li>食糊:出銃者全付。自摸:其餘每家各付自摸價(見下面番數對照)。封頂 8 番。</li><li>莊家糊牌或流局連莊,否則輪莊;輪完一圈,風圈由東轉南。</li></ul>'+
+  '<h3>起糊與計分</h3><ul><li>要夠起糊番數(預設 3 番)先可以糊牌,否則唔可以糊。</li><li>食糊:出銃者全付。自摸:其餘每家各付自摸價(見下面番數對照)。封頂 8 番。兩個人玩時自摸都係全付(同出銃一樣)。</li><li>莊家糊牌或流局連莊,否則輪莊;輪完一圈,風圈由東轉南。</li></ul>'+
   '<h3>番種</h3><dl class="ft">'+
   '<dt>1 番</dt><dd>無花、正花(每隻)、自摸、門前清、平糊、圈風、門風、三元牌(每副)、槓上開花、海底撈月、河底撈魚</dd>'+
   '<dt>2 番</dt><dd>一台花(春夏秋冬或梅蘭菊竹齊四隻,額外計)</dd>'+
