@@ -60,6 +60,18 @@ button{font:inherit;color:inherit}
 .backs{display:flex;gap:1px;--tw:13px;flex-wrap:wrap}
 .meld,.fl,.reveal{display:inline-flex;gap:1px;--tw:var(--mw)}
 .fl{--tw:calc(var(--rw)*.95)}
+/* rack: hidden tiles, a divider, then open melds and flowers on one continuous strip */
+.rack{display:flex;flex-wrap:wrap;align-items:flex-end;gap:4px 0;min-width:0;padding:6px 8px 7px;border-radius:8px;background:linear-gradient(180deg,#2f6b58,#25574a);box-shadow:inset 0 1px 0 rgba(255,255,255,.15)}
+.rack .backs{--tw:11px;flex-wrap:nowrap}
+.rack .sep{flex:none;width:2px;align-self:stretch;margin:0 9px;background:rgba(255,255,255,.3);border-radius:1px}
+.rack .meld{--tw:var(--mw)}
+.rack .fl{--tw:var(--mw);gap:1px;margin-left:10px;align-self:flex-end}
+.rack .reveal{--tw:var(--mw)}
+.rack.me{padding:0 10px 8px;gap:4px 0;flex-wrap:wrap}
+.rack.me .hand{padding-top:16px;flex:0 1 auto;min-height:0}
+.rack.me .rm{display:flex;align-items:flex-end;min-width:0;padding-bottom:1px}
+.rack.me .rm:empty{display:none}
+.rack.me .meld,.rack.me .fl{--tw:calc(var(--hw)*.8)}
 .reveal{flex-wrap:wrap}
 .river{display:flex;flex-wrap:wrap;gap:4px 2px;--tw:var(--rw);min-height:calc(var(--rw)*1.36 + 6px);align-content:flex-start;padding-top:8px;border-top:1px solid var(--line)}
 .call{position:absolute;right:12px;top:-15px;background:var(--hot);color:#fff;font:900 22px/1 var(--sans);padding:8px 14px;border-radius:8px;animation:pop 1.1s ease-out forwards;z-index:2;box-shadow:0 4px 14px rgba(30,40,60,.3)}
@@ -148,6 +160,13 @@ button{font:inherit;color:inherit}
   .nm{font-size:15px}
   .cnt{display:inline;color:var(--muted);font:500 12px var(--sans);white-space:nowrap}
   .backs{display:none}
+  .rack.bare{display:none}
+  .rack{padding:5px 8px 6px}
+  .rack.me{flex-direction:column;align-items:stretch;padding:0 6px 8px}
+  .rack.me .rm{justify-content:center;border-top:1px solid rgba(255,255,255,.28);padding-top:6px;margin-top:2px}
+  .rack.me .rm .sep{display:none}
+  .rack.me .meld,.rack.me .fl{--tw:clamp(24px,7.4vw,34px)}
+  .rack.me .hand{justify-content:center}
   .row{min-height:0;gap:4px 8px}
   .row:empty{display:none}
   .river{padding-top:6px;gap:3px 2px;min-height:0}
@@ -1428,7 +1447,8 @@ function drawOpps(){
       var i=(V.me+k)%V.n,p=V.players[i],body;
       if(V.over&&p.hand)body='<span class="reveal">'+faces(p.hand)+'</span>';
       else body='<span class="backs">'+new Array(p.n+1).join(BACK)+'</span>';
-      h+='<article class="'+seatClass(i)+'">'+headHTML(p,i,k)+'<div class="row">'+body+meldsHTML(p,false)+flowersHTML(p)+'</div>'+riverHTML(p,i)+'</article>';
+      var hasOpen=p.melds.length||p.flowers.length;
+      h+='<article class="'+seatClass(i)+'">'+headHTML(p,i,k)+'<div class="rack'+(hasOpen?'':' bare')+'">'+body+(p.melds.length?'<span class="sep"></span>'+meldsHTML(p,false):'')+flowersHTML(p)+'</div></article>';
     }
   }
   els.opps.innerHTML=h;
@@ -1438,7 +1458,7 @@ function drawMe(){
   els.me.hidden=false;
   var p=V.players[V.me];
   els.me.className=seatClass(V.me);
-  els.me.innerHTML=headHTML(p,V.me,0)+'<div class="row">'+meldsHTML(p,true)+flowersHTML(p)+'</div>'+riverHTML(p,V.me);
+  els.me.innerHTML=headHTML(p,V.me,0);
 }
 function drawPond(){
   if(!els.pond)return;
@@ -1512,7 +1532,8 @@ function drawDock(){
   var hh=list.map(function(t,i){return tileEl(t,U.sel==='h'+i?'sel':'','button').replace('<button','<button data-k="h'+i+'" aria-label="'+tname(t)+'"'+(on?'':' tabindex="-1"'));}).join('');
   if(drawn!==null)hh+='<span class="gap"></span>'+tileEl(drawn,(U.sel==='d'?'sel ':'')+'dr','button').replace('<button','<button data-k="d" aria-label="'+tname(drawn)+'"'+(on?'':' tabindex="-1"'));
   if(V.over)hh=faces(me.hand||[]);
-  els.dock.innerHTML='<div class="actions">'+acts+'</div><div class="hand'+(on?'':' off')+'">'+hh+'</div>';
+  var rm=(me.melds.length?'<span class="sep"></span>'+meldsHTML(me,true):'')+flowersHTML(me);
+  els.dock.innerHTML='<div class="actions">'+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
 function savedHTML(){
