@@ -120,6 +120,9 @@ button{font:inherit;color:inherit}
 /* dock */
 .dock{position:sticky;bottom:0;z-index:3;padding:14px 0 10px;background:linear-gradient(180deg,rgba(236,239,243,0),var(--bg) 22px)}
 .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:44px;margin-bottom:6px}
+.mep{display:inline-flex;align-items:center;gap:6px;margin-right:auto;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 12px 3px 4px;white-space:nowrap}
+.mep.on{border-color:var(--accent);box-shadow:0 0 0 3px rgba(10,127,156,.16)}
+.mep .sc{margin-left:4px}
 .note{color:var(--muted);font-size:13px}
 .bt{display:inline-flex;gap:1px;--tw:18px}
 .claimtile{display:inline-flex;--tw:30px;margin-right:4px}
@@ -199,7 +202,6 @@ button{font:inherit;color:inherit}
   .mid .lastd{--tw:34px}
   .dock{position:sticky;bottom:0;margin:0 -10px;padding:10px 10px max(10px,env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line-2);box-shadow:0 -6px 18px rgba(30,40,60,.1)}
   .actions{min-height:0;gap:8px;margin-bottom:8px}
-  .actions:empty{display:none}
   .actions .btn{height:48px;font-size:16px;padding:0 20px;flex:1 1 auto;justify-content:center}
   .actions .btn.win{font-size:19px;flex:1 1 100%}
   .actions .note{font-size:14px;flex:1 1 100%}
@@ -228,7 +230,6 @@ button{font:inherit;color:inherit}
   <section class="opps" id="opps"></section>
   <section class="pond" id="pond"></section>
   <section class="mid" id="mid"></section>
-  <section class="seat" id="me"></section>
   <div class="dock" id="dock"></div>
 </div>
 <div id="overlay"></div>
@@ -1480,11 +1481,7 @@ function drawOpps(){
   els.opps.innerHTML=h;
 }
 function drawMe(){
-  if(!V){els.me.innerHTML='';els.me.className='seat';els.me.hidden=true;return;}
-  els.me.hidden=false;
-  var p=V.players[V.me];
-  els.me.className=seatClass(V.me);
-  els.me.innerHTML=headHTML(p,V.me,0);
+  /* 自己資料已併入操作列(drawDock) */
 }
 function drawPond(){
   if(!els.pond)return;
@@ -1559,7 +1556,9 @@ function drawDock(){
   if(drawn!==null)hh+='<span class="gap"></span>'+tileEl(drawn,(U.sel==='d'?'sel ':'')+'dr','button').replace('<button','<button data-k="d" aria-label="'+tname(drawn)+'"'+(on?'':' tabindex="-1"'));
   if(V.over)hh=faces(me.hand||[]);
   var rm=(me.melds.length?'<span class="sep"></span>'+meldsHTML(me,true):'')+flowersHTML(me);
-  els.dock.innerHTML='<div class="actions">'+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
+  var mp=V.players[V.me],mturn=V.cur===V.me&&!V.over;
+  var mep=((V.call&&V.call.i===V.me)?'<span class="call">'+esc(V.call.text)+'</span>':'')+'<span class="mep'+(mturn?' on':'')+'"><span class="wchip">'+WIND[mp.wind]+'</span>'+(mp.name!=='你'?'<span class="nm">'+esc(mp.name)+'</span>':'')+(V.me===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+mp.score.toLocaleString()+'</span></span>';
+  els.dock.innerHTML='<div class="actions">'+mep+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
 function savedHTML(){
@@ -1730,7 +1729,7 @@ function onInput(e){
   else if(id==='savecode'){U.codeInput=e.target.value.toUpperCase();}
 }
 function boot(){
-  els.opps=document.getElementById('opps');els.mid=document.getElementById('mid');els.pond=document.getElementById('pond');els.me=document.getElementById('me');
+  els.opps=document.getElementById('opps');els.mid=document.getElementById('mid');els.pond=document.getElementById('pond');
   els.dock=document.getElementById('dock');els.overlay=document.getElementById('overlay');els.speed=document.getElementById('btnSpeed');
   document.addEventListener('click',onClick);
   document.addEventListener('input',onInput);
