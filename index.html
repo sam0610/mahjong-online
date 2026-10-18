@@ -60,6 +60,24 @@ button{font:inherit;color:inherit}
 .backs{display:flex;gap:1px;--tw:13px;flex-wrap:wrap}
 .meld,.fl,.reveal{display:inline-flex;gap:1px;--tw:var(--mw)}
 .fl{--tw:calc(var(--rw)*.95)}
+/* rack: hidden tiles, a divider, then open melds and flowers on one continuous strip */
+.rack{display:flex;flex-wrap:wrap;align-items:flex-end;gap:4px 0;min-width:0;padding:6px 8px 7px;border-radius:8px;background:linear-gradient(180deg,#2f3540,#262b34);border:1px solid #1c2027;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.rack .backs{--tw:15px;flex-wrap:nowrap;gap:6px}
+.rack .grp{display:inline-flex;gap:1px}
+.rack .t.back{background:repeating-linear-gradient(135deg,#9ed3dc 0 2px,#7fbfcb 2px 5px);box-shadow:inset 0 0 0 1px #5a9aa6,0 calc(var(--tw)*.07) 0 #3d7480,0 calc(var(--tw)*.12) calc(var(--tw)*.1) rgba(0,0,0,.3)}
+.numbadge{margin-left:auto;font:900 12px/1 var(--sans);background:var(--surface-2);border:1px solid var(--line-2);border-radius:999px;padding:3px 9px;white-space:nowrap}
+.numbadge b{font:900 17px/1 var(--sans);color:var(--accent);margin-right:2px}
+.numbadge+.sc{margin-left:8px}
+.rack .backs+.sep,.rack .reveal+.sep,.rack .backs+.fl,.rack .reveal+.fl{margin-left:auto}
+.rack .sep{flex:none;width:2px;align-self:stretch;margin:0 9px;background:rgba(255,255,255,.3);border-radius:1px}
+.rack .meld{--tw:var(--mw)}
+.rack .fl{--tw:var(--mw);gap:1px;margin-left:10px;align-self:flex-end}
+.rack .reveal{--tw:var(--mw)}
+.rack.me{padding:0 10px 8px;gap:4px 0;flex-wrap:wrap}
+.rack.me .hand{padding-top:16px;flex:0 1 auto;min-height:0}
+.rack.me .rm{display:flex;align-items:flex-end;min-width:0;padding-bottom:1px;margin-left:auto}
+.rack.me .rm:empty{display:none}
+.rack.me .meld,.rack.me .fl{--tw:calc(var(--hw)*.8)}
 .reveal{flex-wrap:wrap}
 .river{display:flex;flex-wrap:wrap;gap:4px 2px;--tw:var(--rw);min-height:calc(var(--rw)*1.36 + 6px);align-content:flex-start;padding-top:8px;border-top:1px solid var(--line)}
 .call{position:absolute;right:12px;top:-15px;background:var(--hot);color:#fff;font:900 22px/1 var(--sans);padding:8px 14px;border-radius:8px;animation:pop 1.1s ease-out forwards;z-index:2;box-shadow:0 4px 14px rgba(30,40,60,.3)}
@@ -70,6 +88,35 @@ button{font:inherit;color:inherit}
 .mid .lastd{display:inline-flex;align-items:center;gap:8px;--tw:28px}
 .mid b{color:var(--ink);font:700 14px var(--mono);font-variant-numeric:tabular-nums}
 
+
+/* new-game screen: two steps (settings, then how to play) */
+.sheet.setup{gap:12px}
+.shead{display:flex;align-items:center;gap:12px}
+.shead .t{--tw:38px}
+.shead h2{letter-spacing:.2em}
+.shead p{font-size:13px}
+.step{display:grid;gap:8px}
+.step>h4{margin:0;display:flex;gap:8px;align-items:center;font:900 14px var(--sans)}
+.step>h4 i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--surface);display:grid;place-items:center;font-size:12px}
+.step .card{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:12px}
+.step .lab{display:block;font:700 12px/1 var(--sans);letter-spacing:.08em;color:var(--muted);margin:0 0 6px}
+.step .opts .chip{flex:1 1 0;white-space:nowrap;padding:0 6px}
+.step .chip small{font-size:11px;font-weight:400;opacity:.75;margin-left:3px}
+.step .btn.block{width:100%;min-height:48px;justify-content:center;font-weight:700}
+.step .hr{height:1px;background:var(--line);border:0;margin:0}
+.step .note{margin:6px 0 0}
+.link{color:var(--accent);font:500 13px var(--sans);text-decoration:underline;background:none;border:0;padding:4px 0;cursor:pointer}
+/* central discard pool */
+.pond{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px 12px;display:grid;gap:8px;min-width:0}
+.pond .plg{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;font-size:12px;color:var(--muted)}
+.pond .lg{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.pond .lg i{width:14px;height:4px;border-radius:2px;background:var(--c)}
+.pond .pc{margin-left:auto;font:600 12px var(--mono)}
+.pool{display:flex;flex-wrap:wrap;gap:6px 3px;--tw:calc(var(--rw)*1.12);min-height:calc(var(--rw)*1.12*1.36 + 10px);align-content:flex-start;padding-bottom:6px}
+.pool .t{margin-bottom:5px}
+.pool .t::after{content:'';position:absolute;left:10%;right:10%;bottom:-6px;height:3px;border-radius:2px;background:var(--c)}
+.s0{--c:#0a7f9c}.s1{--c:#d9822b}.s2{--c:#7a56c9}.s3{--c:#3f9a5c}
+.verlink{margin-left:10px;font-size:12px;color:var(--muted);text-decoration:underline;white-space:nowrap}
 /* dock */
 .dock{position:sticky;bottom:0;z-index:3;padding:14px 0 10px;background:linear-gradient(180deg,rgba(236,239,243,0),var(--bg) 22px)}
 .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:44px;margin-bottom:6px}
@@ -127,7 +174,7 @@ button{font:inherit;color:inherit}
 @media (max-width:640px){
   :root{--rw:clamp(20px,6.2vw,28px);--mw:clamp(22px,6.6vw,30px)}
   body{font-size:15px;padding-block:8px 0;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
-  .app{min-height:calc(100dvh - 8px);grid-template-rows:auto auto auto 1fr auto;gap:8px;align-content:start}
+  .app{min-height:calc(100dvh - 8px);grid-template-rows:auto auto auto auto 1fr auto;gap:8px;align-content:start}
   .top{flex-wrap:nowrap;gap:6px}
   .top h1{font-size:17px;margin:0;letter-spacing:.12em;white-space:nowrap}
   .top .btn.sm{height:36px;padding:0 10px;font-size:13px}
@@ -136,7 +183,13 @@ button{font:inherit;color:inherit}
   .sh{gap:6px}
   .nm{font-size:15px}
   .cnt{display:inline;color:var(--muted);font:500 12px var(--sans);white-space:nowrap}
-  .backs{display:none}
+  .rack .backs{--tw:12px;gap:5px}
+  .rack{padding:5px 8px 6px}
+  .rack.me{flex-direction:column;align-items:stretch;padding:0 6px 8px}
+  .rack.me .rm{justify-content:flex-end;border-top:1px solid rgba(255,255,255,.28);padding-top:6px;margin-top:2px}
+  .rack.me .rm .sep{display:none}
+  .rack.me .meld,.rack.me .fl{--tw:clamp(24px,7.4vw,34px)}
+  .rack.me .hand{justify-content:center}
   .row{min-height:0;gap:4px 8px}
   .row:empty{display:none}
   .river{padding-top:6px;gap:3px 2px;min-height:0}
@@ -173,6 +226,7 @@ button{font:inherit;color:inherit}
     <button class="btn sm" data-act="setup">新遊戲</button>
   </header>
   <section class="opps" id="opps"></section>
+  <section class="pond" id="pond"></section>
   <section class="mid" id="mid"></section>
   <section class="seat" id="me"></section>
   <div class="dock" id="dock"></div>
@@ -692,7 +746,7 @@ function aiTurn(p,ev,kongs){
    S = authoritative game state (lives on the host / single player only).
    V = what this screen draws: built from S on the host, received from the host on a guest.
    U = local UI state. */
-var S={n:4,minFan:3,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],cur:0,over:false,last:null,msg:'',
+var S={pond:[],n:4,minFan:3,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],cur:0,over:false,last:null,msg:'',
   asks:{},ready:{},token:0,speed:1,call:null,result:null,winTile:null,discN:0,running:false};
 var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
@@ -877,7 +931,7 @@ function cloudPut(obj){
 function snapshot(phase,turn){
   if(U.role!=='solo'||!S.running||!S.players.length)return;
   var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,
-    cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,
+    cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,
     result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner}:S.result?{type:'draw'}:null,
     players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,wind:p.wind,drawn:p.drawn};})};
   var str;try{str=JSON.stringify(o);}catch(e){return;}
@@ -906,6 +960,7 @@ function resumeGame(){
   S.token++;S.asks={};S.ready={};S.call=null;
   S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
   S.wall=o.wall;S.discN=o.discN;S.last=o.last;S.cur=o.cur;
+  S.pond=Array.isArray(o.pond)?o.pond:(function(){var a=[];o.players.forEach(function(p,i){p.discards.forEach(function(){a.push(i);});});return a;})();
   S.players=o.players.map(function(p){return {id:p.id,name:p.name,human:p.human,remote:false,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,wind:p.wind,drawn:p.drawn};});
   S.running=true;U.screen='game';U.rules=false;U.modalHidden=false;U.saved=null;
   if(o.phase==='over'){
@@ -966,7 +1021,7 @@ function chowOptions(p,t){
 }
 function doClaim(s,d,t,kind,seq){
   var p=S.players[s],from=S.players[d];
-  from.discards.pop();
+  from.discards.pop();S.pond.pop();
   if(kind==='pung'){removeN(p.hand,t,2);p.melds.push({type:'pung',tiles:[t,t,t],from:d});}
   else if(kind==='kong'){removeN(p.hand,t,3);p.melds.push({type:'kong',tiles:[t,t,t,t],from:d});}
   else{removeOne(p.hand,seq[0]);removeOne(p.hand,seq[1]);p.melds.push({type:'chow',tiles:[seq[0],seq[1],t].sort(function(a,b){return a-b;}),from:d});}
@@ -1019,7 +1074,7 @@ async function resolveClaims(d,t){
 
 function endWin(w,from,ev,self,tile){
   var P=S.players,base=PTS[ev.fan],deltas=P.map(function(){return 0;});
-  if(!self){P[from].discards.pop();P[w].hand.push(tile);}
+  if(!self){P[from].discards.pop();S.pond.pop();P[w].hand.push(tile);}
   sortHand(P[w]);
   if(self){var each=S.n===2?PTS[ev.fan]:PSELF[ev.fan];   /* 2 players: self-draw is paid in full like a discard win */P.forEach(function(p,i){if(i!==w){deltas[i]-=each;deltas[w]+=each;}});}
   else{deltas[from]-=base;deltas[w]+=base;}
@@ -1044,7 +1099,7 @@ async function playHand(resume){
     S.players.forEach(function(q){q.auto=false;});
     S.wall=buildWall();S.last=null;S.discN=0;
     S.msg='洗牌、起牌…';
-    P.forEach(function(p,i){p.hand=[];p.melds=[];p.flowers=[];p.discards=[];p.drawn=null;p.wind=(i-d+n)%n;});
+    P.forEach(function(p,i){p.hand=[];p.melds=[];p.flowers=[];p.discards=[];p.drawn=null;p.wind=(i-d+n)%n;});S.pond=[];
     for(var r=0;r<13;r++)for(k=0;k<n;k++)P[(d+k)%n].hand.push(S.wall.shift());
     for(k=0;k<n;k++)replaceFlowers(P[(d+k)%n]);
     P.forEach(sortHand);
@@ -1072,7 +1127,7 @@ async function playHand(resume){
       mode='kongdraw';continue;
     }
     var t=act.t;
-    removeOne(p.hand,t);p.drawn=null;p.discards.push(t);S.last={seat:S.cur,t:t};S.discN++;
+    removeOne(p.hand,t);p.drawn=null;p.discards.push(t);S.pond.push(S.cur);S.last={seat:S.cur,t:t};S.discN++;
     S.msg=p.name+' 打出 '+tname(t);render();
     await T(350);
     var res=await resolveClaims(S.cur,t);
@@ -1118,11 +1173,16 @@ function checkReady(){
 }
 
 /* ---------- views & networking ---------- */
+function pondList(){
+  var idx=S.players.map(function(){return 0;}),out=[];
+  (S.pond||[]).forEach(function(sd){var p=S.players[sd];if(p&&idx[sd]<p.discards.length)out.push({s:sd,t:p.discards[idx[sd]++]});});
+  return out;
+}
 function buildView(seat){
   if(!S.running||!S.players.length)return null;
   var a=S.asks[seat];
   return {me:seat,n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
-    call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,minFan:S.minFan,
+    call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
     players:S.players.map(function(p,i){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:null,drawn:i===seat?p.drawn:null};}),
     auto:!!S.players[seat].auto,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
@@ -1389,6 +1449,9 @@ function meldsHTML(p,mine){
 }
 function flowersHTML(p){return p.flowers.length?'<span class="fl">'+faces(p.flowers)+'</span>':'';}
 function riverHTML(p,i){
+  return '';
+}
+function riverHTMLOld(p,i){
   return '<div class="river">'+p.discards.map(function(t,j){
     var isLast=V.last&&V.last.seat===i&&j===p.discards.length-1;
     return tileEl(t,isLast?'last':'');
@@ -1396,9 +1459,10 @@ function riverHTML(p,i){
 }
 function headHTML(p,i,k){
   var call=(V.call&&V.call.i===i)?'<span class="call">'+esc(V.call.text)+'</span>':'';
-  var tag=k===0?(p.name==='你'?'':'<span class="rel">你</span>'):'<span class="rel">'+relLabel(k,V.n)+(p.human&&V.players.filter(function(q){return q.human;}).length>1?' · 真人':'')+'</span><span class="cnt">手牌 '+p.n+'</span>';
+  var tag=k===0?(p.name==='你'?'':'<span class="rel">你</span>'):'<span class="rel">'+relLabel(k,V.n)+(p.human&&V.players.filter(function(q){return q.human;}).length>1?' · 真人':'')+'</span>';
   return call+'<div class="sh"><span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span>'+tag+
     (i===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+
+    (k>0&&!V.over?'<span class="numbadge"><b>'+p.n+'</b>張</span>':'')+
     '<span class="sc">'+p.score.toLocaleString()+'</span></div>';
 }
 function seatClass(i){return 'seat'+((V&&V.cur===i&&!V.over)?' on':'');}
@@ -1408,8 +1472,9 @@ function drawOpps(){
     for(var k=1;k<V.n;k++){
       var i=(V.me+k)%V.n,p=V.players[i],body;
       if(V.over&&p.hand)body='<span class="reveal">'+faces(p.hand)+'</span>';
-      else body='<span class="backs">'+new Array(p.n+1).join(BACK)+'</span>';
-      h+='<article class="'+seatClass(i)+'">'+headHTML(p,i,k)+'<div class="row">'+body+meldsHTML(p,false)+flowersHTML(p)+'</div>'+riverHTML(p,i)+'</article>';
+      else{var gs=[],rest=p.n;while(rest>0){var g=Math.min(5,rest);gs.push('<span class="grp">'+new Array(g+1).join(BACK)+'</span>');rest-=g;}body='<span class="backs">'+gs.join('')+'</span>';}
+      var hasOpen=p.melds.length||p.flowers.length;
+      h+='<article class="'+seatClass(i)+'">'+headHTML(p,i,k)+'<div class="rack'+(hasOpen?'':' bare')+'">'+body+(p.melds.length?'<span class="sep"></span>'+meldsHTML(p,false):'')+flowersHTML(p)+'</div></article>';
     }
   }
   els.opps.innerHTML=h;
@@ -1419,7 +1484,19 @@ function drawMe(){
   els.me.hidden=false;
   var p=V.players[V.me];
   els.me.className=seatClass(V.me);
-  els.me.innerHTML=headHTML(p,V.me,0)+'<div class="row">'+meldsHTML(p,true)+flowersHTML(p)+'</div>'+riverHTML(p,V.me);
+  els.me.innerHTML=headHTML(p,V.me,0);
+}
+function drawPond(){
+  if(!els.pond)return;
+  if(!V){els.pond.innerHTML='';els.pond.hidden=true;return;}
+  els.pond.hidden=false;
+  var rel=function(i){return (i-V.me+V.n)%V.n;};
+  var legend='<div class="plg">'+V.players.map(function(p,i){return '<span class="lg s'+rel(i)+'"><i></i>'+esc(p.name)+'</span>';}).join('')+'<span class="pc">已打 '+(V.pond||[]).length+' 張</span></div>';
+  var list=V.pond||[];
+  var tiles=list.map(function(e,j){
+    return tileEl(e.t,'s'+rel(e.s)+(j===list.length-1&&V.last?' last':''));
+  }).join('');
+  els.pond.innerHTML=legend+'<div class="pool">'+tiles+'</div>';
 }
 function drawMid(){
   if(!V){els.mid.innerHTML='';els.mid.hidden=true;return;}
@@ -1481,7 +1558,8 @@ function drawDock(){
   var hh=list.map(function(t,i){return tileEl(t,U.sel==='h'+i?'sel':'','button').replace('<button','<button data-k="h'+i+'" aria-label="'+tname(t)+'"'+(on?'':' tabindex="-1"'));}).join('');
   if(drawn!==null)hh+='<span class="gap"></span>'+tileEl(drawn,(U.sel==='d'?'sel ':'')+'dr','button').replace('<button','<button data-k="d" aria-label="'+tname(drawn)+'"'+(on?'':' tabindex="-1"'));
   if(V.over)hh=faces(me.hand||[]);
-  els.dock.innerHTML='<div class="actions">'+acts+'</div><div class="hand'+(on?'':' off')+'">'+hh+'</div>';
+  var rm=(me.melds.length?'<span class="sep"></span>'+meldsHTML(me,true):'')+flowersHTML(me);
+  els.dock.innerHTML='<div class="actions">'+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
 function savedHTML(){
@@ -1499,16 +1577,23 @@ function savedHTML(){
 }
 function setupHTML(){
   var c=U.cfg,ok=netOK();
-  return '<div class="ov"><div class="sheet"><h2>港式麻雀</h2><p>你坐東位。可以對電腦,亦可以開房叫朋友一齊打(同一個網頁,淨係用瀏覽器)。用 144 隻牌(連花牌)。</p>'+
+  var lvNote=c.level===1?'普通:基本打法':c.level===2?'高手:識防守、計番數':'大師:深度計算、精準防守';
+  return '<div class="ov"><div class="sheet setup"><div class="shead">'+tileEl(27,'')+'<div><h2>港式麻雀</h2><p>你坐東位 · 144 隻牌(連花牌)</p></div></div>'+
     (U.notice?'<p class="warn">'+esc(U.notice)+'</p>':'')+
     savedHTML()+
-    '<h3>你嘅名(多人對戰用)</h3><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'">'+
-    '<h3>幾多個座位?</h3>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+
-    '<h3>起糊番數</h3>'+chipRow('cfgF',[1,2,3],c.minFan,function(v){return v+' 番'+(v===3?'(標準)':'');})+
-    '<h3>電腦強度</h3>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手(識防守、計番數)':'大師(深度計算、精準防守)';})+
-    '<div class="opts"><button class="btn pri" data-act="solo">單人對電腦</button><button class="btn" data-act="host"'+(ok?'':' disabled')+'>開房同朋友打</button><button class="btn" data-act="rules">睇規則</button></div>'+
-    '<h3>加入朋友嘅房間</h3><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="房號" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
-    (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
+    '<div class="step"><h4><i>1</i>牌局設定</h4><div class="card">'+
+      '<div><span class="lab">你嘅名(多人對戰用)</span><div class="opts"><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'"></div></div>'+
+      '<div><span class="lab">座位數</span>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+'</div>'+
+      '<div><span class="lab">起糊番數</span>'+chipRow('cfgF',[1,2,3],c.minFan,function(v){return v+' 番'+(v===3?' <small>標準</small>':'');})+'</div>'+
+      '<div><span class="lab">電腦強度</span>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手':'大師';})+'<p class="note">'+lvNote+'</p></div>'+
+    '</div></div>'+
+    '<div class="step"><h4><i>2</i>點樣玩</h4><div class="card">'+
+      '<button class="btn pri block" data-act="solo">單人對電腦</button>'+
+      '<button class="btn block" data-act="host"'+(ok?'':' disabled')+'>開房同朋友打</button>'+
+      '<hr class="hr"><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="輸入房號加入" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
+      (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
+    '</div></div>'+
+    '<div class="opts"><button class="link" data-act="rules">睇規則</button></div>'+
     '</div></div>';
 }
 function lobbyHTML(){
@@ -1577,7 +1662,7 @@ function drawOverlay(){
 function draw(){
   if(!els.opps)return;
   if(V&&!V.over)U.modalHidden=false;
-  drawOpps();drawMe();drawMid();drawDock();drawOverlay();
+  drawOpps();drawMe();drawPond();drawMid();drawDock();drawOverlay();
   els.speed.textContent='速度:'+(S.speed===1?'標準':'快');
   els.speed.hidden=U.role==='client';
 }
@@ -1645,7 +1730,7 @@ function onInput(e){
   else if(id==='savecode'){U.codeInput=e.target.value.toUpperCase();}
 }
 function boot(){
-  els.opps=document.getElementById('opps');els.mid=document.getElementById('mid');els.me=document.getElementById('me');
+  els.opps=document.getElementById('opps');els.mid=document.getElementById('mid');els.pond=document.getElementById('pond');els.me=document.getElementById('me');
   els.dock=document.getElementById('dock');els.overlay=document.getElementById('overlay');els.speed=document.getElementById('btnSpeed');
   document.addEventListener('click',onClick);
   document.addEventListener('input',onInput);
