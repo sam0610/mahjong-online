@@ -1242,7 +1242,7 @@ function pondView(){
 }
 function safeSend(conn,data){try{if(conn&&conn.open!==false)conn.send(data);}catch(e){}}
 function broadcast(){
-  if(U.role!=='host')return;
+  if(U.role!=='host'&&!U.pondOnly)return;
   NET.members.forEach(function(m){if(m.seat>=0&&S.running)safeSend(m.conn,{t:'view',v:buildView(m.seat)});});
   if(NET.ponds.length&&S.running){var pv={t:'pond',v:pondView()};NET.ponds.forEach(function(m){safeSend(m.conn,pv);});}
 }
@@ -1365,9 +1365,16 @@ function hostOpen(){
 }
 function openRoom(attempt){
   var code=randCode(),peer=null,hub=null,peerErr=!rtcOK(),mqErr=!mqOK();
-  function setCode(){if(U.role==='host'&&(NET.peer===peer||NET.hub===hub)&&U.code!==code){U.code=code;render();}}
+  function setCode(){if((U.role==='host'||U.pondOnly)&&(NET.peer===peer||NET.hub===hub)&&U.code!==code){U.code=code;render();}}
   function check(){
-    if(peerErr&&mqErr&&U.role==='host'){leaveAll();U.notice='連線失敗,請稍後再試。';render();}
+    if(!(peerErr&&mqErr))return;
+    if(U.role==='host'){leaveAll();U.notice='連線失敗,請稍後再試。';render();}
+    else if(U.pondOnly){
+      var pr=NET.peer,hb=NET.hub;NET.peer=null;NET.hub=null;
+      try{if(pr)pr.destroy();}catch(x){}
+      try{if(hb)hb.close();}catch(x){}
+      U.pondFail=true;render();
+    }
   }
   if(rtcOK()){
     peer=new window.Peer(PREFIX+code,PEER_OPTS);NET.peer=peer;
@@ -1490,7 +1497,7 @@ function leaveAll(){
   Object.keys(S.asks).forEach(function(k){try{S.asks[k].rej(CANCEL);}catch(e){}});
   S.asks={};S.running=false;S.players=[];S.over=false;S.ready={};S.call=null;S.msg='';S.result=null;
   var conn=NET.conn,peer=NET.peer,mem=NET.members.concat(NET.ponds||[]);
-  NET.conn=null;NET.peer=null;NET.members=[];NET.ponds=[];NET.lobby=null;U.share=false;U.pondSig='';
+  NET.conn=null;NET.peer=null;NET.members=[];NET.ponds=[];NET.lobby=null;U.share=false;U.pondSig='';U.pondOnly=false;U.pondFail=false;
   mem.forEach(function(m){safeSend(m.conn,{t:'closed'});setTimeout(function(){try{m.conn.close();}catch(e){}},200);});
   if(conn){try{conn.close();}catch(e){}}
   var pend=NET.pend||[];NET.pend=[];pend.forEach(function(c){try{c.close();}catch(e){}});
@@ -1728,7 +1735,7 @@ function resultHTML(pond){
 function drawOverlay(){
   var h='';
   if(U.rules)h=rulesHTML();
-  else if(U.share&&U.role==='host'&&U.code)h=shareHTML();
+  else if(U.share&&(U.role==='host'||U.pondOnly))h=shareHTML();
   else if(U.screen==='setup')h=setupHTML();
   else if(U.screen==='lobby')h=lobbyHTML();
   else if(V&&V.over&&V.result&&!U.modalHidden)h=resultHTML();
@@ -1743,7 +1750,7 @@ function draw(){
   drawOpps();drawMe();drawPond();drawMid();drawDock();drawOverlay();
   els.speed.textContent='速度:'+(S.speed===1?'標準':'快');
   els.speed.hidden=U.role==='client';
-  if(els.share)els.share.hidden=!(U.role==='host'&&U.code);
+  if(els.share)els.share.hidden=!((U.role==='host'&&U.code)||(U.role==='solo'&&V));
 }
 function render(){
   if(U.role!=='client'&&U.role!=='pond'){V=buildView(0);broadcast();}
@@ -1768,7 +1775,14 @@ function handleAct(act,b){
     var link=location.origin+location.pathname+'?room='+U.code;
     try{navigator.clipboard.writeText(link).then(function(){U.copied=true;render();},function(){});}catch(e){}
   }
-  else if(act==='sharePond'){U.share=true;U.copiedPond=false;render();}
+  else if(act==='sharePond'){
+    U.share=true;U.copiedPond=false;
+    if(U.role==='solo'&&!U.pondOnly){
+      U.pondOnly=true;U.pondFail=false;U.code='';NET.members=[];
+      if(!rtcOK()&&!mqOK())U.pondFail=true;else openRoom(0);
+    }
+    render();
+  }
   else if(act==='closeShare'){U.share=false;render();}
   else if(act==='copyPond'){
     try{navigator.clipboard.writeText(pondLink()).then(function(){U.copiedPond=true;render();},function(){});}catch(e){}
@@ -1804,6 +1818,9 @@ function qrSVG(text){
   try{if(typeof window.qrcode!=='function')return '';var q=window.qrcode(0,'M');q.addData(text);q.make();return q.createSvgTag({cellSize:4,margin:2,scalable:true});}catch(e){return '';}
 }
 function shareHTML(){
+  if(!U.code){
+    return '<div class="ov"><div class="sheet"><h2>開牌河屏</h2><p>'+(U.pondFail?'連唔到網絡,開唔到牌河屏。請檢查網絡後再試。':'開緊房…')+'</p><div class="opts"><button class="btn pri" data-act="closeShare">收起</button></div></div></div>';
+  }
   var link=pondLink(),qr=qrSVG(link);
   return '<div class="ov"><div class="sheet"><h2>開牌河屏</h2><p>用平板、電視或者另一部手機打開以下連結,就會見到成個牌河,連碰槓牌、花牌、分數同每局結果,但睇唔到任何人嘅手牌。</p>'+
     (qr?'<div class="qr">'+qr+'</div>':'')+'<div class="linkbox">'+esc(link)+'</div>'+
