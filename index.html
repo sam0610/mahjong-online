@@ -233,6 +233,8 @@ button{font:inherit;color:inherit}
 .slim{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .slim b{color:var(--ink)}.slim .sl{display:inline-flex;align-items:center;gap:6px;--tw:20px}.slim .tog{margin-left:auto}
 a.btn{text-decoration:none}
+.qrrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.qrrow .linkbox{flex:1 1 200px;min-width:0}
+.qr.sm{width:132px;height:132px;flex:none}
 .qr{width:176px;height:176px;background:#fff;border-radius:8px;padding:6px;justify-self:center}.qr svg{width:100%;height:100%;display:block}
 /* 牌河屏 */
 #pondscreen{display:none}
@@ -1684,7 +1686,7 @@ function lobbyHTML(){
   if(host&&U.code){link=location.origin+location.pathname+'?room='+U.code;}
   var h='<div class="ov"><div class="sheet"><h2>'+(host?'房間':'等房主開始')+'</h2>';
   if(host){
-    h+=U.code?'<div class="opts"><button class="btn pri" data-act="startRoom">開始遊戲(撳咗,朋友嗰邊先會入牌桌)</button></div><div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="linkbox">'+esc(link)+'</div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button><button class="btn sm" data-act="sharePond">開牌河屏</button></div>':'<p>開緊房…</p>';
+    h+=U.code?'<div class="opts"><button class="btn pri" data-act="startRoom">開始遊戲(撳咗,朋友嗰邊先會入牌桌)</button></div><div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="qrrow">'+(qrSVG(link)?'<div class="qr sm">'+qrSVG(link)+'</div>':'')+'<div class="linkbox">'+esc(link)+'</div></div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button><button class="btn sm" data-act="sharePond">開牌河屏</button></div>':'<p>開緊房…</p>';
   }else{
     h+='<p>房號 <b>'+esc(U.code)+'</b>'+(l?'(連接咗)':'(連線中…)')+'</p><p class="note">狀態:'+esc(NET.state||'連線中…')+' · 收到 '+NET.rx+' 個訊息'+(NET.rx>0&&!V?' · 等房主撳「開始遊戲」':'')+'</p>';
   }
