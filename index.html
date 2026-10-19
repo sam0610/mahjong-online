@@ -1386,6 +1386,7 @@ function openRoom(attempt){
     peer=new window.Peer(PREFIX+code,PEER_OPTS);NET.peer=peer;
     peer.on('open',function(){if(NET.peer!==peer)return;NET.peerReady=true;setCode();});
     peer.on('connection',function(conn){if(NET.peer===peer)onHostConn(conn);});
+    peer.on('disconnected',function(){if(NET.peer===peer&&!peer.destroyed){try{peer.reconnect();}catch(e){}}});
     peer.on('error',function(e){
       if(NET.peer!==peer)return;
       if(e&&e.type==='unavailable-id'&&attempt<5){
@@ -1904,6 +1905,7 @@ function boot(){
   var m=/[?&#]room=([A-Za-z0-9]+)/.exec((location.search||'')+(location.hash||''));
   if(m)U.roomInput=m[1].toUpperCase();
   setInterval(function(){
+    var pr=NET.peer;if(pr&&pr.disconnected&&!pr.destroyed&&(U.role==='host'||U.pondOnly)){try{pr.reconnect();}catch(e){}}
     if(U.role==='host'&&!S.running&&NET.members.length)sendLobby();
     if(U.role==='host'&&S.running&&Object.keys(S.asks).some(function(k){return S.players[k]&&S.players[k].remote&&Date.now()-S.asks[k].since>25000;}))render();
   },3000);
