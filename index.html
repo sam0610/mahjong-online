@@ -308,6 +308,7 @@ var DC=[null,[GRN],[GRN,BLU],[BLU,RED,GRN],[BLU,GRN,GRN,BLU],[GRN,GRN,RED,GRN,GR
 var DR=[0,12,8,7,7.5,6.5,6.5,5.2,5.4,5.4];
 var BP=[null,null,[[20,15],[20,41]],[[20,14],[11,41],[29,41]],[[12,15],[28,15],[12,41],[28,41]],[[11,14],[29,14],[20,28],[11,42],[29,42]],[[12,11],[28,11],[12,28],[28,28],[12,45],[28,45]],[[20,11],[10,29],[20,29],[30,29],[10,46],[20,46],[30,46]],[[8,15],[16,15],[24,15],[32,15],[8,41],[16,41],[24,41],[32,41]],[[10,11],[20,11],[30,11],[10,28],[20,28],[30,28],[10,45],[20,45],[30,45]]];
 function dot(x,y,r,c){return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+c+'"/><circle cx="'+x+'" cy="'+y+'" r="'+(r*.62).toFixed(1)+'" fill="none" stroke="'+IV+'" stroke-width="1"/><circle cx="'+x+'" cy="'+y+'" r="'+(r*.26).toFixed(1)+'" fill="'+IV+'"/>';}
+function stickR(x,y,h,c,rot){var w=5.4,r=rot?' transform="rotate('+rot+' '+x+' '+y+')"':'';return '<g'+r+'><rect x="'+(x-w/2)+'" y="'+(y-h/2)+'" width="'+w+'" height="'+h+'" rx="2" fill="'+c+'"/><path d="M'+(x-w/2)+' '+(y-h/6)+'h'+w+'M'+(x-w/2)+' '+(y+h/6)+'h'+w+'" stroke="'+IV+'" stroke-width=".9"/></g>';}
 function stick(x,y,h,c){var w=5.4;return '<rect x="'+(x-w/2)+'" y="'+(y-h/2)+'" width="'+w+'" height="'+h+'" rx="2" fill="'+c+'"/><path d="M'+(x-w/2)+' '+(y-h/6)+'h'+w+'M'+(x-w/2)+' '+(y+h/6)+'h'+w+'" stroke="'+IV+'" stroke-width=".9"/>';}
 function txt(ch,y,size,fill){return '<text x="20" y="'+y+'" text-anchor="middle" font-size="'+size+'" fill="'+fill+'">'+ch+'</text>';}
 function face(t){
@@ -316,6 +317,9 @@ function face(t){
   else if(t<18){n=t-8;for(i=0;i<DP[n].length;i++)g+=dot(DP[n][i][0],DP[n][i][1],DR[n],DC[n][i]);}
   else if(t<27){n=t-17;
     if(n===1){g='<ellipse cx="20" cy="33" rx="9" ry="12" fill="'+GRN+'"/><circle cx="20" cy="17" r="6.5" fill="'+GRN+'"/><path d="M26 15l8 3-8 3z" fill="'+RED+'"/><circle cx="22" cy="15.5" r="1.4" fill="'+IV+'"/><path d="M14 30q6 8 12 0" stroke="'+RED+'" stroke-width="2" fill="none"/><path d="M17 44l-4 8M23 44l4 8" stroke="'+RED+'" stroke-width="2"/>';}
+    else if(n===8){/* 八索:每半邊左右兩條直條,中間兩條斜條,上半 Λ、下半 V */
+      g=stickR(7,16,21,GRN,0)+stickR(33,16,21,GRN,0)+stickR(7,40,21,GRN,0)+stickR(33,40,21,GRN,0)+
+        stickR(15.5,16,18.5,GRN,29)+stickR(24.5,16,18.5,GRN,-29)+stickR(15.5,40,18.5,GRN,-29)+stickR(24.5,40,18.5,GRN,29);}
     else{var h=(n===6||n===7||n===9)?14:19;
       for(i=0;i<BP[n].length;i++){var col=GRN;
         if((n===5&&i===2)||(n===7&&i===0)||(n===9&&(i%3===1)))col=RED;
@@ -1905,7 +1909,7 @@ function boot(){
   },3000);
   render();
 }
-window.__mj={onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
+window.__mj={tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>
