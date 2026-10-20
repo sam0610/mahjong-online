@@ -1129,14 +1129,14 @@ function endWin(w,from,ev,self,tile){
   if(self){var each=S.n===2?PTS[ev.fan]:PSELF[ev.fan];   /* 2 players: self-draw is paid in full like a discard win */P.forEach(function(p,i){if(i!==w){deltas[i]-=each;deltas[w]+=each;}});}
   else{deltas[from]-=base;deltas[w]+=base;}
   P.forEach(function(p,i){p.score+=deltas[i];p.drawn=null;});
-  S.over=true;S.ready={};S.winTile=tile;S.last=null;S.result={type:'win',winner:w,from:from,self:self,ev:ev,deltas:deltas};
+  S.over=true;S.ready={};armNext();S.winTile=tile;S.last=null;S.result={type:'win',winner:w,from:from,self:self,ev:ev,deltas:deltas};
   S.msg=P[w].name+(self?' 自摸':' 食糊');
   callout(w,self?'自摸':'胡');
   snapshot('over');
   render();
 }
 function endDraw(){
-  S.over=true;S.ready={};S.last=null;S.result={type:'draw'};S.msg='流局';
+  S.over=true;S.ready={};armNext();S.last=null;S.result={type:'draw'};S.msg='流局';
   snapshot('over');
   S.players.forEach(function(p){p.drawn=null;});
   render();
@@ -1209,8 +1209,21 @@ function startGame(){
   U.screen='game';U.rules=false;U.modalHidden=false;
   runGame();render();
 }
+var NEXT_SEC=20;
+function armNext(){
+  clearTimeout(S.nextT);S.nextAt=Date.now()+NEXT_SEC*1000;
+  var tok=S.token,hn=S.handNo;
+  S.nextT=setTimeout(function(){if(S.running&&S.over&&S.token===tok&&S.handNo===hn)nextHand();},NEXT_SEC*1000+50);
+}
+function cdLeft(){
+  if(!V||!V.over)return null;
+  if(U.role==='client'||U.role==='pond'){return V.dl?Math.max(0,V.dl-Date.now()):null;}
+  return S.nextAt?Math.max(0,S.nextAt-Date.now()):null;
+}
+function cdText(){var l=cdLeft();return l==null?'':Math.ceil(l/1000)+' 秒後自動開下一局';}
 function nextHand(){
   var r=S.result;if(!S.over||!r)return;
+  clearTimeout(S.nextT);S.nextAt=0;
   if(r.type==='draw'||r.winner===S.dealer){S.lian++;}
   else{S.lian=0;S.dealer=(S.dealer+1)%S.n;if(S.dealer===0)S.round=(S.round+1)%4;}
   S.handNo++;S.ready={};U.modalHidden=false;
@@ -1237,7 +1250,7 @@ function buildView(seat){
       hand:(i===seat||S.over)?p.hand:null,drawn:i===seat?p.drawn:null};}),
     auto:!!S.players[seat].auto,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
-    result:S.over?S.result:null,ready:Object.keys(S.ready).map(Number)};
+    result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number)};
 }
 /* 牌河屏用嘅公開資料:冇任何人嘅手牌(局終先公開) */
 function pondView(){
@@ -1245,7 +1258,7 @@ function pondView(){
   return {n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
     players:S.players.map(function(p){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,n:p.hand.length,hand:S.over?p.hand:null};}),
-    result:S.over?S.result:null};
+    result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null};
 }
 function safeSend(conn,data){try{if(conn&&conn.open!==false)conn.send(data);}catch(e){}}
 function broadcast(){
@@ -1607,18 +1620,18 @@ function onClientData(d){
   if(!d||typeof d.t!=='string')return;
   NET.rx++;
   if(U.pondMode){
-    if(d.t==='pond'){var sig=JSON.stringify(d.v);if(sig!==U.pondSig){U.pondSig=sig;V=d.v;draw();}}
+    if(d.t==='pond'){var cd=d.v&&d.v.cd;if(d.v)delete d.v.cd;var sig=JSON.stringify(d.v);if(sig!==U.pondSig){U.pondSig=sig;V=d.v;draw();}if(V)V.dl=cd!=null?Date.now()+cd:0;}
     else if(d.t==='lobby'){NET.lobby=d;if(!V)draw();}
     else if(d.t==='closed'||d.t==='full'){pondRetry(d.t==='closed'?'房主已經關咗房。':(d.msg||''));}
     return;
   }
   if(d.t==='lobby'){NET.lobby=d;if(!V)U.screen='lobby';render();}
-  else if(d.t==='view'){V=d.v;U.screen='game';U.rejoinN=0;render();}
+  else if(d.t==='view'){V=d.v;if(V)V.dl=V.cd!=null?Date.now()+V.cd:0;U.screen='game';U.rejoinN=0;render();}
   else if(d.t==='full'){var m=d.msg;U.rejoin='';leaveAll();U.notice=m;render();}
   else if(d.t==='closed'){U.rejoin='';leaveAll();U.notice='房主已經關咗房。';render();}
 }
 function leaveAll(){
-  S.token++;
+  S.token++;clearTimeout(S.nextT);
   Object.keys(S.asks).forEach(function(k){try{S.asks[k].rej(CANCEL);}catch(e){}});
   S.asks={};S.running=false;S.players=[];S.over=false;S.ready={};S.call=null;S.msg='';S.result=null;
   var conn=NET.conn,peer=NET.peer,mem=NET.members.concat(NET.ponds||[]);
@@ -1713,7 +1726,7 @@ function drawMid(){
   }else msg=esc(V.msg||'');
   var lastd=V.last?'<span class="lastd">'+tileEl(V.last.t)+'</span>':'';
   var extra='';
-  if(V.over&&U.modalHidden)extra+='<button class="btn pri sm" data-act="next">下一局</button>';
+  if(V.over&&U.modalHidden)extra+='<button class="btn pri sm" data-act="next">下一局 <span data-cd2>'+(cdLeft()==null?'':Math.ceil(cdLeft()/1000))+'</span></button>';
   if(U.role==='host'&&S.running){
     Object.keys(S.asks).forEach(function(k){
       var a=S.asks[k],pl=S.players[k];
@@ -1853,9 +1866,9 @@ function resultHTML(pond){
     var d=r.deltas?r.deltas[i]:0;
     return '<div><span>'+esc(p.name)+'</span><span><span class="'+(d>0?'pos':d<0?'neg':'')+'">'+(d>0?'+':'')+d+'</span> · '+p.score.toLocaleString()+'</span></div>';
   }).join('')+'</div>';
-  if(pond){return h+'<p class="note" style="text-align:center">等玩家開下一局…</p></div></div>';}
+  if(pond){return h+'<p class="note" style="text-align:center">等玩家開下一局…<span class="cdn" data-cd> '+cdText()+'</span></p></div></div>';}
   var humans=P.filter(function(p){return p.human;}).length,mine=V.ready.indexOf(V.me)>=0;
-  h+='<div class="opts">'+(mine?'<button class="btn" disabled>等緊其他玩家 ('+V.ready.length+' / '+humans+')</button>':'<button class="btn pri" data-act="next">下一局</button>')+'<button class="btn" data-act="hideModal">睇牌桌</button></div></div></div>';
+  h+='<div class="opts">'+(mine?'<button class="btn" disabled>等緊其他玩家 ('+V.ready.length+' / '+humans+')</button>':'<button class="btn pri" data-act="next">下一局</button>')+'<button class="btn" data-act="hideModal">睇牌桌</button></div><p class="note cdn" data-cd style="text-align:center;margin:8px 0 0">'+cdText()+'</p></div></div>';
   return h;
 }
 function drawOverlay(){
@@ -2006,6 +2019,9 @@ function onInput(e){
   else if(id==='savecode'){U.codeInput=e.target.value.toUpperCase();}
 }
 function boot(){
+  setInterval(function(){try{var l=cdLeft();if(l==null)return;var t=cdText();
+    document.querySelectorAll('[data-cd]').forEach(function(e){var x=e.classList.contains('cdn')&&e.parentNode&&e.parentNode.classList.contains('note')?' '+t:t;if(e.textContent!==x)e.textContent=x;});
+    document.querySelectorAll('[data-cd2]').forEach(function(e){e.textContent=Math.ceil(l/1000);});}catch(x){}},250);
   els.opps=document.getElementById('opps');els.mid=document.getElementById('mid');els.pond=document.getElementById('pond');
   els.dock=document.getElementById('dock');els.overlay=document.getElementById('overlay');els.speed=document.getElementById('btnSpeed');els.share=document.getElementById('btnShare');
   document.addEventListener('click',onClick);
@@ -2030,7 +2046,7 @@ function boot(){
   },3000);
   render();
 }
-window.__mj={tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
+window.__mj={endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>
