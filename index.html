@@ -257,6 +257,23 @@ body.pondmode #pondscreen{display:grid;grid-template-rows:auto auto minmax(0,1fr
 .pcm .meld,.pcm .fl{--tw:20px}.pcm .none{color:#6d788c;font-size:12px}
 .pswait{align-self:center;justify-self:center;text-align:center;color:#c3ccdb}.pswait h2{color:#fff;margin:0 0 8px}
 body.pondmode .sheet{color:var(--ink)}
+/* 開始畫面:左邊大 LOGO,右邊設定卡 */
+.ov.setupov{background:var(--bg) radial-gradient(900px 480px at 20% 10%,#fff 0,rgba(236,239,243,0) 70%);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:18px;padding:22px 16px 28px}
+.ov.setupov .sheet{box-shadow:0 18px 50px rgba(30,40,60,.16);border-color:var(--line);border-radius:22px;max-height:none;overflow:visible;flex:none}
+.hero{text-align:center;display:grid;gap:6px;justify-items:center}
+.hero .logo{font:900 clamp(64px,22vw,96px)/1 var(--sans);letter-spacing:.06em;color:var(--ink);padding-left:.06em}
+.hero .tag{font:500 12px/1.4 var(--sans);letter-spacing:.12em;color:var(--muted);margin-top:8px}
+.hero .tiles{display:flex;justify-content:center;gap:6px;--tw:clamp(36px,11vw,52px);margin-top:12px;padding-bottom:12px}
+.hero .ht{display:inline-block;filter:drop-shadow(0 6px 8px rgba(30,40,60,.22))}
+.ov.setupov .shead{display:none}
+@media (min-width:900px){
+  .ov.setupov{flex-direction:row;justify-content:center;align-items:center;gap:6vw;padding:24px 5vw}
+  .ov.setupov .hero{text-align:left;justify-items:start;flex:1 1 0;max-width:520px}
+  .hero .logo{font-size:clamp(120px,15vw,210px);letter-spacing:.04em}
+  .hero .tag{font-size:14px}
+  .hero .tiles{--tw:clamp(54px,5.6vw,84px);gap:10px;justify-content:flex-start;margin-top:20px}
+  .ov.setupov .sheet{flex:0 0 min(540px,46vw);max-height:calc(100vh - 48px);overflow:auto}
+}
 @media (max-width:700px){.pc2 .pch{font-size:13px}}
 </style>
 
@@ -1815,7 +1832,10 @@ function savedHTML(){
 function setupHTML(){
   var c=U.cfg,ok=netOK();
   var lvNote=c.level===1?'普通:基本打法':c.level===2?'高手:識防守、計番數':'大師:深度計算、精準防守';
-  return '<div class="ov"><div class="sheet setup"><div class="shead">'+tileEl(27,'')+'<div><h2>港式麻雀</h2><p>你坐東位 · 144 隻牌(連花牌)</p></div></div>'+
+  var rot=[-9,-4,0,5,10],lift=[10,2,-6,2,10],tl=[8,25,31,32,27];
+  var hero='<div class="hero"><div class="logo">麻雀</div><div class="tag">HONG KONG MAHJONG · 2–4 人 · 可網上對戰</div><div class="tiles">'+
+    tl.map(function(t,i){return '<span class="ht" style="transform:translateY('+lift[i]+'px) rotate('+rot[i]+'deg)">'+tileEl(t,'')+'</span>';}).join('')+'</div></div>';
+  return '<div class="ov setupov">'+hero+'<div class="sheet setup"><div class="shead">'+tileEl(27,'')+'<div><h2>港式麻雀</h2><p>你坐東位 · 144 隻牌(連花牌)</p></div></div>'+
     (U.notice?'<p class="warn">'+esc(U.notice)+'</p>':'')+
     savedHTML()+
     '<div class="step"><h4><i>1</i>牌局設定</h4><div class="card">'+
