@@ -280,6 +280,7 @@ body.pondmode .sheet{color:var(--ink)}
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 (function(){
 'use strict';
@@ -800,13 +801,13 @@ var S={pond:[],n:4,minFan:3,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,
 var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
 var PREFIX='hkmj-';
-var NET={peer:null,conn:null,hub:null,pend:[],members:[],ponds:[],lobby:null,rx:0,state:''};
+var NET={peer:null,conn:null,hub:null,sb:null,pend:[],members:[],ponds:[],lobby:null,rx:0,state:''};
 var PEER_OPTS={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
   {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}]}};
 
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host'?'房主':'玩家');}
-function netOK(){return (typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function'));}
+function netOK(){return (typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function')||sbOK());}
 function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function(){if(tok===S.token)res();else rej(CANCEL);},ms*S.speed);});}
 
 /* ---------- 自動聽牌: when exactly 1 tile from winning (tenpai), the game waits for the winning tile and discards the rest ---------- */
@@ -1364,21 +1365,111 @@ function mqGuest(code){
 }
 
 /* ---------- host: open room over PeerJS (WebRTC) and MQTT at the same time ---------- */
+
+/* ---- Supabase Realtime (Broadcast) transport:主線路。每個玩家一條專屬頻道,加入訊息用 REST 發去房間頻道,其他人聽唔到 ---- */
+function sbOK(){return typeof window!=='undefined'&&window.supabase&&typeof window.supabase.createClient==='function'&&cloudOn();}
+var SBC=null;
+function sbClient(){
+  if(!SBC)SBC=window.supabase.createClient(CLOUD.url,CLOUD.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},realtime:{params:{eventsPerSecond:100}}});
+  return SBC;
+}
+function sbChan(name){return sbClient().channel(name,{config:{broadcast:{self:false,ack:false}}});}
+function sbDrop(ch){try{sbClient().removeChannel(ch);}catch(e){}}
+function sbHost(code,onConn,onReady,onFail){
+  var hub={conns:{},closed:false,ready:false,lobby:null,iv:null};
+  var lobby=sbChan('hk-'+code);hub.lobby=lobby;
+  function accept(cid){
+    var old=hub.conns[cid];
+    if(old){if(old.open)old.sendRaw({t:'ack'});return;}
+    var ch=sbChan('hk-'+code+'-'+cid);
+    var conn=mqConn(function(o){try{ch.send({type:'broadcast',event:'h2g',payload:o});}catch(e){}});
+    conn.sendRaw=function(o){try{ch.send({type:'broadcast',event:'h2g',payload:o});}catch(e){}};
+    conn.ch=ch;conn.seen=Date.now();hub.conns[cid]=conn;
+    ch.on('broadcast',{event:'g2h'},function(msg){
+      var m=msg&&msg.payload;if(!m||hub.closed)return;
+      conn.seen=Date.now();
+      if(m.t==='data')conn.emit('data',m.d);
+      else if(m.t==='bye'){conn.remoteClose();sbDrop(ch);delete hub.conns[cid];}
+    });
+    ch.subscribe(function(status){
+      if(hub.closed)return;
+      if(status==='SUBSCRIBED'&&!conn.open){onConn(conn);conn.open=true;conn.emit('open');conn.sendRaw({t:'ack'});}
+      else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!conn.open){sbDrop(ch);delete hub.conns[cid];}
+    });
+  }
+  lobby.on('broadcast',{event:'join'},function(msg){var m=msg&&msg.payload;if(m&&m.c&&!hub.closed)accept(String(m.c));});
+  lobby.subscribe(function(status){
+    if(hub.closed)return;
+    if(status==='SUBSCRIBED'){if(!hub.ready){hub.ready=true;onReady();}}
+    else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!hub.ready){onFail();}
+  });
+  hub.iv=setInterval(function(){
+    Object.keys(hub.conns).forEach(function(cid){
+      var cn=hub.conns[cid];if(!cn.open)return;
+      if(Date.now()-cn.seen>20000){cn.remoteClose();sbDrop(cn.ch);delete hub.conns[cid];}
+      else cn.sendRaw({t:'ping'});
+    });
+  },3000);
+  hub.close=function(){
+    hub.closed=true;clearInterval(hub.iv);
+    Object.keys(hub.conns).forEach(function(k){try{hub.conns[k].close();}catch(e){}});
+    setTimeout(function(){sbDrop(lobby);Object.keys(hub.conns).forEach(function(k){sbDrop(hub.conns[k].ch);});},300);
+  };
+  return hub;
+}
+function sbGuest(code){
+  var cid=Math.random().toString(36).slice(2,12),ch=sbChan('hk-'+code+'-'+cid),lobby=sbChan('hk-'+code),subbed=false,closed=false,tries=0,jiv=null,kiv=null;
+  var conn=mqConn(function(o){if(subbed){try{ch.send({type:'broadcast',event:'g2h',payload:o});}catch(e){}}});
+  function cleanup(){closed=true;clearInterval(jiv);clearInterval(kiv);setTimeout(function(){sbDrop(ch);sbDrop(lobby);},300);}
+  var origClose=conn.close;conn.close=function(){origClose();cleanup();};
+  var origRemote=conn.remoteClose;conn.remoteClose=function(){origRemote();cleanup();};
+  function sendJoin(){
+    /* 專屬頻道已經訂閱咗,用未訂閱嘅房間頻道發 REST 廣播,其他玩家唔會見到你嘅頻道名 */
+    var p=null;try{p=lobby.send({type:'broadcast',event:'join',payload:{c:cid}});}catch(e){}
+    if(p&&p.then)p.then(function(r){if(r&&r!=='ok'&&!conn.open&&!closed){/* 失敗就等下一次重試 */}},function(){});
+  }
+  ch.on('broadcast',{event:'h2g'},function(msg){
+    var m=msg&&msg.payload;if(!m)return;
+    conn.seen=Date.now();
+    if(m.t==='ack'){if(!conn.open&&!closed){conn.open=true;clearInterval(jiv);conn.emit('open');}}
+    else if(m.t==='data'&&conn.open)conn.emit('data',m.d);
+    else if(m.t==='bye')conn.remoteClose();
+  });
+  ch.subscribe(function(status){
+    if(closed)return;
+    if(status==='SUBSCRIBED'&&!subbed){
+      subbed=true;
+      function join(){
+        if(conn.open||closed)return;
+        if(++tries>8){conn.emit('error',{type:'peer-unavailable'});return;}
+        sendJoin();
+      }
+      join();jiv=setInterval(join,1500);
+      kiv=setInterval(function(){
+        if(!conn.open)return;
+        try{ch.send({type:'broadcast',event:'g2h',payload:{t:'ping'}});}catch(e){}
+        if(Date.now()-conn.seen>20000)conn.remoteClose();
+      },3000);
+    }else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!conn.open&&!subbed){conn.emit('error',{type:'broker'});}
+  });
+  return conn;
+}
 function hostOpen(){
-  if(!rtcOK()&&!mqOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  if(!rtcOK()&&!mqOK()&&!sbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role='host';U.screen='lobby';U.notice='';U.code='';NET.members=[];
   openRoom(0);render();
 }
 function openRoom(attempt){
-  var code=randCode(),peer=null,hub=null,peerErr=!rtcOK(),mqErr=!mqOK();
-  function setCode(){if((U.role==='host'||U.pondOnly)&&(NET.peer===peer||NET.hub===hub)&&U.code!==code){U.code=code;render();}}
+  var code=randCode(),peer=null,hub=null,sbh=null,peerErr=!rtcOK(),mqErr=!mqOK(),sbErr=!sbOK();
+  function setCode(){if((U.role==='host'||U.pondOnly)&&(NET.peer===peer||NET.hub===hub||NET.sb===sbh)&&U.code!==code){U.code=code;render();}}
   function check(){
-    if(!(peerErr&&mqErr))return;
+    if(!(peerErr&&mqErr&&sbErr))return;
     if(U.role==='host'){leaveAll();U.notice='連線失敗,請稍後再試。';render();}
     else if(U.pondOnly){
-      var pr=NET.peer,hb=NET.hub;NET.peer=null;NET.hub=null;
+      var pr=NET.peer,hb=NET.hub,sh=NET.sb;NET.peer=null;NET.hub=null;NET.sb=null;
       try{if(pr)pr.destroy();}catch(x){}
       try{if(hb)hb.close();}catch(x){}
+      try{if(sh)sh.close();}catch(x){}
       U.pondFail=true;render();
     }
   }
@@ -1392,6 +1483,7 @@ function openRoom(attempt){
       if(e&&e.type==='unavailable-id'&&attempt<5){
         try{peer.destroy();}catch(x){}
         if(hub){hub.close();NET.hub=null;}
+        if(sbh){sbh.close();NET.sb=null;}
         U.code='';openRoom(attempt+1);return;
       }
       peerErr=true;check();
@@ -1400,6 +1492,10 @@ function openRoom(attempt){
   if(mqOK()){
     hub=mqHost(code,function(conn){if(NET.hub===hub)onHostConn(conn);},setCode,function(){mqErr=true;check();});
     NET.hub=hub;
+  }
+  if(sbOK()){
+    sbh=sbHost(code,function(conn){if(NET.sb===sbh)onHostConn(conn);},setCode,function(){sbErr=true;check();});
+    NET.sb=sbh;
   }
 }
 function onHostConn(conn){
@@ -1445,7 +1541,7 @@ function pondRetry(msg){
 function joinRoom(){
   var code=(U.roomInput||'').trim().toUpperCase();
   if(!code){U.notice='請輸入房號。';render();return;}
-  if(!rtcOK()&&!mqOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  if(!rtcOK()&&!mqOK()&&!sbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role=U.pondMode?'pond':'client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;NET.rx=0;NET.state='連線中…';NET.pend=[];
   var peer=null,chosen=null,dead=false;
   function fail(msg){if(dead)return;dead=true;leaveAll();U.notice=msg;if(U.pondMode)pondRetry(msg);else render();}
@@ -1473,7 +1569,8 @@ function joinRoom(){
     if(dead||NET.peer!==peer&&peer){clearInterval(helloIv);return;}
     if(NET.conn&&NET.conn.open&&!NET.lobby)safeSend(NET.conn,helloMsg());
   },2000);
-  var tFallback=rtcOK()?setTimeout(startMq,6000):null;
+  var tFallback=(rtcOK()||sbOK())?setTimeout(startMq,6000):null;
+  if(sbOK())attach(sbGuest(code),'Supabase');
   var tAll=setTimeout(function(){if(!chosen)fail('連唔到房間 '+code+',請確認房號,或者再試一次。');},22000);
   if(rtcOK()){
     peer=new window.Peer(undefined,PEER_OPTS);NET.peer=peer;
@@ -1482,7 +1579,7 @@ function joinRoom(){
       attach(peer.connect(PREFIX+code,{reliable:true,serialization:'json'}),'直連');
     });
     peer.on('error',function(){if(NET.peer===peer&&!chosen){NET.state='直連唔到,轉用備用線路…';startMq();}});
-  }else startMq();
+  }else if(!sbOK())startMq();
   render();
 }
 function onClientData(d){
@@ -1509,6 +1606,7 @@ function leaveAll(){
   if(conn){try{conn.close();}catch(e){}}
   var pend=NET.pend||[];NET.pend=[];pend.forEach(function(c){try{c.close();}catch(e){}});
   var hub=NET.hub;NET.hub=null;if(hub)setTimeout(function(){hub.close();},250);
+  var sbh2=NET.sb;NET.sb=null;if(sbh2)setTimeout(function(){sbh2.close();},250);
   if(peer){setTimeout(function(){try{peer.destroy();}catch(e){}},300);}
   U.role='solo';U.screen='setup';U.code='';V=null;U.modalHidden=false;U.rules=false;U.saved=readLocalSave();
 }
@@ -1786,7 +1884,7 @@ function handleAct(act,b){
     U.share=true;U.copiedPond=false;
     if(U.role==='solo'&&!U.pondOnly){
       U.pondOnly=true;U.pondFail=false;U.code='';NET.members=[];
-      if(!rtcOK()&&!mqOK())U.pondFail=true;else openRoom(0);
+      if(!rtcOK()&&!mqOK()&&!sbOK())U.pondFail=true;else openRoom(0);
     }
     render();
   }
