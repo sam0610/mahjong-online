@@ -937,7 +937,7 @@ function autoAnswer(p,a){
 }
 function takeover(seat){
   var p=S.players[seat];if(!p||!p.human)return;
-  p.human=false;p.remote=false;p.level=S.level;p.name=p.name+'(電腦)';
+  p.baseName=p.name;p.away=!!p.pid;p.human=false;p.remote=false;p.level=S.level;p.name=p.name+'(電腦)';
   var a=S.asks[seat];
   if(a){var v=autoAnswer(p,a);delete S.asks[seat];a.res(v);}
   render();
@@ -1201,7 +1201,7 @@ function startGame(){
     var human=i===0||!!m;
     var name=i===0?(U.role==='solo'?'你':uniq(myName())):(m?uniq(m.name):uniq(AI_NAMES[ai++]));
     S.players.push({id:i,name:name,human:human,remote:!!m,score:1000,level:S.level,hand:[],melds:[],flowers:[],discards:[],wind:0,drawn:null});
-    if(m)m.seat=i;
+    if(m){m.seat=i;S.players[i].pid=m.pid||'';}
   }
   mem.forEach(function(m,j){if(j>=n-1)m.seat=-1;});
   S.dealer=0;S.round=0;S.handNo=1;S.lian=0;S.over=false;S.running=true;
@@ -1501,7 +1501,20 @@ function openRoom(attempt){
 function onHostConn(conn){
   var m={conn:conn,name:'玩家',seat:-1,joined:false,pond:false};
   /* 收到 hello 先決定係玩家定係牌河屏;玩家先檢查人數同有冇開咗局 */
-  function admit(){
+  function admit(d){
+    if(S.running&&d&&d.pid){
+      var si=-1;
+      S.players.forEach(function(p,i){if(p.pid&&p.pid===d.pid&&p.remote!==undefined&&(p.away||p.remote))si=i;});
+      if(si>=0){
+        var old=NET.members.filter(function(x){return x.seat===si;})[0];
+        if(old){NET.members.splice(NET.members.indexOf(old),1);old.seat=-1;try{old.conn.close();}catch(e){}}
+        var pl=S.players[si];
+        pl.human=true;pl.remote=true;pl.away=false;pl.auto=false;if(pl.baseName)pl.name=pl.baseName;
+        m.seat=si;m.joined=true;m.pid=d.pid;m.name=pl.name;NET.members.push(m);
+        safeSend(conn,{t:'view',v:buildView(si)});render();
+        return true;
+      }
+    }
     if(S.running){safeSend(conn,{t:'full',msg:'遊戲已經開始,入唔到。'});setTimeout(function(){try{conn.close();}catch(e){}},300);return false;}
     if(NET.members.length>=U.cfg.n-1){safeSend(conn,{t:'full',msg:'房已經夠人。'});setTimeout(function(){try{conn.close();}catch(e){}},300);return false;}
     NET.members.push(m);m.joined=true;
@@ -1517,7 +1530,7 @@ function onHostConn(conn){
         if(S.running)safeSend(conn,{t:'pond',v:pondView()});
         return;
       }
-      if(!m.joined&&!admit())return;
+      if(!m.joined){m.pid=String(d.pid||'').slice(0,24);if(!admit(d))return;if(m.seat>=0)return;}
       m.name=String(d.name||m.name).slice(0,8);sendLobby();render();
     }
     else if(d.t==='ans'){if(m.seat>=0)answerSeat(m.seat,d.id,d.v);}
@@ -1533,7 +1546,9 @@ function onHostConn(conn){
 }
 
 /* ---------- guest: try WebRTC first, fall back to MQTT after 6s ---------- */
-function helloMsg(){return U.pondMode?{t:'hello',role:'pond',name:'牌河屏'}:{t:'hello',name:myName()};}
+function myPid(){var k='mj_pid',v='';try{v=localStorage.getItem(k)||'';if(!v){v=Math.random().toString(36).slice(2,12)+Date.now().toString(36);localStorage.setItem(k,v);}}catch(e){}
+  if(!v){if(!window.__pid)window.__pid=Math.random().toString(36).slice(2,14);v=window.__pid;}return v;}
+function helloMsg(){return U.pondMode?{t:'hello',role:'pond',name:'牌河屏'}:{t:'hello',name:myName(),pid:myPid()};}
 function pondRetry(msg){
   leaveAll();U.role='pond';NET.state=(msg||'')+' 4 秒後自動重連…';V=null;draw();
   setTimeout(function(){if(U.pondMode&&U.role==='pond'&&!NET.conn&&!NET.peer)joinRoom();},4000);
@@ -1544,7 +1559,13 @@ function joinRoom(){
   if(!rtcOK()&&!mqOK()&&!sbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role=U.pondMode?'pond':'client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;NET.rx=0;NET.state='連線中…';NET.pend=[];
   var peer=null,chosen=null,dead=false;
-  function fail(msg){if(dead)return;dead=true;leaveAll();U.notice=msg;if(U.pondMode)pondRetry(msg);else render();}
+  function fail(msg){if(dead)return;dead=true;var wasIn=!U.pondMode&&U.role==='client'&&!!V;
+    if(wasIn&&!U.rejoin){U.rejoin=code;U.rejoinN=0;}
+    leaveAll();U.notice=msg;
+    if(U.pondMode)pondRetry(msg);
+    else if(U.rejoin===code&&U.rejoinN<25){U.rejoinN++;U.notice=msg+' 自動重連中('+U.rejoinN+')…';render();
+      setTimeout(function(){if(U.rejoin===code&&U.role==='solo'&&U.screen==='setup'&&!NET.conn){U.roomInput=code;joinRoom();}},3000);}
+    else{U.rejoin='';render();}}
   function attach(conn,kind){
     NET.pend.push(conn);
     conn.on('open',function(){
@@ -1592,9 +1613,9 @@ function onClientData(d){
     return;
   }
   if(d.t==='lobby'){NET.lobby=d;if(!V)U.screen='lobby';render();}
-  else if(d.t==='view'){V=d.v;U.screen='game';render();}
-  else if(d.t==='full'){var m=d.msg;leaveAll();U.notice=m;render();}
-  else if(d.t==='closed'){leaveAll();U.notice='房主已經關咗房。';render();}
+  else if(d.t==='view'){V=d.v;U.screen='game';U.rejoinN=0;render();}
+  else if(d.t==='full'){var m=d.msg;U.rejoin='';leaveAll();U.notice=m;render();}
+  else if(d.t==='closed'){U.rejoin='';leaveAll();U.notice='房主已經關咗房。';render();}
 }
 function leaveAll(){
   S.token++;
@@ -1875,7 +1896,7 @@ function handleAct(act,b){
   else if(act==='host')hostOpen();
   else if(act==='join')joinRoom();
   else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code)startGame();}
-  else if(act==='leave'||act==='setup'){leaveAll();U.notice='';render();}
+  else if(act==='leave'||act==='setup'){U.rejoin='';leaveAll();U.notice='';render();}
   else if(act==='copy'){
     var link=location.origin+location.pathname+'?room='+U.code;
     try{navigator.clipboard.writeText(link).then(function(){U.copied=true;render();},function(){});}catch(e){}
