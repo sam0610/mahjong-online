@@ -875,6 +875,11 @@ function autoHumanAnswer(p,a){
 }
 function scheduleAuto(seat){
   var p=S.players[seat],a=S.asks[seat];
+  if(p&&a&&p.proxy&&p.human){   /* 全自動代打:由電腦 AI 揀,隨時可取消 */
+    var pid=a.id;
+    setTimeout(function(){var cur=S.asks[seat];if(!cur||cur.id!==pid||!p.proxy||!p.human)return;answerSeat(seat,pid,autoAnswer(p,cur));},Math.round(900*S.speed));
+    return;
+  }
   if(!p||!a||!p.auto)return;
   if(a.kind==='turn'&&a.opts.kongDrawn!=null)return;
   if(a.kind==='claim'&&a.opts.pung&&pungRaises(p,a.opts.tile)){   /* pung would raise fan: hand control back to the player */
@@ -886,6 +891,12 @@ function scheduleAuto(seat){
     if(!cur||cur.id!==id||!p.auto||!p.human)return;
     answerSeat(seat,id,autoHumanAnswer(p,cur));
   },Math.round(500*S.speed));
+}
+function setProxy(seat,on){
+  var p=S.players[seat];if(!p||!p.human||!S.running)return;
+  p.proxy=!!on;if(on)p.auto=false;
+  if(on){scheduleAuto(seat);if(S.over){S.ready[seat]=1;checkReady();}}
+  render();
 }
 function setAuto(seat,on){
   var p=S.players[seat];if(!p||!p.human||!S.running)return;
@@ -1214,6 +1225,7 @@ function armNext(){
   clearTimeout(S.nextT);S.nextAt=Date.now()+NEXT_SEC*1000;
   var tok=S.token,hn=S.handNo;
   S.nextT=setTimeout(function(){if(S.running&&S.over&&S.token===tok&&S.handNo===hn)nextHand();},NEXT_SEC*1000+50);
+  setTimeout(function(){if(S.running&&S.over&&S.token===tok&&S.handNo===hn){S.players.forEach(function(p){if(p.human&&p.proxy)S.ready[p.id]=1;});render();checkReady();}},3500);
 }
 function cdLeft(){
   if(!V||!V.over)return null;
@@ -1232,7 +1244,7 @@ function nextHand(){
 function checkReady(){
   if(!S.over)return;
   var hs=S.players.filter(function(p){return p.human;});
-  if(hs.every(function(p){return S.ready[p.id];}))nextHand();
+  if(hs.every(function(p){return S.ready[p.id]||p.proxy;}))nextHand();
 }
 
 /* ---------- views & networking ---------- */
@@ -1248,7 +1260,7 @@ function buildView(seat){
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
     players:S.players.map(function(p,i){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:null,drawn:i===seat?p.drawn:null};}),
-    auto:!!S.players[seat].auto,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
+    auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
     result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number)};
 }
@@ -1522,7 +1534,7 @@ function onHostConn(conn){
         var old=NET.members.filter(function(x){return x.seat===si;})[0];
         if(old){NET.members.splice(NET.members.indexOf(old),1);old.seat=-1;try{old.conn.close();}catch(e){}}
         var pl=S.players[si];
-        pl.human=true;pl.remote=true;pl.away=false;pl.auto=false;if(pl.baseName)pl.name=pl.baseName;
+        pl.human=true;pl.remote=true;pl.away=false;pl.auto=false;pl.proxy=false;if(pl.baseName)pl.name=pl.baseName;
         m.seat=si;m.joined=true;m.pid=d.pid;m.name=pl.name;NET.members.push(m);
         safeSend(conn,{t:'view',v:buildView(si)});render();
         return true;
@@ -1548,6 +1560,7 @@ function onHostConn(conn){
     }
     else if(d.t==='ans'){if(m.seat>=0)answerSeat(m.seat,d.id,d.v);}
     else if(d.t==='auto'){if(m.seat>=0)setAuto(m.seat,!!d.on);}
+    else if(d.t==='proxy'){if(m.seat>=0)setProxy(m.seat,!!d.on);}
     else if(d.t==='ready'){if(m.seat>=0&&S.over){S.ready[m.seat]=1;render();checkReady();}}
   });
   conn.on('close',function(){
@@ -1766,11 +1779,14 @@ function drawDock(){
       if(U.vibId!==a.id){U.vibId=a.id;try{if(navigator.vibrate&&COARSE)navigator.vibrate([90,60,90]);}catch(e){}}
     }
   }
-  if(V.auto){
+  if(V.proxy){
+    acts='<span class="note autoon">電腦代打緊:幫你摸牌、打牌、食糊同碰上</span><button class="btn pri" data-act="proxy">取消代打,我自己玩</button>';
+  }else if(V.auto){
     acts='<span class="note autoon">自動聽牌中:有牌食就自動胡,摸到唔啱嘅牌自動打出</span><button class="btn" data-act="auto">取消自動</button>'+acts;
   }else if(!V.over&&V.autoSh===0){
     acts+='<button class="btn auto" data-act="auto">自動聽牌 · 欠一隻</button>';
   }
+  if(!V.proxy&&!V.over)acts+='<button class="btn sm" data-act="proxy">電腦代打</button>';
   var list=(me.hand||[]).slice(),drawn=null;
   if(me.drawn!==null&&me.drawn!==undefined&&!V.over&&list.length%3===2){removeOne(list,me.drawn);drawn=me.drawn;}
   var on=!!(a&&a.kind==='turn');
@@ -1938,6 +1954,11 @@ function handleAct(act,b){
   else if(act==='hideModal'){U.modalHidden=true;draw();}
   else if(act==='takeover'){if(U.role==='host')takeover(+b.getAttribute('data-seat'));}
   else if(act==='discardsel'){if(U.selT!=null)answer({a:'discard',t:U.selT});}
+  else if(act==='proxy'){
+    if(!V)return;
+    if(U.role==='client'){safeSend(NET.conn,{t:'proxy',on:!V.proxy});V.proxy=!V.proxy;draw();}
+    else setProxy(0,!V.proxy);
+  }
   else if(act==='auto'){
     if(!V)return;
     if(U.role==='client'){safeSend(NET.conn,{t:'auto',on:!V.auto});}
@@ -2046,7 +2067,7 @@ function boot(){
   },3000);
   render();
 }
-window.__mj={endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
+window.__mj={setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>
