@@ -45,7 +45,7 @@ button{font:inherit;color:inherit}
 .t.back{background:repeating-linear-gradient(135deg,#3f6f7e 0 2px,#376371 2px 5px);box-shadow:inset 0 0 0 1px #2c525f,0 calc(var(--tw,30px)*.07) 0 #1f3f4a,0 calc(var(--tw,30px)*.12) calc(var(--tw,30px)*.1) rgba(30,40,60,.3)}
 .t.last{outline:2px solid var(--hot);outline-offset:1px}
 .t.taken{opacity:.45;outline:2px dashed #e08a1e;outline-offset:-1px}
-.t.taken::after{content:attr(data-k);position:absolute;right:-3px;top:-6px;background:#e08a1e;color:#fff;font:700 calc(var(--tw,30px)*.42)/1 var(--sans);padding:1px 3px;border-radius:4px;z-index:2}
+.t.taken::after{content:attr(data-tk);position:absolute;right:-3px;top:-6px;background:#e08a1e;color:#fff;font:700 calc(var(--tw,30px)*.42)/1 var(--sans);padding:1px 3px;border-radius:4px;z-index:2}
 .t.win{outline:2px solid var(--accent);outline-offset:2px}
 
 /* seats */
@@ -413,7 +413,7 @@ function face(t){
 var FACE=[];for(var ft=0;ft<42;ft++)FACE.push(face(ft));
 function tileEl(t,cls,tag){tag=tag||'span';return '<'+tag+' class="t '+(cls||'')+'" data-t="'+t+'">'+FACE[t]+'</'+tag+'>';}
 var BACK='<span class="t back"></span>';
-function takenMark(h,k){return k?h.replace('data-t=','data-k="'+k+'" data-t='):h;}
+function takenMark(h,k){return k?h.replace('data-t=','data-tk="'+k+'" data-t='):h;}
 
 /* ---------- hand evaluation ---------- */
 var ORPH=[0,8,9,17,18,26,27,28,29,30,31,32,33];
@@ -2162,11 +2162,11 @@ function handleAct(act,b){
   if(act==='cfgN'){U.cfg.n=+v;render();}
   else if(act==='cfgF'){U.cfg.minFan=+v;render();}
   else if(act==='cfgL'){U.cfg.level=+v;render();}
-  else if(act==='solo'){U.role='solo';U.notice='';startGame();}
+  else if(act==='solo'){needPw(function(){U.role='solo';U.notice='';startGame();});}
   else if(act==='resume')resumeGame();
   else if(act==='dropsave'){dropSave();render();}
   else if(act==='loadcode'){loadCloudSave(U.codeInput||'',true);}
-  else if(act==='host')hostOpen();
+  else if(act==='host')needPw(hostOpen);
   else if(act==='join')joinRoom();
   else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code)startGame();}
   else if(act==='leave'||act==='setup'){U.rejoin='';leaveAll();U.notice='';render();}
@@ -2286,23 +2286,26 @@ function onInput(e){
 /* ---------- password gate (front-end only: keeps casual visitors out) ---------- */
 var PW_HASH="0dfa047a71b96ddf9541cc38cc38db4aa25a87080c4104cec5bab7f06822a102";
 function sha256hex(str){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(str)).then(function(b){return Array.prototype.map.call(new Uint8Array(b),function(x){return ('0'+x.toString(16)).slice(-2);}).join('');});}
-function boot(){
-  var ok=false;try{ok=localStorage.getItem('mj_ok')===PW_HASH;}catch(e){}
-  if(ok){boot2();return;}
+function pwOK(){try{return localStorage.getItem('mj_ok')===PW_HASH;}catch(e){return false;}}
+/* 開新局(單人/開房)先要密碼;加入房間、牌河屏、繼續舊局唔使 */
+function needPw(fn){
+  if(pwOK()){fn();return;}
   var d=document.createElement('div');d.id='pwgate';
-  d.style.cssText='position:fixed;inset:0;z-index:9999;background:#fff;display:grid;place-items:center;font-family:var(--sans,system-ui,sans-serif)';
-  d.innerHTML='<form style="display:grid;gap:14px;width:min(320px,86vw);text-align:center"><div style="font:900 34px/1.2 var(--sans,sans-serif);letter-spacing:.12em;color:#16403f">港式麻雀</div><div style="color:#5f7378;font-size:14px">請輸入密碼先可以玩</div><input type="password" inputmode="numeric" autocomplete="off" placeholder="密碼" style="height:46px;border-radius:12px;border:1px solid #c5d6d6;padding:0 14px;font-size:18px;text-align:center"><button type="submit" style="height:46px;border-radius:12px;border:0;background:#0a7f9c;color:#fff;font-size:16px;font-weight:700">進入</button><div class="pwe" style="color:#c23b2a;font-size:13px;min-height:18px"></div></form>';
+  d.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(255,255,255,.96);display:grid;place-items:center;font-family:var(--sans,system-ui,sans-serif)';
+  d.innerHTML='<form style="display:grid;gap:14px;width:min(320px,86vw);text-align:center"><div style="font:900 30px/1.2 var(--sans,sans-serif);letter-spacing:.12em;color:#16403f">開新局</div><div style="color:#5f7378;font-size:14px">請輸入密碼</div><input type="password" inputmode="numeric" autocomplete="off" placeholder="密碼" style="height:46px;border-radius:12px;border:1px solid #c5d6d6;padding:0 14px;font-size:18px;text-align:center"><button type="submit" style="height:46px;border-radius:12px;border:0;background:#0a7f9c;color:#fff;font-size:16px;font-weight:700">確定</button><button type="button" class="pwx" style="height:40px;border-radius:12px;border:1px solid #c5d6d6;background:#fff;font-size:14px">取消</button><div class="pwe" style="color:#c23b2a;font-size:13px;min-height:18px"></div></form>';
   document.body.appendChild(d);
   var f=d.querySelector('form'),inp=d.querySelector('input'),er=d.querySelector('.pwe');
   setTimeout(function(){inp.focus();},50);
+  d.querySelector('.pwx').addEventListener('click',function(){d.remove();});
   f.addEventListener('submit',function(e){
     e.preventDefault();
     sha256hex('mj-hk:'+inp.value.trim()).then(function(h){
-      if(h===PW_HASH){try{localStorage.setItem('mj_ok',PW_HASH);}catch(e){}d.remove();boot2();}
+      if(h===PW_HASH){try{localStorage.setItem('mj_ok',PW_HASH);}catch(e){}d.remove();fn();}
       else{er.textContent='密碼唔啱';inp.value='';inp.focus();}
     }).catch(function(){er.textContent='呢個瀏覽器唔支援,請用 https 開';});
   });
 }
+function boot(){boot2();}
 function boot2(){
   setInterval(function(){try{var l=cdLeft();if(l==null)return;var t=cdText();
     document.querySelectorAll('[data-cd]').forEach(function(e){var x=e.classList.contains('cdn')&&e.parentNode&&e.parentNode.classList.contains('note')?' '+t:t;if(e.textContent!==x)e.textContent=x;});
