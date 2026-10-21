@@ -572,30 +572,59 @@ function danger(p,t,vis){
   });
   return total;
 }
-function estFan(p,c,melds){
-  var f=0,i,open=false,suits={},ns=0,hon=false;
+function estParts(p,c,melds){
+  var inc=0,hon=0,str=0,i,open=false,ns=0,hasH=false;
   melds.forEach(function(m){if(!m.concealed)open=true;});
-  if(!open)f+=1;
-  f+=1;
-  if(!p.flowers.length)f+=1;else p.flowers.forEach(function(t){if((t-34)%4===p.wind)f+=1;});
+  if(!open)inc+=1;                       /* 門前清 */
+  inc+=1;                                /* 自摸 */
+  if(!p.flowers.length)inc+=1;else p.flowers.forEach(function(t){if((t-34)%4===p.wind)inc+=1;});
   var rw=27+S.round,sw=27+p.wind;
   function fv(t){return (t>=31?1:0)+(t===rw?1:0)+(t===sw?1:0);}
   for(i=27;i<34;i++){
     var has=false;
     melds.forEach(function(m){if(m.type!=='chow'&&m.tiles[0]===i)has=true;});
-    if(has||c[i]>=3)f+=fv(i);else if(c[i]===2)f+=fv(i)*0.5;
+    if(has||c[i]>=3)hon+=fv(i);else if(c[i]===2)hon+=fv(i)*0.5;
   }
   var mc=[0,0,0];
-  for(i=0;i<34;i++){if(!c[i])continue;if(i>=27)hon=true;else{mc[suitOf(i)]+=c[i];}}
-  melds.forEach(function(m){var t=m.tiles[0];if(t>=27)hon=true;else mc[suitOf(t)]+=3;});
+  for(i=0;i<34;i++){if(!c[i])continue;if(i>=27)hasH=true;else{mc[suitOf(i)]+=c[i];}}
+  melds.forEach(function(m){var t=m.tiles[0];if(t>=27)hasH=true;else mc[suitOf(t)]+=3;});
   for(i=0;i<3;i++)if(mc[i]>0){ns++;}
-  if(ns<=1)f+=hon?3:7;
-  else if(ns===2){var arr=mc.filter(function(x){return x>0;}).sort(function(a,b){return a-b;});if(arr[0]<=2)f+=1.5;}
+  if(ns<=1)str+=hasH?3:7;
+  else if(ns===2){var arr=mc.filter(function(x){return x>0;}).sort(function(a,b){return a-b;});if(arr[0]<=2)str+=1.5;}
   if(melds.every(function(m){return m.type!=='chow';})){
     var pr=0,tr=0;for(i=0;i<34;i++){if(c[i]>=3)tr++;else if(c[i]===2)pr++;}
-    if(melds.length+tr>=2&&melds.length+tr+pr>=4)f+=3;
+    if(melds.length+tr>=2&&melds.length+tr+pr>=4)str+=3;
   }
-  return f;
+  return {inc:inc,hon:hon,str:str};
+}
+function estFan(p,c,melds){var e=estParts(p,c,melds);return e.inc+e.hon+e.str;}
+/* 碰/上嘅理由:要靠牌型(混一色/清一色/碰碰糊)加字牌番夠,唔可以靠自摸、門前清、無花、花牌湊夠 */
+function planFan(p,c,melds){var e=estParts(p,c,melds);return (e.str>=Math.min(3,S.minFan)||S.minFan<=1)?e.str+e.hon:0;}
+/* 開局唔好即刻打字牌,睇下有冇混一色 */
+function keepOf(p,t,c,L){
+  var keep=0,fanT=t>=31||t===27+S.round||t===27+p.wind;
+  var plan=L.n>=L.total*0.6,flushish=L.n>=L.total*0.72;
+  if(t>=27){
+    var early=S.discN<20,mid=S.discN<48;
+    if(c[t]>=2)keep+=5;                                  /* 已有刻子 */
+    else if(c[t]===1)keep+=fanT?3.5:2.5;                 /* 對子:留住等碰 */
+    else if(early)keep+=fanT?4.5:3.5;                    /* 開局唔好即刻打字牌 */
+    else if(mid&&plan)keep+=fanT?3:2.5;                  /* 有混一色苗頭就繼續留 */
+    else keep+=fanT?1:-1;
+    if(flushish)keep+=1;
+  }else{
+    var rr=t%9;if(rr>=2&&rr<=6)keep+=.5;
+    if(plan)keep+=suitOf(t)===L.main?(flushish?2.5:1.5):(flushish?-3:-1.5);
+  }
+  return keep;
+}
+/* 唔係一開頭就守:對手真係有威脅、而自己又冇機會/番太細先守 */
+function foldNow(p,minSh,maxTh,live,c){
+  if(S.discN<24)return false;
+  var poor=minSh>=3||(minSh>=2&&live<50)||(minSh>=1&&live<30&&estFan(p,c,p.melds)<S.minFan);
+  if(poor&&maxTh>=0.8)return true;
+  if(minSh>=3&&live<40&&maxTh>=0.5)return true;
+  return false;
 }
 function chooseDiscard2(p){
   var c=cnt(p.hand),m=p.melds.length,vis=visible(p),L=lean(p);
@@ -633,15 +662,7 @@ function chooseDiscard2(p){
         }
       }
     }
-    var keep=0;
-    var fanT=t>=31||t===27+S.round||t===27+p.wind;
-    if(t>=27){
-      if(fanT)keep+=c[t]>=2?4:1;else keep-=1;
-      if(flushish)keep+=1;
-    }else{
-      var rr=t%9;if(rr>=2&&rr<=6)keep+=.5;
-      if(flushish)keep+=suitOf(t)===L.main?2:-2;
-    }
+    var keep=keepOf(p,t,c,L);
     var fp=estFan(p,c,p.melds);
     c[t]++;
     var base=-uke*4+keep*6-Math.min(fp,7)*6+Math.random()*3;
@@ -650,8 +671,8 @@ function chooseDiscard2(p){
   }
   /* Efficiency first. Defence only breaks ties among nearly-as-good discards, wider margin when someone looks dangerous. */
   /* push/fold: only play safe when the hand is still far from winning and someone looks dangerous */
-  var fold=minSh>=2&&maxTh>=0.5;
-  var margin=fold?Math.min(120+120*maxTh,300):15;
+  var fold=foldNow(p,minSh,maxTh,S.wall.length,c);
+  var margin=fold?Math.min(120+120*maxTh,300):(S.discN<24?0:12);
   var wgt=fold?1000:100;
   var bestScore=Infinity;
   cands.forEach(function(x){
@@ -665,7 +686,7 @@ function chooseDiscard2(p){
 function aiPung2(p,t,canKong){
   var c=cnt(p.hand),m=p.melds.length,fanT=t>=31||t===27+S.round||t===27+p.wind;
   var c2=c.slice();c2[t]-=canKong?3:2;
-  var est=estFan(p,c2,p.melds.concat([{type:canKong?'kong':'pung',tiles:[t,t,t]}]));
+  var est=planFan(p,c2,p.melds.concat([{type:canKong?'kong':'pung',tiles:[t,t,t]}]));
   var before=shanten(c,m),c3=c.slice();c3[t]-=2;var after=shanten(c3,m+1);
   if(est<S.minFan&&!(fanT&&after<before))return null;
   if(canKong&&t>=27)return 'kong';
@@ -681,7 +702,7 @@ function aiChow2(p,t,opts){
   opts.forEach(function(s){
     var c2=c.slice();c2[s[0]]--;c2[s[1]]--;
     var a=shanten(c2,m+1);
-    var est=estFan(p,c2,p.melds.concat([{type:'chow',tiles:[s[0],s[1],t].sort(function(x,y){return x-y;})}]));
+    var est=planFan(p,c2,p.melds.concat([{type:'chow',tiles:[s[0],s[1],t].sort(function(x,y){return x-y;})}]));
     if(a<bs&&est>=S.minFan){bs=a;best=s;}
   });
   return best;
@@ -721,7 +742,7 @@ function chooseDiscard3(p){
   for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=shanten(c,m);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
   var maxTh=0;S.players.forEach(function(q){if(q!==p)maxTh=Math.max(maxTh,threatOf(q));});
   var live=S.wall.length;
-  var fold=(minSh>=2&&maxTh>=LV3.f2)||(minSh===1&&maxTh>=LV3.f1&&live<70);
+  var fold=foldNow(p,minSh,maxTh,live,c);
   var cands=[],bestBase=Infinity,bestT=-1;
   for(t=0;t<34;t++){
     if(shs[t]===undefined)continue;
@@ -764,21 +785,14 @@ function chooseDiscard3(p){
         c[u]++;if(shanten(c,m)<minSh)E+=rem2;c[u]--;
       }
     }
-    var keep=0,fanT=t>=31||t===27+S.round||t===27+p.wind;
-    if(t>=27){
-      if(fanT)keep+=c[t]>=2?4:1;else keep-=1;
-      if(flushish)keep+=1;
-    }else{
-      var rr=t%9;if(rr>=2&&rr<=6)keep+=.5;
-      if(flushish)keep+=suitOf(t)===L.main?2:-2;
-    }
+    var keep=keepOf(p,t,c,L);
     var fp=estFan(p,c,p.melds);
     c[t]++;
     var base=-E*LV3.ew+keep*6-Math.min(fp,7)*6+(sh-minSh)*40+Math.random()*3;
     cands.push({t:t,base:base});
     if(base<bestBase)bestBase=base;
   }
-  var margin=fold?Math.min(150+120*maxTh,400):15;
+  var margin=fold?Math.min(150+120*maxTh,400):(S.discN<24?0:12);
   var wgt=fold?1500:LV3.dw;
   var bestScore=Infinity;
   cands.forEach(function(x){
