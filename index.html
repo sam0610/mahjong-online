@@ -298,6 +298,9 @@ body.pondmode .sheet{color:var(--ink)}
 <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 (function(){
 'use strict';
@@ -818,13 +821,13 @@ var S={pond:[],n:4,minFan:3,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,
 var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
 var PREFIX='hkmj-';
-var NET={peer:null,conn:null,hub:null,sb:null,pend:[],members:[],ponds:[],lobby:null,rx:0,state:''};
+var NET={peer:null,conn:null,hub:null,sb:null,fb:null,pend:[],members:[],ponds:[],lobby:null,rx:0,state:''};
 var PEER_OPTS={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
   {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}]}};
 
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host'?'房主':'玩家');}
-function netOK(){return (typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function')||sbOK());}
+function netOK(){return (typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function')||sbOK()||fbOK());}
 function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function(){if(tok===S.token)res();else rej(CANCEL);},ms*S.speed);});}
 
 /* ---------- 自動聽牌: when exactly 1 tile from winning (tenpai), the game waits for the winning tile and discards the rest ---------- */
@@ -975,6 +978,7 @@ function takeover(seat){
 /* ---------- saving progress ----------
    Always saved in this browser (localStorage). If CLOUD.url / CLOUD.key are filled in (Supabase), the same
    snapshot is also stored on the server under a private save code, so it survives cleared browsers and works on another device. */
+var FB_CONFIG={apiKey:'AIzaSyDnY1uRvkMvuPbcgEBuAOCadppylg51Aps',authDomain:'game-online-aa5d2.firebaseapp.com',databaseURL:'https://game-online-aa5d2-default-rtdb.asia-southeast1.firebasedatabase.app',projectId:'game-online-aa5d2',storageBucket:'game-online-aa5d2.firebasestorage.app',messagingSenderId:'401530397913',appId:'1:401530397913:web:fe0d1475e4cf10233b4ac8'};
 var CLOUD={url:'https://xzuunzyxrackszianule.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6dXVuenl4cmFja3N6aWFudWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxMTIxOTEsImV4cCI6MjEwNzY4ODE5MX0.4LT0h02s9SIVTZu7Ebc-llPgRCO2sD5fbyeWZ3J-3ns'};
 var SAVE_KEY='mj_save_v1',CODE_KEY='mj_code_v1';
 function cloudOn(){return !!(CLOUD.url&&CLOUD.key);}
@@ -1496,22 +1500,138 @@ function sbGuest(code){
   });
   return conn;
 }
+
+/* ---- Firebase Realtime Database transport(匿名登入;用現有規則 rooms/$code/meta + inbox/$peer,冇廣播,每人專屬收件箱) ---- */
+function fbOK(){return typeof window!=='undefined'&&!!window.firebase&&!!window.firebase.database&&!!window.firebase.auth&&!!FB_CONFIG.apiKey;}
+var FBA=null;
+function fbInit(){
+  if(!FBA){
+    try{window.firebase.initializeApp(FB_CONFIG);}catch(e){}
+    FBA={db:window.firebase.database(),auth:window.firebase.auth(),user:null};
+  }
+  return FBA;
+}
+function fbUser(){
+  var A=fbInit();
+  if(!A.user)A.user=A.auth.signInAnonymously().then(function(r){return r.user;},function(e){A.user=null;throw e;});
+  return A.user;
+}
+function fbPush(path,from,o){
+  try{fbInit().db.ref(path).push({topic:'k',from:from,p:JSON.stringify(o)}).catch(function(){});}catch(e){}
+}
+function fbHost(code,onConn,onReady,onFail,onTaken){
+  var hub={conns:{},closed:false,iv:null,hp:'',meta:null,inbox:null};
+  function send(cid,o){fbPush('rooms/'+code+'/inbox/'+cid,hub.hp,o);}
+  function onMsg(snap){
+    var v=snap.val();try{snap.ref.remove();}catch(e){}
+    if(!v||hub.closed||!v.p)return;
+    var m;try{m=JSON.parse(v.p);}catch(e){return;}
+    var cid=String(v.from||'');if(!cid||!m)return;
+    var conn=hub.conns[cid];
+    if(m.t==='join'){
+      if(!conn){
+        conn=mqConn(function(o){send(cid,o);});hub.conns[cid]=conn;conn.seen=Date.now();
+        onConn(conn);conn.open=true;conn.emit('open');
+      }
+      send(cid,{t:'ack'});return;
+    }
+    if(!conn)return;
+    conn.seen=Date.now();
+    if(m.t==='data')conn.emit('data',m.d);
+    else if(m.t==='bye'){conn.remoteClose();delete hub.conns[cid];}
+  }
+  fbUser().then(function(u){
+    if(hub.closed)return;
+    var db=fbInit().db,uid=u.uid,hp=uid+'_h';hub.hp=hp;
+    var meta=db.ref('rooms/'+code+'/meta'),inbox=db.ref('rooms/'+code+'/inbox/'+hp);
+    hub.meta=meta;hub.inbox=inbox;
+    meta.set({uid:uid,host:hp,ts:window.firebase.database.ServerValue.TIMESTAMP}).then(function(){
+      if(hub.closed){try{meta.remove();}catch(e){}return;}
+      try{meta.onDisconnect().remove();inbox.onDisconnect().remove();}catch(e){}
+      return inbox.remove().then(function(){
+        if(hub.closed)return;
+        inbox.on('child_added',onMsg);
+        onReady();
+        hub.iv=setInterval(function(){
+          Object.keys(hub.conns).forEach(function(cid){
+            var cn=hub.conns[cid];if(!cn.open)return;
+            if(Date.now()-cn.seen>20000){cn.remoteClose();delete hub.conns[cid];}
+            else send(cid,{t:'ping'});
+          });
+        },3000);
+      });
+    }).catch(function(e){
+      if(hub.closed)return;
+      if(e&&e.code==='PERMISSION_DENIED'&&onTaken)onTaken();else onFail();
+    });
+  },function(){if(!hub.closed)onFail();});
+  hub.close=function(){
+    hub.closed=true;clearInterval(hub.iv);
+    Object.keys(hub.conns).forEach(function(k){try{hub.conns[k].close();}catch(e){}});
+    setTimeout(function(){
+      try{if(hub.inbox){hub.inbox.off();hub.inbox.remove();}if(hub.meta)hub.meta.remove();}catch(e){}
+    },400);
+  };
+  return hub;
+}
+function fbGuest(code){
+  var rnd=Math.random().toString(36).slice(2,10),me='',hp='',myInbox=null,closed=false,tries=0,jiv=null,kiv=null;
+  var conn=mqConn(function(o){if(hp&&me)fbPush('rooms/'+code+'/inbox/'+hp,me,o);});
+  function cleanup(){closed=true;clearInterval(jiv);clearInterval(kiv);setTimeout(function(){try{if(myInbox){myInbox.off();myInbox.remove();}}catch(e){}},400);}
+  var origClose=conn.close;conn.close=function(){origClose();cleanup();};
+  var origRemote=conn.remoteClose;conn.remoteClose=function(){origRemote();cleanup();};
+  function onMsg(snap){
+    var v=snap.val();try{snap.ref.remove();}catch(e){}
+    if(!v||closed||!v.p)return;
+    var m;try{m=JSON.parse(v.p);}catch(e){return;}
+    if(!m)return;
+    conn.seen=Date.now();
+    if(m.t==='ack'){if(!conn.open){conn.open=true;clearInterval(jiv);conn.emit('open');}}
+    else if(m.t==='data'&&conn.open)conn.emit('data',m.d);
+    else if(m.t==='bye')conn.remoteClose();
+  }
+  function lookup(){
+    fbInit().db.ref('rooms/'+code+'/meta').once('value').then(function(s){
+      var v=s.val();if(closed||conn.open)return;
+      if(v&&v.host){hp=String(v.host);fbPush('rooms/'+code+'/inbox/'+hp,me,{t:'join'});}
+    },function(){});
+  }
+  fbUser().then(function(u){
+    if(closed)return;
+    me=u.uid+'_'+rnd;
+    myInbox=fbInit().db.ref('rooms/'+code+'/inbox/'+me);
+    myInbox.on('child_added',onMsg);
+    function join(){
+      if(conn.open||closed)return;
+      if(++tries>8){conn.emit('error',{type:'peer-unavailable'});return;}
+      if(hp)fbPush('rooms/'+code+'/inbox/'+hp,me,{t:'join'});else lookup();
+    }
+    join();jiv=setInterval(join,1500);
+    kiv=setInterval(function(){
+      if(!conn.open)return;
+      fbPush('rooms/'+code+'/inbox/'+hp,me,{t:'ping'});
+      if(Date.now()-conn.seen>20000)conn.remoteClose();
+    },3000);
+  },function(e){if(!closed)conn.emit('error',{type:'auth '+((e&&e.code)||'')});});
+  return conn;
+}
 function hostOpen(){
-  if(!rtcOK()&&!mqOK()&&!sbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role='host';U.screen='lobby';U.notice='';U.code='';NET.members=[];
   openRoom(0);render();
 }
 function openRoom(attempt){
-  var code=randCode(),peer=null,hub=null,sbh=null,peerErr=!rtcOK(),mqErr=!mqOK(),sbErr=!sbOK();
-  function setCode(){if((U.role==='host'||U.pondOnly)&&(NET.peer===peer||NET.hub===hub||NET.sb===sbh)&&U.code!==code){U.code=code;render();}}
+  var code=randCode(),peer=null,hub=null,sbh=null,fbh=null,peerErr=!rtcOK(),mqErr=!mqOK(),sbErr=!sbOK(),fbErr=!fbOK();
+  function setCode(){if((U.role==='host'||U.pondOnly)&&(NET.peer===peer||NET.hub===hub||NET.sb===sbh||NET.fb===fbh)&&U.code!==code){U.code=code;render();}}
   function check(){
-    if(!(peerErr&&mqErr&&sbErr))return;
+    if(!(peerErr&&mqErr&&sbErr&&fbErr))return;
     if(U.role==='host'){leaveAll();U.notice='連線失敗,請稍後再試。';render();}
     else if(U.pondOnly){
-      var pr=NET.peer,hb=NET.hub,sh=NET.sb;NET.peer=null;NET.hub=null;NET.sb=null;
+      var pr=NET.peer,hb=NET.hub,sh=NET.sb,fh=NET.fb;NET.peer=null;NET.hub=null;NET.sb=null;NET.fb=null;
       try{if(pr)pr.destroy();}catch(x){}
       try{if(hb)hb.close();}catch(x){}
       try{if(sh)sh.close();}catch(x){}
+      try{if(fh)fh.close();}catch(x){}
       U.pondFail=true;render();
     }
   }
@@ -1526,6 +1646,7 @@ function openRoom(attempt){
         try{peer.destroy();}catch(x){}
         if(hub){hub.close();NET.hub=null;}
         if(sbh){sbh.close();NET.sb=null;}
+        if(fbh){fbh.close();NET.fb=null;}
         U.code='';openRoom(attempt+1);return;
       }
       peerErr=true;check();
@@ -1538,6 +1659,18 @@ function openRoom(attempt){
   if(sbOK()){
     sbh=sbHost(code,function(conn){if(NET.sb===sbh)onHostConn(conn);},setCode,function(){sbErr=true;check();});
     NET.sb=sbh;
+  }
+  if(fbOK()){
+    fbh=fbHost(code,function(conn){if(NET.fb===fbh)onHostConn(conn);},setCode,function(){fbErr=true;check();},function(){
+      if(NET.fb!==fbh)return;
+      if(attempt<5){
+        try{if(peer)peer.destroy();}catch(x){}
+        if(hub){hub.close();NET.hub=null;}
+        if(sbh){sbh.close();NET.sb=null;}
+        fbh.close();NET.fb=null;U.code='';openRoom(attempt+1);
+      }else{fbErr=true;check();}
+    });
+    NET.fb=fbh;
   }
 }
 function onHostConn(conn){
@@ -1599,7 +1732,7 @@ function pondRetry(msg){
 function joinRoom(){
   var code=(U.roomInput||'').trim().toUpperCase();
   if(!code){U.notice='請輸入房號。';render();return;}
-  if(!rtcOK()&&!mqOK()&&!sbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role=U.pondMode?'pond':'client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;NET.rx=0;NET.state='連線中…';NET.pend=[];
   var peer=null,chosen=null,dead=false;
   function fail(msg){if(dead)return;dead=true;var wasIn=!U.pondMode&&U.role==='client'&&!!V;
@@ -1633,7 +1766,8 @@ function joinRoom(){
     if(dead||NET.peer!==peer&&peer){clearInterval(helloIv);return;}
     if(NET.conn&&NET.conn.open&&!NET.lobby)safeSend(NET.conn,helloMsg());
   },2000);
-  var tFallback=(rtcOK()||sbOK())?setTimeout(startMq,6000):null;
+  var tFallback=(rtcOK()||sbOK()||fbOK())?setTimeout(startMq,6000):null;
+  if(fbOK())attach(fbGuest(code),'Firebase');
   if(sbOK())attach(sbGuest(code),'Supabase');
   var tAll=setTimeout(function(){if(!chosen)fail('連唔到房間 '+code+',請確認房號,或者再試一次。');},22000);
   if(rtcOK()){
@@ -1643,7 +1777,7 @@ function joinRoom(){
       attach(peer.connect(PREFIX+code,{reliable:true,serialization:'json'}),'直連');
     });
     peer.on('error',function(){if(NET.peer===peer&&!chosen){NET.state='直連唔到,轉用備用線路…';startMq();}});
-  }else if(!sbOK())startMq();
+  }else if(!sbOK()&&!fbOK())startMq();
   render();
 }
 function onClientData(d){
@@ -1671,6 +1805,7 @@ function leaveAll(){
   var pend=NET.pend||[];NET.pend=[];pend.forEach(function(c){try{c.close();}catch(e){}});
   var hub=NET.hub;NET.hub=null;if(hub)setTimeout(function(){hub.close();},250);
   var sbh2=NET.sb;NET.sb=null;if(sbh2)setTimeout(function(){sbh2.close();},250);
+  var fbh2=NET.fb;NET.fb=null;if(fbh2)setTimeout(function(){fbh2.close();},250);
   if(peer){setTimeout(function(){try{peer.destroy();}catch(e){}},300);}
   U.role='solo';U.screen='setup';U.code='';V=null;U.modalHidden=false;U.rules=false;U.saved=readLocalSave();
 }
@@ -1954,7 +2089,7 @@ function handleAct(act,b){
     U.share=true;U.copiedPond=false;
     if(U.role==='solo'&&!U.pondOnly){
       U.pondOnly=true;U.pondFail=false;U.code='';NET.members=[];
-      if(!rtcOK()&&!mqOK()&&!sbOK())U.pondFail=true;else openRoom(0);
+      if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK())U.pondFail=true;else openRoom(0);
     }
     render();
   }
