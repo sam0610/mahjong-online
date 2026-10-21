@@ -840,15 +840,7 @@ function chooseDiscard(p){
       var rem=4-vis[u];if(rem<=0)continue;
       c[u]++;if(shanten(c,m)<minSh)uke+=rem;c[u]--;
     }
-    var keep=0;
-    var fanT=t>=31||t===27+S.round||t===27+p.wind;
-    if(t>=27){
-      if(fanT)keep+=c[t]>=2?4:1;else keep-=1;
-      if(flushish)keep+=1;
-    }else{
-      var rr=t%9;if(rr>=2&&rr<=6)keep+=.5;
-      if(flushish)keep+=suitOf(t)===L.main?2:-2;
-    }
+    var keep=keepOf(p,t,c,L);
     c[t]++;
     var cost=minSh*1000-uke*4+keep*6+Math.random()*3;
     if(cost<bestCost){bestCost=cost;bestT=t;}
@@ -866,7 +858,11 @@ function aiPung1(p,t,canKong){
   var L=lean(p);
   var flush=L.n>=L.total*0.72&&(t>=27||suitOf(t)===L.main);
   var before=shanten(c,m);c[t]-=2;var after=shanten(c,m+1);
-  if(after<before&&(flush||m>=1||Math.random()<0.3))return 'pung';
+  if(after<before&&(flush||m>=1||Math.random()<0.3)){
+    var c2=cnt(p.hand);c2[t]-=canKong?3:2;
+    if(planFan(p,c2,p.melds.concat([{type:canKong?'kong':'pung',tiles:[t,t,t]}]))<=0)return null;
+    return 'pung';
+  }
   return null;
 }
 function aiChow1(p,t,opts){
@@ -875,7 +871,11 @@ function aiChow1(p,t,opts){
   var flush=L.n>=L.total*0.72&&suitOf(t)===L.main;
   var best=null,bs=before;
   opts.forEach(function(s){var c2=c.slice();c2[s[0]]--;c2[s[1]]--;var a=shanten(c2,m+1);if(a<bs){bs=a;best=s;}});
-  if(best&&(flush||m>=2))return best;
+  if(best&&(flush||m>=2)){
+    var c3=cnt(p.hand);c3[best[0]]--;c3[best[1]]--;
+    if(planFan(p,c3,p.melds.concat([{type:'chow',tiles:[best[0],best[1],t].sort(function(x,y){return x-y;})}]))<=0)return null;
+    return best;
+  }
   return null;
 }
 function aiTurn(p,ev,kongs){
@@ -1352,7 +1352,7 @@ function buildView(seat){
   return {me:seat,n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
     players:S.players.map(function(p,i){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},n:p.hand.length,
-      hand:(i===seat||S.over)?p.hand:null,drawn:i===seat?p.drawn:null};}),
+      hand:(i===seat||S.over)?p.hand:(U.debug&&seat===0&&!p.human&&U.role!=='client')?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
     auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
     result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number)};
@@ -1928,7 +1928,7 @@ function drawOpps(){
   if(V){
     for(var k=1;k<V.n;k++){
       var i=(V.me+k)%V.n,p=V.players[i],body;
-      if(V.over&&p.hand)body='<span class="reveal">'+faces(p.hand)+'</span>';
+      if(p.hand)body='<span class="reveal">'+faces(p.hand)+'</span>';
       else{var gs=[],rest=p.n;while(rest>0){var g=Math.min(5,rest);gs.push('<span class="grp">'+new Array(g+1).join(BACK)+'</span>');rest-=g;}body='<span class="backs">'+gs.join('')+'</span>';}
       var hasOpen=p.melds.length||p.flowers.length;
       h+='<article class="'+seatClass(i)+'">'+headHTML(p,i,k)+'<div class="rack'+(hasOpen?'':' bare')+'">'+body+(p.melds.length?'<span class="sep"></span>'+meldsHTML(p,false):'')+flowersHTML(p)+'</div></article>';
@@ -1944,7 +1944,7 @@ function tseat(i,k,ps){
     (i===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+p.score.toLocaleString()+'</span>'+
     (!V.over?'<span class="numbadge"><b>'+p.n+'</b>張</span>':'')+'</div>';
   var body;
-  if(V.over&&p.hand)body='<div class="treveal">'+faces(p.hand)+'</div>';
+  if(p.hand)body='<div class="treveal">'+faces(p.hand)+'</div>';
   else{var bs='';for(var j=0;j<p.n;j++)bs+='<i class="hb"></i>';body='<div class="tbacks">'+bs+'</div>';}
   var open=(p.melds.length||p.flowers.length)?'<div class="topen">'+meldsHTML(p,false)+flowersHTML(p)+'</div>':'';
   return '<div class="tseat ps-'+ps+'">'+chip+'<div class="tbody">'+body+open+'</div></div>';
@@ -1985,7 +1985,7 @@ function drawPond(){
 function drawMid(){
   if(!V){els.mid.innerHTML='';els.mid.hidden=true;return;}
   els.mid.hidden=false;
-  var info=WIND[V.round]+'風圈 · 第'+V.handNo+'局 · 莊 '+esc(V.players[V.dealer].name);
+  var info=WIND[V.round]+'風圈 · 第'+V.handNo+'局 · 莊 '+esc(V.players[V.dealer].name)+(U.debug?' · 除錯':'');
   var msg;
   if(V.ask){
     var o=V.ask.opts;
@@ -2300,6 +2300,7 @@ function onInput(e){
 /* ---------- password gate (front-end only: keeps casual visitors out) ---------- */
 var PW_HASH="0dfa047a71b96ddf9541cc38cc38db4aa25a87080c4104cec5bab7f06822a102";
 function sha256hex(str){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(str)).then(function(b){return Array.prototype.map.call(new Uint8Array(b),function(x){return ('0'+x.toString(16)).slice(-2);}).join('');});}
+var DBG_HASH="bd78a174b6ea08ced4eddd4893335f0df0e7947493ad31fedefb74dc484425dc";
 function pwOK(){return false;}   /* 唔記住密碼:每次開新局都要輸 */
 /* 開新局(單人/開房)先要密碼;加入房間、牌河屏、繼續舊局唔使 */
 function needPw(fn){
@@ -2314,7 +2315,7 @@ function needPw(fn){
   f.addEventListener('submit',function(e){
     e.preventDefault();
     sha256hex('mj-hk:'+inp.value.trim()).then(function(h){
-      if(h===PW_HASH){try{localStorage.removeItem('mj_ok');}catch(e){}d.remove();fn();}
+      if(h===PW_HASH||h===DBG_HASH){U.debug=(h===DBG_HASH);try{localStorage.removeItem('mj_ok');}catch(e){}d.remove();fn();}
       else{er.textContent='密碼唔啱';inp.value='';inp.focus();}
     }).catch(function(){er.textContent='呢個瀏覽器唔支援,請用 https 開';});
   });
