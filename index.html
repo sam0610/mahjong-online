@@ -1521,7 +1521,7 @@ function fbPush(path,from,o){
 }
 function fbHost(code,onConn,onReady,onFail,onTaken){
   var hub={conns:{},closed:false,iv:null,hp:'',meta:null,inbox:null};
-  function send(cid,o){fbPush('rooms/'+code+'/inbox/'+cid,hub.hp,o);}
+  function send(cid,o){fbPush('rooms/mj'+code+'/inbox/'+cid,hub.hp,o);}
   function onMsg(snap){
     var v=snap.val();try{snap.ref.remove();}catch(e){}
     if(!v||hub.closed||!v.p)return;
@@ -1543,7 +1543,7 @@ function fbHost(code,onConn,onReady,onFail,onTaken){
   fbUser().then(function(u){
     if(hub.closed)return;
     var db=fbInit().db,uid=u.uid,hp=uid+'_h';hub.hp=hp;
-    var meta=db.ref('rooms/'+code+'/meta'),inbox=db.ref('rooms/'+code+'/inbox/'+hp);
+    var meta=db.ref('rooms/mj'+code+'/meta'),inbox=db.ref('rooms/mj'+code+'/inbox/'+hp);
     hub.meta=meta;hub.inbox=inbox;
     meta.set({uid:uid,host:hp,ts:window.firebase.database.ServerValue.TIMESTAMP}).then(function(){
       if(hub.closed){try{meta.remove();}catch(e){}return;}
@@ -1576,7 +1576,7 @@ function fbHost(code,onConn,onReady,onFail,onTaken){
 }
 function fbGuest(code){
   var rnd=Math.random().toString(36).slice(2,10),me='',hp='',myInbox=null,closed=false,tries=0,jiv=null,kiv=null;
-  var conn=mqConn(function(o){if(hp&&me)fbPush('rooms/'+code+'/inbox/'+hp,me,o);});
+  var conn=mqConn(function(o){if(hp&&me)fbPush('rooms/mj'+code+'/inbox/'+hp,me,o);});
   function cleanup(){closed=true;clearInterval(jiv);clearInterval(kiv);setTimeout(function(){try{if(myInbox){myInbox.off();myInbox.remove();}}catch(e){}},400);}
   var origClose=conn.close;conn.close=function(){origClose();cleanup();};
   var origRemote=conn.remoteClose;conn.remoteClose=function(){origRemote();cleanup();};
@@ -1591,25 +1591,25 @@ function fbGuest(code){
     else if(m.t==='bye')conn.remoteClose();
   }
   function lookup(){
-    fbInit().db.ref('rooms/'+code+'/meta').once('value').then(function(s){
+    fbInit().db.ref('rooms/mj'+code+'/meta').once('value').then(function(s){
       var v=s.val();if(closed||conn.open)return;
-      if(v&&v.host){hp=String(v.host);fbPush('rooms/'+code+'/inbox/'+hp,me,{t:'join'});}
+      if(v&&v.host){hp=String(v.host);fbPush('rooms/mj'+code+'/inbox/'+hp,me,{t:'join'});}
     },function(){});
   }
   fbUser().then(function(u){
     if(closed)return;
     me=u.uid+'_'+rnd;
-    myInbox=fbInit().db.ref('rooms/'+code+'/inbox/'+me);
+    myInbox=fbInit().db.ref('rooms/mj'+code+'/inbox/'+me);
     myInbox.on('child_added',onMsg);
     function join(){
       if(conn.open||closed)return;
       if(++tries>8){conn.emit('error',{type:'peer-unavailable'});return;}
-      if(hp)fbPush('rooms/'+code+'/inbox/'+hp,me,{t:'join'});else lookup();
+      if(hp)fbPush('rooms/mj'+code+'/inbox/'+hp,me,{t:'join'});else lookup();
     }
     join();jiv=setInterval(join,1500);
     kiv=setInterval(function(){
       if(!conn.open)return;
-      fbPush('rooms/'+code+'/inbox/'+hp,me,{t:'ping'});
+      fbPush('rooms/mj'+code+'/inbox/'+hp,me,{t:'ping'});
       if(Date.now()-conn.seen>20000)conn.remoteClose();
     },3000);
   },function(e){if(!closed)conn.emit('error',{type:'auth '+((e&&e.code)||'')});});

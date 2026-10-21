@@ -12,7 +12,7 @@
 - 一人撳「開房同朋友打」,會得到房號同連結,傳俾朋友。
 - 朋友開同一個網頁,輸入房號(或直接開連結)加入。夠唔夠人都可以開始,空位由電腦補。
 - 房主嘅瀏覽器負責行牌局,要保持網頁開住。有人斷線會由電腦代打。
-- 連線同時並行試 Firebase Realtime Database(匿名登入,要喺 Firebase 開 Anonymous 登入,規則用 rooms/$code/meta + inbox/$peer)、Supabase Realtime(Broadcast)同 PeerJS(WebRTC 直連);6 秒內都未連到就加開公共 MQTT(HiveMQ / EMQX)備用。邊條線先通就用邊條。MQTT 嘅訊息經公共伺服器,房號唔好公開。
+- 連線同時並行試 Firebase Realtime Database(匿名登入,要喺 Firebase 開 Anonymous 登入,房間路徑 rooms/mj房號/…,配合現有規則 rooms/$code/meta + inbox/$peer)、Supabase Realtime(Broadcast)同 PeerJS(WebRTC 直連);6 秒內都未連到就加開公共 MQTT(HiveMQ / EMQX)備用。邊條線先通就用邊條。MQTT 嘅訊息經公共伺服器,房號唔好公開。
 - 房主嘅程式持有所有手牌(信任房主);開始後唔可以中途加入。
 
 ## 規則
