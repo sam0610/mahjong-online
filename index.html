@@ -2286,7 +2286,7 @@ function onInput(e){
 /* ---------- password gate (front-end only: keeps casual visitors out) ---------- */
 var PW_HASH="0dfa047a71b96ddf9541cc38cc38db4aa25a87080c4104cec5bab7f06822a102";
 function sha256hex(str){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(str)).then(function(b){return Array.prototype.map.call(new Uint8Array(b),function(x){return ('0'+x.toString(16)).slice(-2);}).join('');});}
-function pwOK(){try{return localStorage.getItem('mj_ok')===PW_HASH;}catch(e){return false;}}
+function pwOK(){return false;}   /* 唔記住密碼:每次開新局都要輸 */
 /* 開新局(單人/開房)先要密碼;加入房間、牌河屏、繼續舊局唔使 */
 function needPw(fn){
   if(pwOK()){fn();return;}
@@ -2300,7 +2300,7 @@ function needPw(fn){
   f.addEventListener('submit',function(e){
     e.preventDefault();
     sha256hex('mj-hk:'+inp.value.trim()).then(function(h){
-      if(h===PW_HASH){try{localStorage.setItem('mj_ok',PW_HASH);}catch(e){}d.remove();fn();}
+      if(h===PW_HASH){try{localStorage.removeItem('mj_ok');}catch(e){}d.remove();fn();}
       else{er.textContent='密碼唔啱';inp.value='';inp.focus();}
     }).catch(function(){er.textContent='呢個瀏覽器唔支援,請用 https 開';});
   });
