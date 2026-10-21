@@ -286,15 +286,15 @@ body.pondmode .sheet{color:var(--ink)}
   .tbl:empty{display:none}
   .tseat{display:flex;gap:12px;min-width:0}
   .tseat.ps-t{grid-column:1/4;grid-row:1;justify-self:center;flex-direction:column;align-items:center;gap:8px}
-  .tseat.ps-l{grid-column:1;grid-row:2;align-self:center;align-items:flex-start}
-  .tseat.ps-r{grid-column:3;grid-row:2;align-self:center;align-items:flex-start;flex-direction:row-reverse}
+  .tseat.ps-l{grid-column:1;grid-row:2;align-self:center;align-items:center}
+  .tseat.ps-r{grid-column:3;grid-row:2;align-self:center;align-items:center;flex-direction:row-reverse}
   .tchip{position:relative;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #d3e0e0;border-radius:999px;padding:4px 14px 4px 5px;font-size:14px;white-space:nowrap}
   .tseat.ps-l .tchip,.tseat.ps-r .tchip{flex-direction:column;border-radius:14px;padding:8px 10px;text-align:center;gap:3px;line-height:1.4}
   .tchip.on{border-color:#e08a1e;box-shadow:0 0 0 3px #e08a1e,0 0 20px 4px rgba(224,138,30,.35)}
   .tchip .sc,.tchip .numbadge{margin-left:0}
   .tbody{display:flex;gap:10px}
   .tseat.ps-t .tbody{align-items:flex-end}
-  .tseat.ps-l .tbody,.tseat.ps-r .tbody{flex-direction:row;align-items:flex-start;gap:8px}
+  .tseat.ps-l .tbody,.tseat.ps-r .tbody{flex-direction:row;align-items:center;gap:8px}
   .tbacks{display:flex;gap:2px}
   .tseat.ps-l .tbacks,.tseat.ps-r .tbacks{flex-direction:column}
   .hb{display:block;flex:none;width:calc(var(--pw)*.95);height:calc(var(--pw)*1.3);border-radius:3px;background:repeating-linear-gradient(135deg,#bfe0e3 0 2px,#9fcdd2 2px 5px);box-shadow:0 3px 0 #6fa3aa}
@@ -303,7 +303,7 @@ body.pondmode .sheet{color:var(--ink)}
   .topen{display:flex;flex-wrap:wrap;gap:6px;--tw:calc(var(--pw)*.8)}
   .topen .meld,.topen .fl{--tw:calc(var(--pw)*.8)}
   /* 上家/下家:碰上槓打直排,牌橫放 */
-  .tseat.ps-l .topen,.tseat.ps-r .topen{flex-direction:column;flex-wrap:wrap;align-content:flex-start;align-items:center;gap:6px;max-height:calc(var(--pw)*12.5)}
+  .tseat.ps-l .topen,.tseat.ps-r .topen{flex-direction:column;flex-wrap:wrap;align-content:center;align-items:center;gap:6px;max-height:calc(var(--pw)*12.5)}
   .tseat.ps-l .topen .meld,.tseat.ps-r .topen .meld,.tseat.ps-l .topen .fl,.tseat.ps-r .topen .fl{flex-direction:column;padding:3px;border-radius:8px;background:rgba(10,127,156,.09)}
   .tseat.ps-l .topen .t,.tseat.ps-r .topen .t{width:calc(var(--tw)*1.36);height:var(--tw)}
   .tseat.ps-l .topen .t svg,.tseat.ps-r .topen .t svg{position:absolute;left:50%;top:50%;width:calc(var(--tw)*.9);height:calc(var(--tw)*1.26);transform:translate(-50%,-50%) rotate(90deg)}
