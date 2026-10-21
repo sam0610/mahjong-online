@@ -294,17 +294,18 @@ body.pondmode .sheet{color:var(--ink)}
   .tchip .sc,.tchip .numbadge{margin-left:0}
   .tbody{display:flex;gap:10px}
   .tseat.ps-t .tbody{align-items:flex-end}
-  .tseat.ps-l .tbody,.tseat.ps-r .tbody{flex-direction:row;align-items:center;gap:8px}
+  .tseat.ps-l,.tseat.ps-r{--sp:clamp(13px,calc((100vh - 330px)/16),var(--pw))}
+  .tseat.ps-l .tbody,.tseat.ps-r .tbody{flex-direction:column;align-items:center;gap:6px}
   .tbacks{display:flex;gap:2px}
-  .tseat.ps-l .tbacks,.tseat.ps-r .tbacks{flex-direction:column}
+  .tseat.ps-l .tbacks,.tseat.ps-r .tbacks{flex-direction:column;gap:1px}
   .hb{display:block;flex:none;width:calc(var(--pw)*.95);height:calc(var(--pw)*1.3);border-radius:3px;background:repeating-linear-gradient(135deg,#bfe0e3 0 2px,#9fcdd2 2px 5px);box-shadow:0 3px 0 #6fa3aa}
-  .tseat.ps-l .hb,.tseat.ps-r .hb{width:calc(var(--pw)*1.3);height:calc(var(--pw)*.9);background:repeating-linear-gradient(45deg,#bfe0e3 0 2px,#9fcdd2 2px 5px);box-shadow:3px 0 0 #6fa3aa}
+  .tseat.ps-l .hb,.tseat.ps-r .hb{width:calc(var(--sp)*1.3);height:calc(var(--sp)*.9);background:repeating-linear-gradient(45deg,#bfe0e3 0 2px,#9fcdd2 2px 5px);box-shadow:3px 0 0 #6fa3aa}
   .tseat.ps-r .hb{box-shadow:-3px 0 0 #6fa3aa}
   .topen{display:flex;flex-wrap:wrap;gap:6px;--tw:calc(var(--pw)*.8)}
   .topen .meld,.topen .fl{--tw:calc(var(--pw)*.8)}
   /* 上家/下家:碰上槓打直排,牌橫放 */
-  .tseat.ps-l .topen,.tseat.ps-r .topen{flex-direction:column;flex-wrap:wrap;align-content:center;align-items:center;gap:6px;max-height:calc(var(--pw)*12.5)}
-  .tseat.ps-l .topen .meld,.tseat.ps-r .topen .meld,.tseat.ps-l .topen .fl,.tseat.ps-r .topen .fl{flex-direction:column;padding:3px;border-radius:8px;background:rgba(10,127,156,.09)}
+  .tseat.ps-l .topen,.tseat.ps-r .topen{flex-direction:column;flex-wrap:nowrap;align-items:center;gap:5px;--tw:calc(var(--sp)*.9)}
+  .tseat.ps-l .topen .meld,.tseat.ps-r .topen .meld,.tseat.ps-l .topen .fl,.tseat.ps-r .topen .fl{--tw:calc(var(--sp)*.9);flex-direction:column;padding:2px;border-radius:8px;background:rgba(10,127,156,.09)}
   .tseat.ps-l .topen .t,.tseat.ps-r .topen .t{width:calc(var(--tw)*1.36);height:var(--tw)}
   .tseat.ps-l .topen .t svg,.tseat.ps-r .topen .t svg{position:absolute;left:50%;top:50%;width:calc(var(--tw)*.9);height:calc(var(--tw)*1.26);transform:translate(-50%,-50%) rotate(90deg)}
   .tseat.ps-r .topen .t svg{transform:translate(-50%,-50%) rotate(-90deg)}
