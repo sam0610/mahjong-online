@@ -2283,7 +2283,27 @@ function onInput(e){
   else if(id==='roomcode'){U.roomInput=e.target.value.toUpperCase();}
   else if(id==='savecode'){U.codeInput=e.target.value.toUpperCase();}
 }
+/* ---------- password gate (front-end only: keeps casual visitors out) ---------- */
+var PW_HASH="0dfa047a71b96ddf9541cc38cc38db4aa25a87080c4104cec5bab7f06822a102";
+function sha256hex(str){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(str)).then(function(b){return Array.prototype.map.call(new Uint8Array(b),function(x){return ('0'+x.toString(16)).slice(-2);}).join('');});}
 function boot(){
+  var ok=false;try{ok=localStorage.getItem('mj_ok')===PW_HASH;}catch(e){}
+  if(ok){boot2();return;}
+  var d=document.createElement('div');d.id='pwgate';
+  d.style.cssText='position:fixed;inset:0;z-index:9999;background:#fff;display:grid;place-items:center;font-family:var(--sans,system-ui,sans-serif)';
+  d.innerHTML='<form style="display:grid;gap:14px;width:min(320px,86vw);text-align:center"><div style="font:900 34px/1.2 var(--sans,sans-serif);letter-spacing:.12em;color:#16403f">港式麻雀</div><div style="color:#5f7378;font-size:14px">請輸入密碼先可以玩</div><input type="password" inputmode="numeric" autocomplete="off" placeholder="密碼" style="height:46px;border-radius:12px;border:1px solid #c5d6d6;padding:0 14px;font-size:18px;text-align:center"><button type="submit" style="height:46px;border-radius:12px;border:0;background:#0a7f9c;color:#fff;font-size:16px;font-weight:700">進入</button><div class="pwe" style="color:#c23b2a;font-size:13px;min-height:18px"></div></form>';
+  document.body.appendChild(d);
+  var f=d.querySelector('form'),inp=d.querySelector('input'),er=d.querySelector('.pwe');
+  setTimeout(function(){inp.focus();},50);
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    sha256hex('mj-hk:'+inp.value.trim()).then(function(h){
+      if(h===PW_HASH){try{localStorage.setItem('mj_ok',PW_HASH);}catch(e){}d.remove();boot2();}
+      else{er.textContent='密碼唔啱';inp.value='';inp.focus();}
+    }).catch(function(){er.textContent='呢個瀏覽器唔支援,請用 https 開';});
+  });
+}
+function boot2(){
   setInterval(function(){try{var l=cdLeft();if(l==null)return;var t=cdText();
     document.querySelectorAll('[data-cd]').forEach(function(e){var x=e.classList.contains('cdn')&&e.parentNode&&e.parentNode.classList.contains('note')?' '+t:t;if(e.textContent!==x)e.textContent=x;});
     document.querySelectorAll('[data-cd2]').forEach(function(e){e.textContent=Math.ceil(l/1000);});}catch(x){}},250);
