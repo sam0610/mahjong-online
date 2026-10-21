@@ -302,6 +302,12 @@ body.pondmode .sheet{color:var(--ink)}
   .tseat.ps-r .hb{box-shadow:-3px 0 0 #6fa3aa}
   .topen{display:flex;flex-wrap:wrap;gap:6px;--tw:calc(var(--pw)*.8)}
   .topen .meld,.topen .fl{--tw:calc(var(--pw)*.8)}
+  /* 上家/下家:碰上槓打直排,牌橫放 */
+  .tseat.ps-l .topen,.tseat.ps-r .topen{flex-direction:column;flex-wrap:nowrap;align-items:center;gap:8px}
+  .tseat.ps-l .topen .meld,.tseat.ps-r .topen .meld,.tseat.ps-l .topen .fl,.tseat.ps-r .topen .fl{flex-direction:column;padding:3px;border-radius:8px;background:rgba(10,127,156,.09)}
+  .tseat.ps-l .topen .t,.tseat.ps-r .topen .t{width:calc(var(--tw)*1.36);height:var(--tw)}
+  .tseat.ps-l .topen .t svg,.tseat.ps-r .topen .t svg{position:absolute;left:50%;top:50%;width:calc(var(--tw)*.9);height:calc(var(--tw)*1.26);transform:translate(-50%,-50%) rotate(90deg)}
+  .tseat.ps-r .topen .t svg{transform:translate(-50%,-50%) rotate(-90deg)}
   .treveal{display:flex;flex-wrap:wrap;gap:1px;--tw:calc(var(--pw)*.8);max-width:calc(var(--pw)*8)}
   .tseat.ps-l .treveal,.tseat.ps-r .treveal{max-width:calc(var(--pw)*4.4)}
   .tboard{grid-column:2;grid-row:2;display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:auto minmax(0,1fr) auto;gap:8px;min-height:0;min-width:0;padding:0 8px}
