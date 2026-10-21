@@ -44,6 +44,8 @@ button{font:inherit;color:inherit}
 .t text{font-family:var(--sans);font-weight:900}
 .t.back{background:repeating-linear-gradient(135deg,#3f6f7e 0 2px,#376371 2px 5px);box-shadow:inset 0 0 0 1px #2c525f,0 calc(var(--tw,30px)*.07) 0 #1f3f4a,0 calc(var(--tw,30px)*.12) calc(var(--tw,30px)*.1) rgba(30,40,60,.3)}
 .t.last{outline:2px solid var(--hot);outline-offset:1px}
+.t.taken{opacity:.45;outline:2px dashed #e08a1e;outline-offset:-1px}
+.t.taken::after{content:attr(data-k);position:absolute;right:-3px;top:-6px;background:#e08a1e;color:#fff;font:700 calc(var(--tw,30px)*.42)/1 var(--sans);padding:1px 3px;border-radius:4px;z-index:2}
 .t.win{outline:2px solid var(--accent);outline-offset:2px}
 
 /* seats */
@@ -411,6 +413,7 @@ function face(t){
 var FACE=[];for(var ft=0;ft<42;ft++)FACE.push(face(ft));
 function tileEl(t,cls,tag){tag=tag||'span';return '<'+tag+' class="t '+(cls||'')+'" data-t="'+t+'">'+FACE[t]+'</'+tag+'>';}
 var BACK='<span class="t back"></span>';
+function takenMark(h,k){return k?h.replace('data-t=','data-k="'+k+'" data-t='):h;}
 
 /* ---------- hand evaluation ---------- */
 var ORPH=[0,8,9,17,18,26,27,28,29,30,31,32,33];
@@ -514,7 +517,7 @@ function shanten(c,melds){
 }
 function visible(p){
   var v=new Array(34).fill(0);
-  S.players.forEach(function(q){q.discards.forEach(function(t){v[t]++;});q.melds.forEach(function(m){m.tiles.forEach(function(t){v[t]++;});});});
+  S.players.forEach(function(q){q.discards.forEach(function(t,j){if(!(q.taken&&q.taken[j]))v[t]++;});q.melds.forEach(function(m){m.tiles.forEach(function(t){v[t]++;});});});
   p.hand.forEach(function(t){if(t<34)v[t]++;});
   return v;
 }
@@ -958,7 +961,7 @@ function scheduleAuto(seat){
   if(!p||!a||!p.auto)return;
   if(a.kind==='turn'&&a.opts.kongDrawn!=null)return;
   if(a.kind==='claim'&&a.opts.pung&&pungRaises(p,a.opts.tile)){   /* pung would raise fan: hand control back to the player */
-    p.auto=false;S.msg='碰 '+tname(a.opts.tile)+' 可加番,已取消自動,等 '+p.name+' 決定';render();return;
+    p.auto=false;S.msg='碰 '+tname(a.opts.tile)+' 可加番,已取消自動';render();return;
   }   /* drawn tile can kong: ask the player instead of deciding */
   var id=a.id;
   setTimeout(function(){
@@ -986,7 +989,7 @@ function ask(seat,kind,opts){
     var p=S.players[seat];
     S.asks[seat]={id:++askSeq,kind:kind,opts:opts,res:res,rej:rej,since:Date.now()};
     scheduleAuto(seat);
-    S.msg=kind==='turn'?'輪到 '+p.name+(opts.claimed?'(碰/上之後打牌)':''):S.players[opts.from].name+' 打出 '+tname(opts.tile)+',等 '+p.name+' 決定';
+    S.msg=kind==='turn'?'輪到 '+p.name+(opts.claimed?'(碰/上之後打牌)':''):S.players[opts.from].name+' 打出 '+tname(opts.tile);
     render();
   });
 }
@@ -1070,7 +1073,7 @@ function snapshot(phase,turn){
   var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,
     cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,
     result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner}:S.result?{type:'draw'}:null,
-    players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,wind:p.wind,drawn:p.drawn};})};
+    players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn};})};
   var str;try{str=JSON.stringify(o);}catch(e){return;}
   try{localStorage.setItem(SAVE_KEY,str);}catch(e){}
   cloudPut(JSON.parse(str));
@@ -1098,7 +1101,7 @@ function resumeGame(){
   S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
   S.wall=o.wall;S.discN=o.discN;S.last=o.last;S.cur=o.cur;
   S.pond=Array.isArray(o.pond)?o.pond:(function(){var a=[];o.players.forEach(function(p,i){p.discards.forEach(function(){a.push(i);});});return a;})();
-  S.players=o.players.map(function(p){return {id:p.id,name:p.name,human:p.human,remote:false,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,wind:p.wind,drawn:p.drawn};});
+  S.players=o.players.map(function(p){return {id:p.id,name:p.name,human:p.human,remote:false,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn};});
   S.running=true;U.screen='game';U.rules=false;U.modalHidden=false;U.saved=null;
   if(o.phase==='over'){
     S.over=true;S.result=o.result;S.msg='';
@@ -1158,7 +1161,7 @@ function chowOptions(p,t){
 }
 function doClaim(s,d,t,kind,seq){
   var p=S.players[s],from=S.players[d];
-  from.discards.pop();S.pond.pop();
+  (from.taken=from.taken||{})[from.discards.length-1]=kind==='pung'?'碰':kind==='kong'?'槓':'上';
   if(kind==='pung'){removeN(p.hand,t,2);p.melds.push({type:'pung',tiles:[t,t,t],from:d});}
   else if(kind==='kong'){removeN(p.hand,t,3);p.melds.push({type:'kong',tiles:[t,t,t,t],from:d});}
   else{removeOne(p.hand,seq[0]);removeOne(p.hand,seq[1]);p.melds.push({type:'chow',tiles:[seq[0],seq[1],t].sort(function(a,b){return a-b;}),from:d});}
@@ -1236,7 +1239,7 @@ async function playHand(resume){
     S.players.forEach(function(q){q.auto=false;});
     S.wall=buildWall();S.last=null;S.discN=0;
     S.msg='洗牌、起牌…';
-    P.forEach(function(p,i){p.hand=[];p.melds=[];p.flowers=[];p.discards=[];p.drawn=null;p.wind=(i-d+n)%n;});S.pond=[];
+    P.forEach(function(p,i){p.hand=[];p.melds=[];p.flowers=[];p.discards=[];p.taken={};p.drawn=null;p.wind=(i-d+n)%n;});S.pond=[];
     for(var r=0;r<13;r++)for(k=0;k<n;k++)P[(d+k)%n].hand.push(S.wall.shift());
     for(k=0;k<n;k++)replaceFlowers(P[(d+k)%n]);
     P.forEach(sortHand);
@@ -1326,7 +1329,7 @@ function checkReady(){
 /* ---------- views & networking ---------- */
 function pondList(){
   var idx=S.players.map(function(){return 0;}),out=[];
-  (S.pond||[]).forEach(function(sd){var p=S.players[sd];if(p&&idx[sd]<p.discards.length)out.push({s:sd,t:p.discards[idx[sd]++]});});
+  (S.pond||[]).forEach(function(sd){var p=S.players[sd];if(p&&idx[sd]<p.discards.length){var ix=idx[sd]++;out.push({s:sd,t:p.discards[ix],k:p.taken&&p.taken[ix]||''});}});
   return out;
 }
 function buildView(seat){
@@ -1334,7 +1337,7 @@ function buildView(seat){
   var a=S.asks[seat];
   return {me:seat,n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
-    players:S.players.map(function(p,i){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,n:p.hand.length,
+    players:S.players.map(function(p,i){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:null,drawn:i===seat?p.drawn:null};}),
     auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
@@ -1936,7 +1939,8 @@ function tpool(i,ps){
   var p=V.players[i];
   return '<div class="tp ps-'+ps+'"><div class="tpool">'+p.discards.map(function(t,j){
     var last=V.last&&V.last.seat===i&&j===p.discards.length-1;
-    return tileEl(t,last?'last':'');
+    var k=p.taken&&p.taken[j]||'';
+    return takenMark(tileEl(t,(last?'last':'')+(k?' taken':'')),k);
   }).join('')+'</div></div>';
 }
 function drawTable(){
@@ -1960,7 +1964,7 @@ function drawPond(){
   var legend='<div class="plg">'+V.players.map(function(p,i){return '<span class="lg s'+rel(i)+'"><i></i>'+esc(p.name)+'</span>';}).join('')+'<span class="pc">已打 '+(V.pond||[]).length+' 張</span><button class="tog" data-act="togPond">收埋</button></div>';
   var list=V.pond||[];
   var tiles=list.map(function(e,j){
-    return tileEl(e.t,'s'+rel(e.s)+(j===list.length-1&&V.last?' last':''));
+    return takenMark(tileEl(e.t,'s'+rel(e.s)+(j===list.length-1&&V.last?' last':'')+(e.k?' taken':'')),e.k);
   }).join('');
   els.pond.innerHTML=legend+'<div class="pool">'+tiles+'</div>';
 }
