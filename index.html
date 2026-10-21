@@ -311,8 +311,11 @@ body.pondmode .sheet{color:var(--ink)}
   .tseat.ps-l .topen .t,.tseat.ps-r .topen .t{width:calc(var(--tw)*1.36);height:var(--tw)}
   .tseat.ps-l .topen .t svg,.tseat.ps-r .topen .t svg{position:absolute;left:50%;top:50%;width:calc(var(--tw)*.9);height:calc(var(--tw)*1.26);transform:translate(-50%,-50%) rotate(90deg)}
   .tseat.ps-r .topen .t svg{transform:translate(-50%,-50%) rotate(-90deg)}
-  .treveal{display:flex;flex-wrap:wrap;gap:1px;--tw:calc(var(--pw)*.8);max-width:calc(var(--pw)*8)}
-  .tseat.ps-l .treveal,.tseat.ps-r .treveal{max-width:calc(var(--pw)*4.4)}
+  .treveal{display:flex;flex-wrap:nowrap;gap:1px;--tw:calc(var(--pw)*.8)}
+  .tseat.ps-l .treveal,.tseat.ps-r .treveal{flex-direction:column;align-items:center;--tw:calc(var(--sp)*.9)}
+  .tseat.ps-l .treveal .t,.tseat.ps-r .treveal .t{width:calc(var(--tw)*1.36);height:var(--tw)}
+  .tseat.ps-l .treveal .t svg,.tseat.ps-r .treveal .t svg{position:absolute;left:50%;top:50%;width:calc(var(--tw)*.9);height:calc(var(--tw)*1.26);transform:translate(-50%,-50%) rotate(90deg)}
+  .tseat.ps-r .treveal .t svg{transform:translate(-50%,-50%) rotate(-90deg)}
   .tboard{grid-column:2;grid-row:2;display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:auto minmax(0,1fr) auto;gap:8px;min-height:0;min-width:0;padding:0 8px}
   .tp.ps-t{grid-column:1/4;grid-row:1;justify-self:center}
   .tp.ps-l{grid-column:1;grid-row:2;align-self:center;justify-self:start}
@@ -1315,9 +1318,8 @@ function startGame(){
 }
 var NEXT_SEC=20;
 function armNext(){
-  clearTimeout(S.nextT);S.nextAt=Date.now()+NEXT_SEC*1000;
+  clearTimeout(S.nextT);S.nextAt=0;   /* 唔再自動開下一局:等玩家自己撳確認 */
   var tok=S.token,hn=S.handNo;
-  S.nextT=setTimeout(function(){if(S.running&&S.over&&S.token===tok&&S.handNo===hn)nextHand();},NEXT_SEC*1000+50);
   setTimeout(function(){if(S.running&&S.over&&S.token===tok&&S.handNo===hn){S.players.forEach(function(p){if(p.human&&p.proxy)S.ready[p.id]=1;});render();checkReady();}},3500);
 }
 function cdLeft(){
