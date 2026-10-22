@@ -324,9 +324,17 @@ body.pondmode .sheet{color:var(--ink)}
   .tp.ps-t,.tp.ps-b{max-width:calc(var(--pw)*14.5)}
   .tp.ps-l,.tp.ps-r{max-width:calc(var(--pw)*8)}
   .tpool{display:flex;flex-wrap:wrap;gap:3px;--tw:var(--pw);align-content:flex-start;padding:6px 8px;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px #d3e0e0;min-height:calc(var(--pw)*1.36 + 14px);min-width:calc(var(--pw)*3)}
-  .plate{grid-column:2;grid-row:2;align-self:center;width:calc(var(--pw)*2.9);aspect-ratio:1;border-radius:16px;background:#d8e9e9;color:#16403f;display:grid;place-items:center;align-content:center;text-align:center;line-height:1.15;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+  .plate{grid-column:2;grid-row:2;align-self:center;position:relative;width:calc(var(--pw)*5.8);aspect-ratio:1;border-radius:16px;background:#d8e9e9;color:#16403f;display:grid;place-items:center;align-content:center;text-align:center;line-height:1.15;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
   .plate b{font:900 calc(var(--pw)*.9)/1 var(--sans)}
   .plate small{font-size:11px;color:#4d7b7a}
+  .plate .wd{position:absolute;display:block;font:900 calc(var(--pw)*.66)/1 var(--sans);color:rgba(22,64,63,.3)}
+  .plate .wd.on{color:#d9791a}
+  .plate .wd.wdt{left:50%;top:calc(var(--pw)*.3);transform:translateX(-50%)}
+  .plate .wd.wdb{left:50%;bottom:calc(var(--pw)*.3);transform:translateX(-50%)}
+  .plate .wd.wdl{left:calc(var(--pw)*.4);top:50%;transform:translateY(-50%)}
+  .plate .wd.wdr{right:calc(var(--pw)*.4);top:50%;transform:translateY(-50%)}
+  .plate .wd i{position:absolute;right:-.8em;top:-.5em;font:700 calc(var(--pw)*.32)/1 var(--sans);font-style:normal;color:#fff;background:#c23b2a;border-radius:4px;padding:1px 3px}
+  .tchip .wchip{display:none}
   .mid{min-height:0;padding:6px 14px;background:#fff;border-color:#d3e0e0}
   .dock{position:static;padding:4px 0 8px;background:none}
   .rack{background:linear-gradient(180deg,#e3eeee,#d6e5e5);border-color:#c4d6d6;box-shadow:none}
@@ -2020,7 +2028,12 @@ function drawTable(){
   var n=V.n,map=n===4?{1:'r',2:'t',3:'l'}:n===3?{1:'r',2:'l'}:{1:'t'};
   var seats={t:'',l:'',r:''},pools={t:'',l:'',r:'',b:tpool(V.me,'b')};
   for(var k=1;k<n;k++){var i=(V.me+k)%n,ps=map[k];seats[ps]=tseat(i,k,ps);pools[ps]=tpool(i,ps);}
-  var plate='<div class="plate"><small>'+WIND[V.round]+'風圈</small><b>'+V.live+'</b><small>牌牆</small></div>';
+  var wds='';
+  var wmap=[[V.me,'b']];
+  for(var wk=1;wk<n;wk++)wmap.push([(V.me+wk)%n,map[wk]]);
+  wmap.forEach(function(m){var wp=V.players[m[0]];
+    wds+='<span class="wd wd'+m[1]+(V.cur===m[0]&&!V.over?' on':'')+'">'+WIND[wp.wind]+(m[0]===V.dealer?'<i>莊</i>':'')+'</span>';});
+  var plate='<div class="plate"><small>'+WIND[V.round]+'風圈</small><b>'+V.live+'</b><small>牌牆</small>'+wds+'</div>';
   els.tbl.innerHTML=seats.t+seats.l+'<div class="tboard">'+pools.t+pools.l+plate+pools.r+pools.b+'</div>'+seats.r;
   fitSide();
 }
