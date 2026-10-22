@@ -602,9 +602,23 @@ function estParts(p,c,melds){
 }
 function estFan(p,c,melds){var e=estParts(p,c,melds);return e.inc+e.hon+e.str;}
 /* 碰/上嘅理由:要靠牌型(混一色/清一色/碰碰糊)加字牌番夠,唔可以靠自摸、門前清、無花、花牌湊夠 */
-function planFan(p,c,melds){var e=estParts(p,c,melds);return (e.str>=Math.min(3,S.minFan)||S.minFan<=1)?e.str+e.hon:0;}
+function mainSuitCount(c,melds){
+  var sc=[0,0,0],hon=0,i,tot=0;
+  for(i=0;i<34;i++){if(!c[i])continue;tot+=c[i];if(i>=27)hon+=c[i];else sc[suitOf(i)]+=c[i];}
+  melds.forEach(function(m){var t=m.tiles[0];tot+=m.tiles.length>3?3:m.tiles.length;if(t>=27)hon+=3;else sc[suitOf(t)]+=3;});
+  var main=0;for(i=1;i<3;i++)if(sc[i]>sc[main])main=i;
+  return {main:main,n:sc[main]+hon,total:tot};
+}
+/* 已經有一色嘅雛形(主色+字牌佔 8 隻或六成以上)就當係決心做混一色/清一色 */
+function flushCommit(L,minSh){return minSh>=1&&L.n>=Math.max(8,L.total*0.6);}
+function planFan(p,c,melds){
+  var e=estParts(p,c,melds),str=e.str;
+  var M=mainSuitCount(c,melds);
+  if(M.n>=Math.max(8,M.total*0.6)&&str<3)str=3;
+  return (str>=Math.min(3,S.minFan)||S.minFan<=1)?str+e.hon:0;
+}
 /* 開局唔好即刻打字牌,睇下有冇混一色 */
-function keepOf(p,t,c,L){
+function keepOf(p,t,c,L,commit){
   var keep=0,fanT=t>=31||t===27+S.round||t===27+p.wind;
   var plan=L.n>=L.total*0.6,flushish=L.n>=L.total*0.72;
   if(t>=27){
@@ -615,9 +629,11 @@ function keepOf(p,t,c,L){
     else if(mid&&plan)keep+=fanT?3:2.5;                  /* 有混一色苗頭就繼續留 */
     else keep+=fanT?1:-1;
     if(flushish)keep+=1;
+    if(commit)keep+=4;                                   /* 做緊一色:字牌係自己人 */
   }else{
     var rr=t%9;if(rr>=2&&rr<=6)keep+=.5;
     if(plan)keep+=suitOf(t)===L.main?(flushish?2.5:1.5):(flushish?-3:-1.5);
+    if(commit)keep+=suitOf(t)===L.main?6:-6;             /* 主色死都唔打,雜色優先打走(連好連嘅都打) */
   }
   return keep;
 }
@@ -635,9 +651,10 @@ function chooseDiscard2(p){
   var shs={},minSh=99;
   for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=shanten(c,m);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
   var maxTh=0;S.players.forEach(function(q){if(q!==p)maxTh=Math.max(maxTh,threatOf(q));});
+  var commit=flushCommit(L,minSh);
   var cands=[],bestBase=Infinity,bestT=-1;
   for(t=0;t<34;t++){
-    if(shs[t]===undefined||shs[t]!==minSh)continue;
+    if(shs[t]===undefined||shs[t]>minSh+(commit?1:0))continue;
     c[t]--;
     var uke=0;
     if(shs[t]===minSh){
@@ -665,10 +682,10 @@ function chooseDiscard2(p){
         }
       }
     }
-    var keep=keepOf(p,t,c,L);
+    var keep=keepOf(p,t,c,L,commit);
     var fp=estFan(p,c,p.melds);
     c[t]++;
-    var base=-uke*4+keep*6-Math.min(fp,7)*6+Math.random()*3;
+    var base=-uke*4+keep*6-Math.min(fp,7)*6+(shs[t]-minSh)*45+Math.random()*3;
     cands.push({t:t,base:base});
     if(base<bestBase)bestBase=base;
   }
@@ -746,10 +763,11 @@ function chooseDiscard3(p){
   var maxTh=0;S.players.forEach(function(q){if(q!==p)maxTh=Math.max(maxTh,threatOf(q));});
   var live=S.wall.length;
   var fold=foldNow(p,minSh,maxTh,live,c);
+  var commit=flushCommit(L,minSh)&&!fold;
   var cands=[],bestBase=Infinity,bestT=-1;
   for(t=0;t<34;t++){
     if(shs[t]===undefined)continue;
-    if(!fold&&shs[t]!==minSh)continue;
+    if(!fold&&shs[t]>minSh+(commit?1:0))continue;
     if(fold&&shs[t]>minSh+2)continue;
     var h13=handWithout(p.hand,t);
     c[t]--;
@@ -788,7 +806,7 @@ function chooseDiscard3(p){
         c[u]++;if(shanten(c,m)<minSh)E+=rem2;c[u]--;
       }
     }
-    var keep=keepOf(p,t,c,L);
+    var keep=keepOf(p,t,c,L,commit);
     var fp=estFan(p,c,p.melds);
     c[t]++;
     var base=-E*LV3.ew+keep*6-Math.min(fp,7)*6+(sh-minSh)*40+Math.random()*3;
@@ -830,9 +848,10 @@ function chooseDiscard(p){
   var flushish=L.n>=L.total*0.72;
   var shs={},minSh=99,t;
   for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=shanten(c,m);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
+  var commit=flushCommit(L,minSh);
   var bestT=-1,bestCost=Infinity;
   for(t=0;t<34;t++){
-    if(shs[t]===undefined||shs[t]!==minSh)continue;
+    if(shs[t]===undefined||shs[t]>minSh+(commit?1:0))continue;
     c[t]--;
     var uke=0;
     for(var u=0;u<34;u++){
@@ -843,9 +862,9 @@ function chooseDiscard(p){
       var rem=4-vis[u];if(rem<=0)continue;
       c[u]++;if(shanten(c,m)<minSh)uke+=rem;c[u]--;
     }
-    var keep=keepOf(p,t,c,L);
+    var keep=keepOf(p,t,c,L,commit);
     c[t]++;
-    var cost=minSh*1000-uke*4+keep*6+Math.random()*3;
+    var cost=minSh*1000+(shs[t]-minSh)*45-uke*4+keep*6+Math.random()*3;
     if(cost<bestCost){bestCost=cost;bestT=t;}
   }
   if(bestT<0){for(t=0;t<34;t++)if(c[t]){bestT=t;break;}}
@@ -2351,7 +2370,7 @@ function boot2(){
   },3000);
   render();
 }
-window.__mj={setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
+window.__mj={chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>
