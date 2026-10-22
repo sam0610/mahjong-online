@@ -602,23 +602,56 @@ function estParts(p,c,melds){
 }
 function estFan(p,c,melds){var e=estParts(p,c,melds);return e.inc+e.hon+e.str;}
 /* 碰/上嘅理由:要靠牌型(混一色/清一色/碰碰糊)加字牌番夠,唔可以靠自摸、門前清、無花、花牌湊夠 */
-function mainSuitCount(c,melds){
-  var sc=[0,0,0],hon=0,i,tot=0;
-  for(i=0;i<34;i++){if(!c[i])continue;tot+=c[i];if(i>=27)hon+=c[i];else sc[suitOf(i)]+=c[i];}
-  melds.forEach(function(m){var t=m.tiles[0];tot+=m.tiles.length>3?3:m.tiles.length;if(t>=27)hon+=3;else sc[suitOf(t)]+=3;});
-  var main=0;for(i=1;i<3;i++)if(sc[i]>sc[main])main=i;
-  return {main:main,n:sc[main]+hon,total:tot};
+/* 電腦只做「混一色/清一色」或者「對對糊」:
+   planOf = 揀目標牌型(flush=一色,toitoi=對對糊,null=已經做唔到);psh = 照目標計向聽數(雜色牌當廢牌) */
+function planOf(p,c,melds){
+  var sc=[0,0,0],hon=0,i,P=0,Q=0,chow=false,ms={},nm=0;
+  for(i=0;i<34;i++){if(!c[i])continue;if(i>=27)hon+=c[i];else sc[suitOf(i)]+=c[i];if(c[i]>=3)P++;else if(c[i]===2)Q++;}
+  melds.forEach(function(m){
+    var t=m.tiles[0];
+    if(m.type==='chow')chow=true;else P++;
+    if(t>=27)hon+=3;else{sc[suitOf(t)]+=3;if(!ms[suitOf(t)]){ms[suitOf(t)]=1;nm++;}}
+  });
+  var flushOK=nm<=1,toiOK=!chow,suit=0;
+  if(nm===1){for(i=0;i<3;i++)if(ms[i])suit=i;}
+  else{for(i=1;i<3;i++)if(sc[i]>sc[suit])suit=i;}
+  var n=sc[suit]+hon;
+  if(flushOK&&n>=8)return {type:'flush',suit:suit,n:n,P:P,Q:Q};
+  if(toiOK&&P+Q>=4)return {type:'toitoi',suit:suit,n:n,P:P,Q:Q};
+  if(flushOK)return {type:'flush',suit:suit,n:n,P:P,Q:Q};
+  if(toiOK)return {type:'toitoi',suit:suit,n:n,P:P,Q:Q};
+  return null;
 }
-/* 已經有一色嘅雛形(主色+字牌佔 8 隻或六成以上)就當係決心做混一色/清一色 */
-function flushCommit(L,minSh){return minSh>=1&&L.n>=Math.max(8,L.total*0.6);}
+function psh(c,m,plan){
+  if(!plan)return shanten(c,m);
+  var i;
+  if(plan.type==='flush'){
+    var c2=c.slice();
+    for(i=0;i<27;i++)if(suitOf(i)!==plan.suit)c2[i]=0;
+    return shanten(c2,m);
+  }
+  var tp=m,q=0;
+  for(i=0;i<34;i++){if(c[i]>=3)tp++;else if(c[i]===2)q++;}
+  return 8-2*Math.min(tp,4)-Math.min(q,5-Math.min(tp,4));
+}
+/* 碰/上嘅理由:碰完上完之後,目標牌型要夠穩(一色有 7 隻以上,或者對對糊有 4 組對子/刻子) */
 function planFan(p,c,melds){
-  var e=estParts(p,c,melds),str=e.str;
-  var M=mainSuitCount(c,melds);
-  if(M.n>=Math.max(8,M.total*0.6)&&str<3)str=3;
-  return (str>=Math.min(3,S.minFan)||S.minFan<=1)?str+e.hon:0;
+  var pl=planOf(p,c,melds);
+  if(!pl)return 0;
+  if(pl.type==='flush')return pl.n>=7?9:0;
+  return pl.P+pl.Q>=4?9:0;
+}
+/* 電腦只食「混一色/清一色/對對糊/大番」,雜色平糊唔食 */
+function bigOK(ev){
+  if(!ev)return false;
+  if(ev.limit||ev.fan>=7)return true;
+  return ev.items.some(function(x){return /混一色|清一色|對對糊|混么九|大三元|小三元|小四喜/.test(x[0]);});
 }
 /* 開局唔好即刻打字牌,睇下有冇混一色 */
-function keepOf(p,t,c,L,commit){
+function keepOf(p,t,c,L,plan0){
+  if(plan0&&plan0.type==='toitoi')return c[t]>=2?8:c[t]===1?5:-3;   /* 對對糊:對子/刻子死都唔拆,散牌打走 */
+  var commit=!!(plan0&&plan0.type==='flush');
+  if(commit)L={main:plan0.suit,n:L.n,total:L.total};
   var keep=0,fanT=t>=31||t===27+S.round||t===27+p.wind;
   var plan=L.n>=L.total*0.6,flushish=L.n>=L.total*0.72;
   if(t>=27){
@@ -647,14 +680,14 @@ function foldNow(p,minSh,maxTh,live,c){
 }
 function chooseDiscard2(p){
   var c=cnt(p.hand),m=p.melds.length,vis=visible(p),L=lean(p);
+  var plan=planOf(p,c,p.melds);
   var flushish=L.n>=L.total*0.72,t,u;
   var shs={},minSh=99;
-  for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=shanten(c,m);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
+  for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=psh(c,m,plan);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
   var maxTh=0;S.players.forEach(function(q){if(q!==p)maxTh=Math.max(maxTh,threatOf(q));});
-  var commit=flushCommit(L,minSh);
   var cands=[],bestBase=Infinity,bestT=-1;
   for(t=0;t<34;t++){
-    if(shs[t]===undefined||shs[t]>minSh+(commit?1:0))continue;
+    if(shs[t]===undefined||shs[t]>minSh)continue;
     c[t]--;
     var uke=0;
     if(shs[t]===minSh){
@@ -678,11 +711,11 @@ function chooseDiscard2(p){
           if(!near&&u<27){var r=u%9;near=(r>0&&c[u-1]>0)||(r<8&&c[u+1]>0)||(r>1&&c[u-2]>0)||(r<7&&c[u+2]>0);}
           if(!near)continue;
           var rem2=4-vis[u];if(rem2<=0)continue;
-          c[u]++;if(shanten(c,m)<minSh)uke+=rem2;c[u]--;
+          c[u]++;if(psh(c,m,plan)<minSh)uke+=rem2;c[u]--;
         }
       }
     }
-    var keep=keepOf(p,t,c,L,commit);
+    var keep=keepOf(p,t,c,L,plan);
     var fp=estFan(p,c,p.melds);
     c[t]++;
     var base=-uke*4+keep*6-Math.min(fp,7)*6+(shs[t]-minSh)*45+Math.random()*3;
@@ -706,6 +739,7 @@ function chooseDiscard2(p){
 function aiPung2(p,t,canKong){
   var c=cnt(p.hand),m=p.melds.length,fanT=t>=31||t===27+S.round||t===27+p.wind;
   var c2=c.slice();c2[t]-=canKong?3:2;
+  if(!planOf(p,c2,p.melds.concat([{type:canKong?'kong':'pung',tiles:[t,t,t]}])))return null;
   var est=planFan(p,c2,p.melds.concat([{type:canKong?'kong':'pung',tiles:[t,t,t]}]));
   var before=shanten(c,m),c3=c.slice();c3[t]-=2;var after=shanten(c3,m+1);
   if(est<S.minFan&&!(fanT&&after<before))return null;
@@ -757,17 +791,17 @@ function waitValue(p,h13,vis){
 function handWithout(hand,t){var h=hand.slice();removeOne(h,t);return h;}
 function chooseDiscard3(p){
   var c=cnt(p.hand),m=p.melds.length,vis=visible(p),L=lean(p);
+  var plan=planOf(p,c,p.melds);
   var flushish=L.n>=L.total*0.72,t,u,w;
   var shs={},minSh=99;
-  for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=shanten(c,m);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
+  for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=psh(c,m,plan);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
   var maxTh=0;S.players.forEach(function(q){if(q!==p)maxTh=Math.max(maxTh,threatOf(q));});
   var live=S.wall.length;
   var fold=foldNow(p,minSh,maxTh,live,c);
-  var commit=flushCommit(L,minSh)&&!fold;
   var cands=[],bestBase=Infinity,bestT=-1;
   for(t=0;t<34;t++){
     if(shs[t]===undefined)continue;
-    if(!fold&&shs[t]>minSh+(commit?1:0))continue;
+    if(!fold&&shs[t]>minSh)continue;
     if(fold&&shs[t]>minSh+2)continue;
     var h13=handWithout(p.hand,t);
     c[t]--;
@@ -783,12 +817,12 @@ function chooseDiscard3(p){
         if(!near&&u<27){var r=u%9;near=(r>0&&c[u-1]>0)||(r<8&&c[u+1]>0)||(r>1&&c[u-2]>0)||(r<7&&c[u+2]>0);}
         if(!near)continue;
         c[u]++;
-        if(shanten(c,m)<1){
+        if(psh(c,m,plan)<1){
           var best=0,h14=h13.concat([u]);
           for(w=0;w<34;w++){
             if(!c[w]||seen[u+'_'+w])continue;
             c[w]--;
-            if(shanten(c,m)===0){var wv=waitValue(p,handWithout(h14,w),vis);if(wv>best)best=wv;}
+            if(psh(c,m,plan)===0){var wv=waitValue(p,handWithout(h14,w),vis);if(wv>best)best=wv;}
             c[w]++;
           }
           tot+=rem*(0.5+best);
@@ -803,10 +837,10 @@ function chooseDiscard3(p){
         if(!near2&&u<27){var r2=u%9;near2=(r2>0&&c[u-1]>0)||(r2<8&&c[u+1]>0)||(r2>1&&c[u-2]>0)||(r2<7&&c[u+2]>0);}
         if(!near2)continue;
         var rem2=4-vis[u];if(rem2<=0)continue;
-        c[u]++;if(shanten(c,m)<minSh)E+=rem2;c[u]--;
+        c[u]++;if(psh(c,m,plan)<minSh)E+=rem2;c[u]--;
       }
     }
-    var keep=keepOf(p,t,c,L,commit);
+    var keep=keepOf(p,t,c,L,plan);
     var fp=estFan(p,c,p.melds);
     c[t]++;
     var base=-E*LV3.ew+keep*6-Math.min(fp,7)*6+(sh-minSh)*40+Math.random()*3;
@@ -845,13 +879,13 @@ function chooseDiscard(p){
   if(p.level===3)return chooseDiscard3(p);
   if(p.level===2)return chooseDiscard2(p);
   var c=cnt(p.hand),m=p.melds.length,vis=visible(p),L=lean(p);
+  var plan=planOf(p,c,p.melds);
   var flushish=L.n>=L.total*0.72;
   var shs={},minSh=99,t;
-  for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=shanten(c,m);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
-  var commit=flushCommit(L,minSh);
+  for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=psh(c,m,plan);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
   var bestT=-1,bestCost=Infinity;
   for(t=0;t<34;t++){
-    if(shs[t]===undefined||shs[t]>minSh+(commit?1:0))continue;
+    if(shs[t]===undefined||shs[t]>minSh)continue;
     c[t]--;
     var uke=0;
     for(var u=0;u<34;u++){
@@ -860,9 +894,9 @@ function chooseDiscard(p){
       if(!near&&u<27){var r=u%9;near=(r>0&&c[u-1]>0)||(r<8&&c[u+1]>0)||(r>1&&c[u-2]>0)||(r<7&&c[u+2]>0);}
       if(!near)continue;
       var rem=4-vis[u];if(rem<=0)continue;
-      c[u]++;if(shanten(c,m)<minSh)uke+=rem;c[u]--;
+      c[u]++;if(psh(c,m,plan)<minSh)uke+=rem;c[u]--;
     }
-    var keep=keepOf(p,t,c,L,commit);
+    var keep=keepOf(p,t,c,L,plan);
     c[t]++;
     var cost=minSh*1000+(shs[t]-minSh)*45-uke*4+keep*6+Math.random()*3;
     if(cost<bestCost){bestCost=cost;bestT=t;}
@@ -874,6 +908,8 @@ function aiPung(p,t,canKong){return p.level===3?aiPung3(p,t,canKong):p.level===2
 function aiChow(p,t,opts){return p.level===3?aiChow3(p,t,opts):p.level===2?aiChow2(p,t,opts):aiChow1(p,t,opts);}
 function aiPung1(p,t,canKong){
   var c=cnt(p.hand),m=p.melds.length;
+  var cc=c.slice();cc[t]-=canKong?3:2;
+  if(!planOf(p,cc,p.melds.concat([{type:canKong?'kong':'pung',tiles:[t,t,t]}])))return null;
   var val=t>=31||t===27+S.round||t===27+p.wind;
   if(canKong&&t>=27)return 'kong';
   if(val)return 'pung';
@@ -901,7 +937,7 @@ function aiChow1(p,t,opts){
   return null;
 }
 function aiTurn(p,ev,kongs){
-  if(ev&&ev.fan>=S.minFan)return {a:'win'};
+  if(ev&&ev.fan>=S.minFan&&(p.human||bigOK(ev)))return {a:'win'};
   if(kongs.length&&S.wall.length>4)return {a:'kong',t:kongs[0]};
   return {a:'discard',t:chooseDiscard(p)};
 }
@@ -1055,7 +1091,7 @@ function answerSeat(seat,id,v){
 function autoAnswer(p,a){
   var o=a.opts;
   if(a.kind==='turn'){if(o.claimed)return {a:'discard',t:chooseDiscard(p)};return aiTurn(p,o.ev,o.kongs);}
-  if(o.ev&&o.ev.fan>=S.minFan)return {a:'win'};
+  if(o.ev&&o.ev.fan>=S.minFan&&(p.human||bigOK(o.ev)))return {a:'win'};
   if(o.pung){var d=aiPung(p,o.tile,!!o.kong);if(d==='kong')return {a:'kong'};if(d)return {a:'pung'};}
   if(o.chows&&o.chows.length){var s=aiChow(p,o.tile,o.chows);if(s)return {a:'chow',seq:s};}
   return {a:'pass'};
