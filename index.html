@@ -287,9 +287,9 @@ body.pondmode .sheet{color:var(--ink)}
     background:radial-gradient(circle at 50% 48%,#f4f9f9 0,#e6f1f1 72%);box-shadow:inset 0 0 0 6px #d3e4e4,inset 0 0 0 7px rgba(255,255,255,.85)}
   .tbl:empty{display:none}
   .tseat{display:flex;gap:12px;min-width:0}
-  .tseat.ps-t{grid-column:1/4;grid-row:1;justify-self:center;flex-direction:column;align-items:center;gap:8px}
-  .tseat.ps-l{grid-column:1;grid-row:2;align-self:center;align-items:center}
-  .tseat.ps-r{grid-column:3;grid-row:2;align-self:center;align-items:center;flex-direction:row-reverse}
+  .tseat.ps-t{grid-column:2;grid-row:1;justify-self:center;flex-direction:column;align-items:center;gap:8px}
+  .tseat.ps-l{grid-column:1;grid-row:1/3;align-self:center;align-items:center}
+  .tseat.ps-r{grid-column:3;grid-row:1/3;align-self:center;align-items:center;flex-direction:row-reverse}
   .tchip{position:relative;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #d3e0e0;border-radius:999px;padding:4px 14px 4px 5px;font-size:14px;white-space:nowrap}
   .tseat.ps-l .tchip,.tseat.ps-r .tchip{flex-direction:column;border-radius:14px;padding:8px 10px;text-align:center;gap:3px;line-height:1.4}
   .tchip.on{border-color:#e08a1e;box-shadow:0 0 0 3px #e08a1e,0 0 20px 4px rgba(224,138,30,.35)}
@@ -2022,6 +2022,22 @@ function drawTable(){
   for(var k=1;k<n;k++){var i=(V.me+k)%n,ps=map[k];seats[ps]=tseat(i,k,ps);pools[ps]=tpool(i,ps);}
   var plate='<div class="plate"><small>'+WIND[V.round]+'風圈</small><b>'+V.live+'</b><small>牌牆</small></div>';
   els.tbl.innerHTML=seats.t+seats.l+'<div class="tboard">'+pools.t+pools.l+plate+pools.r+pools.b+'</div>'+seats.r;
+  fitSide();
+}
+/* 上家/下家:牌太多裝唔落就縮細,令成條牌上下置中、唔會溢出枱面 */
+function fitSide(){
+  var tb=els.tbl;if(!tb||!tb.offsetHeight)return;
+  var avail=tb.clientHeight-32-4;
+  Array.prototype.forEach.call(tb.querySelectorAll('.tseat.ps-l,.tseat.ps-r'),function(e){
+    e.style.removeProperty('--sp');
+    for(var it=0;it<3;it++){
+      var h=e.offsetHeight;if(h<=avail)break;
+      var ref=e.querySelector('.hb')||e.querySelector('.treveal .t');if(!ref)break;
+      var sp0=ref.getBoundingClientRect().height/.9;
+      var np=Math.max(8,sp0*(avail/h)*0.96);
+      e.style.setProperty('--sp',np+'px');
+    }
+  });
 }
 function drawMe(){
   /* 自己資料已併入操作列(drawDock) */
@@ -2385,6 +2401,7 @@ function boot2(){
   els.opps=document.getElementById('opps');els.mid=document.getElementById('mid');els.pond=document.getElementById('pond');els.tbl=document.getElementById('tbl');
   els.dock=document.getElementById('dock');els.overlay=document.getElementById('overlay');els.speed=document.getElementById('btnSpeed');els.share=document.getElementById('btnShare');
   document.addEventListener('click',onClick);
+  window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
   document.addEventListener('input',onInput);
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
   try{U.pondHidden=localStorage.getItem('mj_pondHide')==='1';}catch(e){}
