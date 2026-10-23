@@ -2055,7 +2055,7 @@ function drawTable(){
   var wmap=[[V.me,'b']];
   for(var wk=1;wk<n;wk++)wmap.push([(V.me+wk)%n,map[wk]]);
   wmap.forEach(function(m){var wp=V.players[m[0]];
-    wds+='<span class="wd wd'+m[1]+(V.cur===m[0]&&!V.over?' on':'')+'">'+WIND[wp.wind]+(m[0]===V.dealer?'<i>莊</i>':'')+'</span>';});
+    wds+='<span class="wd wd'+m[1]+(V.cur===m[0]&&!V.over?' on':'')+'">'+WIND[wp.wind]+'</span>';});
   var lo='';
   if(V.last){var lps=V.last.seat===V.me?'b':map[(V.last.seat-V.me+n)%n];
     if(lps)lo='<span class="lastout lo'+lps+'">'+tileEl(V.last.t)+'</span>';}
