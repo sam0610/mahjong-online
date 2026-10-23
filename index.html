@@ -1249,7 +1249,7 @@ function snapObj(phase,turn){
 /*@engine:end*/
 function snapshot(phase,turn){
   var hostSave=U.role==='host'&&!!U.code;
-  if((U.role!=='solo'&&!hostSave)||!S.running||!S.players.length)return;
+  if(!hostSave||!S.running||!S.players.length)return;   /* 單人存檔已移除:只剩房間存檔 */
   var o=snapObj(phase,turn);
   if(!hostSave)delete o.room;
   var str;try{str=JSON.stringify(o);}catch(e){return;}
@@ -2205,7 +2205,7 @@ function leaveAll(silent){
   var sbh2=NET.sb;NET.sb=null;if(sbh2)setTimeout(function(){sbh2.close();},250);
   var fbh2=NET.fb;NET.fb=null;if(fbh2)setTimeout(function(){fbh2.close();},250);
   if(peer){setTimeout(function(){try{peer.destroy();}catch(e){}},300);}
-  U.role='solo';U.screen='setup';U.code='';V=null;U.modalHidden=false;U.rules=false;U.saved=readLocalSave();
+  U.role='solo';U.screen='setup';U.code='';V=null;U.modalHidden=false;U.rules=false;U.saved=null;
 }
 function answer(v){
   var a=V&&V.ask;if(!a)return;
@@ -2409,19 +2409,7 @@ function drawDock(){
   els.dock.innerHTML='<div class="actions">'+mep+(dmsg?'<span class="dmsg">'+dmsg+'</span>':'')+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
-function savedHTML(){
-  var h='',o=U.saved;
-  if(o){
-    var me=o.players.filter(function(p){return p.human;})[0]||o.players[0];
-    h+='<div class="resume"><b>有一局未打完</b><span>'+WIND[o.round]+'風圈 · 第'+o.handNo+'局 · '+o.n+' 人 · 你 '+me.score.toLocaleString()+' 分'+
-       '</span><div class="opts"><button class="btn pri" data-act="resume">繼續牌局</button><button class="btn" data-act="dropsave">放棄</button></div></div>';
-  }
-  if(cloudOn()){
-    h+='<p class="note">存檔碼(換機輸入呢個碼就可以繼續):<b class="mono">'+esc(fmtCode(saveCode()))+'</b></p>'+
-       '<div class="opts"><input class="inp code" id="savecode" maxlength="19" autocomplete="off" placeholder="輸入存檔碼" value="'+esc(U.codeInput||'')+'"><button class="btn" data-act="loadcode">讀取存檔</button></div>';
-  }
-  return h;
-}
+function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
   var lvNote=c.level===1?'普通:基本打法':c.level===2?'高手:識防守、計番數':'大師:深度計算、精準防守';
@@ -2737,8 +2725,6 @@ function boot2(){
     document.addEventListener('visibilitychange',function(){if(!document.hidden)keepAwake();});
     keepAwake();draw();joinRoom();return;
   }
-  U.saved=readLocalSave();
-  if(cloudOn())loadCloudSave(saveCode(),false);
   var m=/[?&#]room=([A-Za-z0-9]+)/.exec((location.search||'')+(location.hash||''));
   if(m)U.roomInput=m[1].toUpperCase();
   setInterval(function(){
