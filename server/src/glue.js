@@ -54,6 +54,7 @@ function startServerGame(){
 
 /* ---- 暫停 / 還原:冇人喺度就停低,有人返嚟先繼續 ---- */
 function restore(o){
+  clearGrace();
   S.token++;S.asks={};S.ready={};S.call=null;
   U.cfg.n=o.n;U.cfg.minFan=o.minFan;U.cfg.level=o.level;
   S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
@@ -84,7 +85,26 @@ function pauseGame(){
   setTimeout(function(){restore(snap);if(persistCb)persistCb(snap,true);},0);
   paused=true;
 }
-HOOKS.seated=function(){if(paused)resumeRun();};
+/* 斷線緩衝:10 秒內返嚟就當冇事,逾時先由電腦代打 */
+var GRACE_MS=10000,graceT={};
+function clearGrace(){Object.keys(graceT).forEach(function(k){clearTimeout(graceT[k]);});graceT={};S.players.forEach(function(p){p.offline=false;});}
+HOOKS.grace=function(seat){
+  var p=S.players[seat];if(!p||!p.human||paused)return false;
+  p.offline=true;
+  clearTimeout(graceT[seat]);
+  graceT[seat]=setTimeout(function(){
+    delete graceT[seat];
+    var q=S.players[seat];
+    if(q!==p||!p.offline||!p.human)return;
+    p.offline=false;takeover(seat);checkReady();render();
+  },GRACE_MS);
+  render();
+  return true;
+};
+HOOKS.seated=function(si){
+  if(si!==undefined&&S.players[si]){S.players[si].offline=false;clearTimeout(graceT[si]);delete graceT[si];}
+  if(paused)resumeRun();
+};
 HOOKS.closed=function(){
   if(S.running&&!paused&&!connected().some(function(m){return m.seat>=0;}))pauseGame();
 };

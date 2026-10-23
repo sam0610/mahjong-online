@@ -2079,7 +2079,7 @@ function onHostConn(conn){
     if(m.pond){var pi=NET.ponds.indexOf(m);if(pi>=0)NET.ponds.splice(pi,1);return;}
     var i=NET.members.indexOf(m);if(i<0)return;
     if(!S.running){NET.members.splice(i,1);sendLobby();render();if(HOOKS.closed)HOOKS.closed();}
-    else{var seat=m.seat;m.seat=-1;NET.members.splice(i,1);if(seat>=0){takeover(seat);checkReady();}if(HOOKS.closed)HOOKS.closed();}
+    else{var seat=m.seat;m.seat=-1;NET.members.splice(i,1);if(seat>=0){if(!(HOOKS.grace&&HOOKS.grace(seat)))takeover(seat);checkReady();}if(HOOKS.closed)HOOKS.closed();}
   });
 }
 
