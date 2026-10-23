@@ -130,6 +130,7 @@ button{font:inherit;color:inherit}
 .claimtile{display:inline-flex;--tw:30px;margin-right:4px}
 .alert{flex:1 1 100%;display:flex;align-items:center;gap:10px;background:var(--hot);color:#fff;border-radius:10px;padding:8px 12px;font-weight:900;font-size:15px;line-height:1.3;box-shadow:0 4px 14px rgba(217,67,45,.35);animation:alertpulse 1.2s ease-in-out infinite}
 .alert .claimtile{--tw:28px;margin:0}.alert small{display:block;font-weight:500;font-size:12px;opacity:.92}
+.dmsg{display:none}
 .claimrow{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .claimrow .sp{flex:1}
 .btn.big{font:900 17px var(--sans);height:44px;padding:0 20px;background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 3px 0 rgba(0,0,0,.22)}
@@ -324,6 +325,9 @@ body.pondmode .sheet{color:var(--ink)}
   .tp.ps-b{grid-column:1/4;grid-row:3;justify-self:center}
   .tp.ps-t,.tp.ps-b{max-width:calc(var(--pw)*14.5)}
   .tp.ps-l,.tp.ps-r{max-width:calc(var(--pw)*8)}
+  .mid .msg{display:none}
+  .mid:not(:has(.btn)){display:none}
+  .dmsg{display:block;flex:1;text-align:center;font-weight:900;font-size:15px;margin:0 10px}
   .mid .mi,.mid .mw,.mid .lastd{display:none}
   .tpool .t.last{position:relative;transform:scale(1.9);z-index:6;box-shadow:0 4px 10px rgba(0,0,0,.35);outline:3px solid var(--hot);outline-offset:0}
   .tpool{display:flex;flex-wrap:wrap;gap:3px;--tw:var(--pw);align-content:flex-start;padding:6px 8px;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px #d3e0e0;min-height:calc(var(--pw)*1.36 + 14px);min-width:calc(var(--pw)*3)}
@@ -2071,6 +2075,11 @@ function drawPond(){
   }).join('');
   els.pond.innerHTML=legend+'<div class="pool">'+tiles+'</div>';
 }
+function curMsg(){
+  if(!V)return '';
+  if(V.ask){var o=V.ask.opts;return V.ask.kind==='turn'?(o.claimed?'碰/上之後,請打出一張牌':'輪到你,請打出一張牌'):'';}
+  return esc(V.msg||'');
+}
 function drawMid(){
   if(!V){els.mid.innerHTML='';els.mid.hidden=true;return;}
   els.mid.hidden=false;
@@ -2139,7 +2148,8 @@ function drawDock(){
   var rm=(me.melds.length?'<span class="sep"></span>'+meldsHTML(me,true):'')+flowersHTML(me);
   var mp=V.players[V.me],mturn=V.cur===V.me&&!V.over;
   var mep=((V.call&&V.call.i===V.me)?'<span class="call">'+esc(V.call.text)+'</span>':'')+'<span class="mep'+(mturn?' on':'')+'"><span class="wchip">'+WIND[mp.wind]+'</span>'+(mp.name!=='你'?'<span class="nm">'+esc(mp.name)+'</span>':'')+(V.me===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+mp.score.toLocaleString()+'</span></span>';
-  els.dock.innerHTML='<div class="actions">'+mep+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
+  var dmsg=curMsg();
+  els.dock.innerHTML='<div class="actions">'+mep+(dmsg?'<span class="dmsg">'+dmsg+'</span>':'')+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
 function savedHTML(){
