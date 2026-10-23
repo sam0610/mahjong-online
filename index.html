@@ -1745,7 +1745,7 @@ function sbGuest(code){
 }
 
 /* ---- 房間伺服器(Cloudflare Durable Object):設咗 SERVER_URL 就全部走 WebSocket,房主唔再重要 ---- */
-var SERVER_URL='';   /* 例:'wss://mahjong-room.<你嘅子網域>.workers.dev' ;網址加 ?net=fb 可以強制用舊嘅 Firebase 版 */
+var SERVER_URL='wss://mahjong-room.sam0610.workers.dev';   /* 例:'wss://mahjong-room.<你嘅子網域>.workers.dev' ;網址加 ?net=fb 可以強制用舊嘅 Firebase 版 */
 function serverUrl(){
   var q=/[?&]server=([^&#]+)/.exec(location.search||'');
   if(q){try{return decodeURIComponent(q[1]).replace(/\/$/,'');}catch(e){}}
