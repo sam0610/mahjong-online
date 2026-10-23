@@ -1183,13 +1183,35 @@ function cloudPut(obj){
   cloudCall('save_game',{p_code:saveCode(),p_state:obj}).then(function(){U.cloudErr='';},function(e){U.cloudErr=String(e&&e.message||e);})
     .then(function(){cloudBusy=false;if(cloudPending){var o=cloudPending;cloudPending=null;cloudPut(o);}});
 }
+/* ---------- 房間牌局存雲端:房主斷線,其他玩家可以接手做主機,或者隨時用房號入翻去 ---------- */
+var ROOM_KEY='mj_room_v1',ROOM_TTL=43200000;
+function roomKey(code){return ('MJRMRMKS'+String(code||'').toUpperCase()+'RMKSRMKS').slice(0,16);}
+var roomBusy=false,roomPend=null;
+function roomPut(o){
+  if(!cloudOn()||!o||!o.room||!o.room.code)return;
+  if(roomBusy){roomPend=o;return;}
+  roomBusy=true;
+  cloudCall('save_game',{p_code:roomKey(o.room.code),p_state:o}).then(function(){},function(){}).then(function(){roomBusy=false;if(roomPend){var x=roomPend;roomPend=null;roomPut(x);}});
+}
+function roomLoad(code){
+  if(!cloudOn())return Promise.resolve(null);
+  return cloudCall('load_game',{p_code:roomKey(code)}).then(function(o){return (validSave(o)&&o.room&&o.room.code===code&&Date.now()-o.ts<ROOM_TTL)?o:null;});
+}
+function roomDel(code){roomPend=null;if(cloudOn()&&code)cloudCall('delete_game',{p_code:roomKey(code)}).catch(function(){});}
+function rememberRoom(code){try{localStorage.setItem(ROOM_KEY,JSON.stringify({c:code,t:Date.now()}));}catch(e){}}
+function forgetRoom(){try{localStorage.removeItem(ROOM_KEY);}catch(e){}}
+function lastRoom(){try{var o=JSON.parse(localStorage.getItem(ROOM_KEY)||'null');return (o&&o.c&&Date.now()-o.t<ROOM_TTL)?o.c:'';}catch(e){return '';}}
+function roomPidIdx(o,pid){var r=-1;if(pid)o.players.forEach(function(p,i){if(p.pid&&p.pid===pid)r=i;});return r;}
 function snapshot(phase,turn){
-  if(U.role!=='solo'||!S.running||!S.players.length)return;
+  var hostSave=U.role==='host'&&!!U.code;
+  if((U.role!=='solo'&&!hostSave)||!S.running||!S.players.length)return;
   var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,
     cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,
     result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner}:S.result?{type:'draw'}:null,
-    players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn};})};
+    players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn,pid:p.pid||'',baseName:p.baseName||'',away:!!p.away};})};
+  if(hostSave)o.room={code:U.code,cfg:{n:U.cfg.n,minFan:U.cfg.minFan,level:U.cfg.level}};
   var str;try{str=JSON.stringify(o);}catch(e){return;}
+  if(hostSave){roomPut(JSON.parse(str));return;}
   try{localStorage.setItem(SAVE_KEY,str);}catch(e){}
   cloudPut(JSON.parse(str));
 }
@@ -1374,6 +1396,7 @@ async function playHand(resume){
       kongs=kongOptions(p);
     }
     var act;
+    if(!p.human&&U.role==='host')snapshot('turn',{claimed:mode==='claimed',kongDraw:kongDraw,heaven:heaven});
     if(p.human){snapshot('turn',{claimed:mode==='claimed',kongDraw:kongDraw,heaven:heaven});act=await ask(S.cur,'turn',{ev:ev,kongs:kongs,claimed:mode==='claimed',kongDrawn:(mode!=='claimed'&&p.drawn!=null&&kongs.indexOf(p.drawn)>=0)?p.drawn:null});}
     else{S.msg=p.name+' 思考中…';render();await T(650);act=aiTurn(p,ev,kongs);}
     if(act.a==='win')return endWin(S.cur,null,ev,true,p.drawn);
@@ -1411,6 +1434,7 @@ function startGame(){
   mem.forEach(function(m,j){if(j>=n-1)m.seat=-1;});
   S.dealer=0;S.round=0;S.handNo=1;S.lian=0;S.over=false;S.running=true;
   if(U.role==='solo')dropSave(true);
+  if(U.role==='host'&&U.code)rememberRoom(U.code);
   U.screen='game';U.rules=false;U.modalHidden=false;
   runGame();render();
 }
@@ -1723,6 +1747,14 @@ function fbHost(code,onConn,onReady,onFail,onTaken){
       return inbox.remove().then(function(){
         if(hub.closed)return;
         inbox.on('child_added',onMsg);
+        meta.on('value',function(ms){
+          if(hub.closed)return;
+          var mv=ms.val();
+          if(mv&&mv.host&&mv.host!==hp){if(hub.onLost)hub.onLost();}
+          else if(!mv){
+            meta.set({uid:uid,host:hp,ts:window.firebase.database.ServerValue.TIMESTAMP}).then(function(){try{meta.onDisconnect().remove();}catch(e){}},function(){});
+          }
+        });
         onReady();
         hub.iv=setInterval(function(){
           Object.keys(hub.conns).forEach(function(cid){
@@ -1792,12 +1824,78 @@ function hostOpen(){
   U.role='host';U.screen='lobby';U.notice='';U.code='';NET.members=[];
   openRoom(0);render();
 }
-function openRoom(attempt){
-  var code=randCode(),peer=null,hub=null,sbh=null,fbh=null,peerErr=!rtcOK(),mqErr=!mqOK(),sbErr=!sbOK(),fbErr=!fbOK();
+/* 由雲端存檔接手做房主:自己轉做 0 號座位,其餘真人座位由電腦暫代,佢哋用房號返嚟就拎翻座位 */
+function startTakeover(code,o,opt){
+  if(U.resuming)return false;
+  var k=roomPidIdx(o,myPid());if(k<0)return false;
+  U.resuming=code;U.joinGen=(U.joinGen||0)+1;U.rejoin='';
+  leaveAll(true);
+  U.role='host';U.screen='lobby';U.code=code;U.notice='';NET.members=[];U.cfg.n=o.n;U.cfg.minFan=o.minFan;U.cfg.level=o.level;
+  function begin(){
+    if(U.role!=='host'||U.resuming!==code)return;
+    var n=o.players.length;
+    function rs(i){return (i-k+n)%n;}
+    S.token++;S.asks={};S.ready={};S.call=null;
+    S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=rs(o.dealer);S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+    S.wall=o.wall;S.discN=o.discN;S.last=o.last?{seat:rs(o.last.seat),t:o.last.t}:null;S.cur=rs(o.cur);
+    S.pond=(Array.isArray(o.pond)?o.pond:[]).map(rs);
+    S.players=[];
+    for(var i=0;i<n;i++){
+      var q=o.players[(i+k)%n],base=q.baseName||q.name;
+      var pl={id:i,name:q.name,human:!!q.human,remote:false,score:q.score,level:q.level,hand:q.hand,melds:q.melds,flowers:q.flowers,discards:q.discards,taken:q.taken||{},wind:q.wind,drawn:q.drawn,pid:q.pid||''};
+      if(i===0){pl.name=base;pl.human=true;pl.pid=myPid();}
+      else if(q.pid){pl.baseName=base;pl.name=base+'(電腦)';pl.human=false;pl.away=true;pl.level=S.level;}
+      S.players.push(pl);
+    }
+    U.resuming='';S.running=true;U.screen='game';U.modalHidden=false;rememberRoom(code);
+    if(o.phase==='over'){S.over=true;S.result=(o.result&&o.result.type==='win')?{type:'win',winner:rs(o.result.winner)}:o.result;S.msg='';nextHand();}
+    else{S.over=false;S.result=null;runGame(o.turn||{});}
+    render();
+  }
+  if(opt&&opt.noNet){begin();return true;}
+  openRoom(0,{code:code,onUp:begin,onGiveUp:function(){
+    if(U.resuming!==code)return;
+    U.resuming='';leaveAll(true);U.rejoin=code;U.rejoinN=0;U.roomInput=code;joinRoom();
+  }});
+  render();
+  return true;
+}
+/* 房主斷咗線:搵雲端存檔,有我份就接手;冇人接手先繼續等 */
+function scheduleTakeover(code){
+  if(U.toTimer||!fbOK()||!cloudOn())return;
+  U.toTimer=setTimeout(function(){
+    U.toTimer=0;
+    if(U.rejoin!==code||NET.conn||U.role==='host'||U.resuming)return;
+    roomLoad(code).then(function(o){
+      if(U.rejoin!==code||NET.conn||U.role==='host'||U.resuming)return;
+      if(o&&roomPidIdx(o,myPid())>=0)startTakeover(code,o);
+    },function(){});
+  },1500+Math.random()*3500);
+}
+function tryTakeoverOnce(code){
+  if(!fbOK()||!cloudOn())return;
+  roomLoad(code).then(function(o){
+    if(!o||U.resuming||U.role!=='solo'||NET.conn||S.running)return;
+    if(roomPidIdx(o,myPid())>=0)startTakeover(code,o);
+  },function(){});
+}
+function openRoom(attempt,opts){
+  opts=opts||{};
+  var code=opts.code||randCode(),upDone=false,peer=null,hub=null,sbh=null,fbh=null,peerErr=!rtcOK(),mqErr=!mqOK(),sbErr=!sbOK(),fbErr=!fbOK();
   function setCode(){if((U.role==='host'||U.pondOnly)&&(NET.peer===peer||NET.hub===hub||NET.sb===sbh||NET.fb===fbh)&&U.code!==code){U.code=code;render();}}
+  function up(){if(upDone)return;upDone=true;if(opts.onUp)opts.onUp();}
+  function readyPing(isFb){setCode();if(!opts.onUp)return;if(fbOK()?isFb:true)up();}
+  function retryFixed(){
+    if(attempt>=20){if(opts.onGiveUp)opts.onGiveUp();return;}
+    try{if(peer)peer.destroy();}catch(x){}
+    if(hub){hub.close();NET.hub=null;}
+    if(sbh){sbh.close();NET.sb=null;}
+    if(fbh){fbh.close();NET.fb=null;}
+    setTimeout(function(){if(U.role==='host'&&!upDone&&U.resuming===code)openRoom(attempt+1,opts);},3000);
+  }
   function check(){
     if(!(peerErr&&mqErr&&sbErr&&fbErr))return;
-    if(U.role==='host'){leaveAll();U.notice='連線失敗,請稍後再試。';render();}
+    if(U.role==='host'){if(opts.onGiveUp&&!upDone){opts.onGiveUp();return;}leaveAll();U.notice='連線失敗,請稍後再試。';render();}
     else if(U.pondOnly){
       var pr=NET.peer,hb=NET.hub,sh=NET.sb,fh=NET.fb;NET.peer=null;NET.hub=null;NET.sb=null;NET.fb=null;
       try{if(pr)pr.destroy();}catch(x){}
@@ -1809,11 +1907,12 @@ function openRoom(attempt){
   }
   if(rtcOK()){
     peer=new window.Peer(PREFIX+code,PEER_OPTS);NET.peer=peer;
-    peer.on('open',function(){if(NET.peer!==peer)return;NET.peerReady=true;setCode();});
+    peer.on('open',function(){if(NET.peer!==peer)return;NET.peerReady=true;readyPing(false);});
     peer.on('connection',function(conn){if(NET.peer===peer)onHostConn(conn);});
     peer.on('disconnected',function(){if(NET.peer===peer&&!peer.destroyed){try{peer.reconnect();}catch(e){}}});
     peer.on('error',function(e){
       if(NET.peer!==peer)return;
+      if(e&&e.type==='unavailable-id'&&opts.code&&!upDone){retryFixed();return;}
       if(e&&e.type==='unavailable-id'&&attempt<5){
         try{peer.destroy();}catch(x){}
         if(hub){hub.close();NET.hub=null;}
@@ -1825,16 +1924,17 @@ function openRoom(attempt){
     });
   }
   if(mqOK()){
-    hub=mqHost(code,function(conn){if(NET.hub===hub)onHostConn(conn);},setCode,function(){mqErr=true;check();});
+    hub=mqHost(code,function(conn){if(NET.hub===hub)onHostConn(conn);},function(){readyPing(false);},function(){mqErr=true;check();});
     NET.hub=hub;
   }
   if(sbOK()){
-    sbh=sbHost(code,function(conn){if(NET.sb===sbh)onHostConn(conn);},setCode,function(){sbErr=true;check();});
+    sbh=sbHost(code,function(conn){if(NET.sb===sbh)onHostConn(conn);},function(){readyPing(false);},function(){sbErr=true;check();});
     NET.sb=sbh;
   }
   if(fbOK()){
-    fbh=fbHost(code,function(conn){if(NET.fb===fbh)onHostConn(conn);},setCode,function(){fbErr=true;check();},function(){
+    fbh=fbHost(code,function(conn){if(NET.fb===fbh)onHostConn(conn);},function(){readyPing(true);},function(){fbErr=true;if(opts.onUp&&!upDone&&(NET.peer||NET.hub||NET.sb))up();check();},function(){
       if(NET.fb!==fbh)return;
+      if(opts.code){retryFixed();return;}
       if(attempt<5){
         try{if(peer)peer.destroy();}catch(x){}
         if(hub){hub.close();NET.hub=null;}
@@ -1843,6 +1943,10 @@ function openRoom(attempt){
       }else{fbErr=true;check();}
     });
     NET.fb=fbh;
+    fbh.onLost=function(){
+      if(NET.fb!==fbh||U.role!=='host'||!S.running)return;
+      var c=U.code;leaveAll(true);U.rejoin=c;U.rejoinN=0;U.roomInput=c;U.notice='房主位已經由另一位玩家接手,重新加入緊…';joinRoom();
+    };
   }
 }
 function onHostConn(conn){
@@ -1906,14 +2010,14 @@ function joinRoom(){
   if(!code){U.notice='請輸入房號。';render();return;}
   if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role=U.pondMode?'pond':'client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;NET.rx=0;NET.state='連線中…';NET.pend=[];
-  var peer=null,chosen=null,dead=false;
-  function fail(msg){if(dead)return;dead=true;var wasIn=!U.pondMode&&U.role==='client'&&!!V;
+  var peer=null,chosen=null,dead=false,gen=U.joinGen=(U.joinGen||0)+1;
+  function fail(msg){if(dead||U.joinGen!==gen||U.resuming)return;dead=true;var wasIn=!U.pondMode&&U.role==='client'&&!!V;
     if(wasIn&&!U.rejoin){U.rejoin=code;U.rejoinN=0;}
     leaveAll();U.notice=msg;
     if(U.pondMode)pondRetry(msg);
-    else if(U.rejoin===code&&U.rejoinN<25){U.rejoinN++;U.notice=msg+' 自動重連中('+U.rejoinN+')…';render();
+    else if(U.rejoin===code&&U.rejoinN<25){U.rejoinN++;U.notice=msg+' 自動重連中('+U.rejoinN+')…';render();scheduleTakeover(code);
       setTimeout(function(){if(U.rejoin===code&&U.role==='solo'&&U.screen==='setup'&&!NET.conn){U.roomInput=code;joinRoom();}},3000);}
-    else{U.rejoin='';render();}}
+    else{U.rejoin='';render();if(!wasIn)tryTakeoverOnce(code);}}
   function attach(conn,kind){
     NET.pend.push(conn);
     conn.on('open',function(){
@@ -1962,17 +2066,19 @@ function onClientData(d){
     return;
   }
   if(d.t==='lobby'){NET.lobby=d;if(!V)U.screen='lobby';render();}
-  else if(d.t==='view'){V=d.v;if(V)V.dl=V.cd!=null?Date.now()+V.cd:0;U.screen='game';U.rejoinN=0;render();}
+  else if(d.t==='view'){V=d.v;if(V)V.dl=V.cd!=null?Date.now()+V.cd:0;U.screen='game';U.rejoinN=0;if(U.code)rememberRoom(U.code);render();}
   else if(d.t==='full'){var m=d.msg;U.rejoin='';leaveAll();U.notice=m;render();}
-  else if(d.t==='closed'){U.rejoin='';leaveAll();U.notice='房主已經關咗房。';render();}
+  else if(d.t==='closed'){U.rejoin='';forgetRoom();leaveAll();U.notice='房主已經關咗房。';render();}
 }
-function leaveAll(){
+function leaveAll(silent){
+  var hostCode=(U.role==='host'&&S.running)?U.code:'';
+  if(hostCode&&!silent){roomDel(hostCode);forgetRoom();}
   S.token++;clearTimeout(S.nextT);
   Object.keys(S.asks).forEach(function(k){try{S.asks[k].rej(CANCEL);}catch(e){}});
   S.asks={};S.running=false;S.players=[];S.over=false;S.ready={};S.call=null;S.msg='';S.result=null;
   var conn=NET.conn,peer=NET.peer,mem=NET.members.concat(NET.ponds||[]);
   NET.conn=null;NET.peer=null;NET.members=[];NET.ponds=[];NET.lobby=null;U.share=false;U.pondSig='';U.pondOnly=false;U.pondFail=false;
-  mem.forEach(function(m){safeSend(m.conn,{t:'closed'});setTimeout(function(){try{m.conn.close();}catch(e){}},200);});
+  mem.forEach(function(m){if(!silent)safeSend(m.conn,{t:'closed'});setTimeout(function(){try{m.conn.close();}catch(e){}},200);});
   if(conn){try{conn.close();}catch(e){}}
   var pend=NET.pend||[];NET.pend=[];pend.forEach(function(c){try{c.close();}catch(e){}});
   var hub=NET.hub;NET.hub=null;if(hub)setTimeout(function(){hub.close();},250);
@@ -2204,7 +2310,7 @@ function setupHTML(){
     tl.map(function(t,i){return '<span class="ht" style="transform:translateY('+lift[i]+'px) rotate('+rot[i]+'deg)">'+tileEl(t,'')+'</span>';}).join('')+'</div></div>';
   return '<div class="ov setupov">'+hero+'<div class="sheet setup"><div class="shead">'+tileEl(27,'')+'<div><h2>港式麻雀</h2><p>你坐東位 · 144 隻牌(連花牌)</p></div></div>'+
     (U.notice?'<p class="warn">'+esc(U.notice)+'</p>':'')+
-    savedHTML()+
+    savedHTML()+(lastRoom()&&netOK()?'<div class="resume"><b>返回房間 '+esc(lastRoom())+'</b><span>房主走咗都唔緊要,你可以入翻去繼續</span><div class="opts"><button class="btn pri" data-act="rejoinRoom">返回房間</button></div></div>':'')+
     '<div class="step"><h4><i>1</i>牌局設定</h4><div class="card">'+
       '<div><span class="lab">你嘅名(多人對戰用)</span><div class="opts"><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'"></div></div>'+
       '<div><span class="lab">座位數</span>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+'</div>'+
@@ -2220,6 +2326,7 @@ function setupHTML(){
     '</div></div>';
 }
 function lobbyHTML(){
+  if(U.resuming)return '<div class="ov"><div class="sheet"><h2>接手房間</h2><p>房號 <b>'+esc(U.resuming)+'</b> · 房主斷咗線,你嚟接手,連線中…</p><div class="opts"><button class="btn" data-act="leave">取消</button></div></div></div>';
   var host=U.role==='host',l=host?lobbyInfo():NET.lobby;
   var link='';
   if(host&&U.code){link=location.origin+location.pathname+'?room='+U.code;}
@@ -2320,8 +2427,9 @@ function handleAct(act,b){
   else if(act==='loadcode'){loadCloudSave(U.codeInput||'',true);}
   else if(act==='host')needPw(hostOpen);
   else if(act==='join')joinRoom();
-  else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code)startGame();}
-  else if(act==='leave'||act==='setup'){U.rejoin='';leaveAll();U.notice='';render();}
+  else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();}
+  else if(act==='leave'||act==='setup'){U.rejoin='';if(U.resuming){U.resuming='';}if(U.role!=='host')forgetRoom();leaveAll();U.notice='';render();}
+  else if(act==='rejoinRoom'){var lr=lastRoom();if(lr){U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();}}
   else if(act==='copy'){
     var link=location.origin+location.pathname+'?room='+U.code;
     try{navigator.clipboard.writeText(link).then(function(){U.copied=true;render();},function(){});}catch(e){}
@@ -2492,7 +2600,7 @@ function boot2(){
   },3000);
   render();
 }
-window.__mj={planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover};
+window.__mj={planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover,startTakeover:startTakeover,roomPut:roomPut,roomKey:roomKey,validSave:validSave,roomPidIdx:roomPidIdx};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>
