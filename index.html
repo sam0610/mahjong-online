@@ -47,6 +47,9 @@ button{font:inherit;color:inherit}
 .tp-opt .tp-n{min-width:5.5em}
 .tp-opt .tp-t{display:flex;gap:3px;--tw:26px;pointer-events:none}
 
+/* 房號 */
+.roomtag{font:700 14px var(--mono);letter-spacing:.12em;color:var(--accent);background:rgba(10,127,156,.1);border:1px solid rgba(10,127,156,.3);border-radius:8px;padding:5px 10px;margin-left:12px;white-space:nowrap}
+
 /* tiles */
 .t{width:var(--tw,30px);height:calc(var(--tw,30px)*1.36);display:inline-block;flex:none;position:relative;padding:calc(var(--tw,30px)*.05);margin:0;border:0;
   border-radius:calc(var(--tw,30px)*.12);background:linear-gradient(180deg,var(--tile-top),var(--tile-bot));
@@ -203,6 +206,9 @@ button{font:inherit;color:inherit}
   body{font-size:15px;padding-block:8px 0;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
   .app{min-height:calc(100dvh - 8px);grid-template-rows:auto auto auto auto 1fr auto;gap:8px;align-content:start}
   .top{flex-wrap:nowrap;gap:6px}
+  .top .btn{white-space:nowrap;padding:0 9px}
+  .top h1{margin-right:0;letter-spacing:.12em;font-size:17px}
+  .roomtag{margin-left:2px;padding:4px 7px;font-size:12px;letter-spacing:.06em}
   .top h1{font-size:17px;margin:0;letter-spacing:.12em;white-space:nowrap}
   .top .btn.sm{height:36px;padding:0 10px;font-size:13px}
   .opps{grid-template-columns:1fr;gap:8px}
@@ -383,6 +389,7 @@ body.pondmode .sheet{color:var(--ink)}
 <div class="app">
   <header class="top">
     <h1>港式麻雀</h1>
+    <span class="roomtag" id="roomTag" hidden></span>
     <span class="sp"></span>
     <button class="btn sm" data-act="tiles">牌面</button>
     <button class="btn sm" data-act="speed" id="btnSpeed">速度:標準</button>
@@ -2406,6 +2413,7 @@ function draw(){
   if(V&&!V.over)U.modalHidden=false;
   drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();
   document.body.classList.toggle('ingame',!!V);
+  var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
   els.speed.textContent='速度:'+(S.speed===1?'標準':'快');
   els.speed.hidden=U.role==='client';
   if(els.share)els.share.hidden=!((U.role==='host'&&U.code)||(U.role==='solo'&&V));
