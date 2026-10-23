@@ -1533,8 +1533,10 @@ function randCode(){var cs='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i
 /* ---- MQTT fallback transport (works when WebRTC is blocked): speaks the same conn API as PeerJS ---- */
 var BROKERS=['wss://broker.hivemq.com:8884/mqtt','wss://broker.emqx.io:8084/mqtt'];
 var MQ_NS='hkmj1/';
-function mqOK(){return typeof window!=='undefined'&&window.mqtt&&typeof window.mqtt.connect==='function';}
-function rtcOK(){return typeof window!=='undefined'&&typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined';}
+/* 房間連線只用 Firebase(fbOK 時),其他線路(WebRTC/MQTT/Supabase Realtime)只喺 Firebase 用唔到先備用 */
+function fbFirst(){return typeof window!=='undefined'&&!!window.firebase&&!!window.firebase.database&&!!window.firebase.auth&&!!FB_CONFIG.apiKey;}
+function mqOK(){return !fbFirst()&&typeof window!=='undefined'&&window.mqtt&&typeof window.mqtt.connect==='function';}
+function rtcOK(){return !fbFirst()&&typeof window!=='undefined'&&typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined';}
 function Em(){var h={};return {on:function(e,f){(h[e]=h[e]||[]).push(f);return this;},emit:function(e,a){(h[e]||[]).slice().forEach(function(f){try{f(a);}catch(x){console.error(x);}});}};}
 function mqConnect(cb){
   var i=0;
@@ -1638,7 +1640,7 @@ function mqGuest(code){
 /* ---------- host: open room over PeerJS (WebRTC) and MQTT at the same time ---------- */
 
 /* ---- Supabase Realtime (Broadcast) transport:主線路。每個玩家一條專屬頻道,加入訊息用 REST 發去房間頻道,其他人聽唔到 ---- */
-function sbOK(){return typeof window!=='undefined'&&window.supabase&&typeof window.supabase.createClient==='function'&&cloudOn();}
+function sbOK(){return !fbFirst()&&typeof window!=='undefined'&&window.supabase&&typeof window.supabase.createClient==='function'&&cloudOn();}
 var SBC=null;
 function sbClient(){
   if(!SBC)SBC=window.supabase.createClient(CLOUD.url,CLOUD.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},realtime:{params:{eventsPerSecond:100}}});
