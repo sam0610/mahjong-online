@@ -92,3 +92,14 @@
 ```
 
 冇改規則都用得:`state` 寫唔到就會靠 Supabase 存檔頂住;但 `meta` 規則如果唔准「過期租約被搶」,房主死機(冇乾淨斷線)時要等 Firebase 自己清走(約 1 分鐘)先接手到。
+
+## 房間伺服器(Cloudflare Durable Objects)
+
+`server/` 係一個房間伺服器:牌局引擎喺伺服器跑,玩家只係經 WebSocket 睇畫面同出牌,所以冇「房主」,手機瞓著、整理頁面都唔影響牌局。
+
+- 引擎唔係另寫一份,而係 `server/build.mjs` 喺 `index.html` 抽出標記 `/*@engine:begin … */` 到 `/*@engine:end*/` 之間嘅程式生成。改牌局規則只需要改 `index.html`。
+- 部署:推上 `main` 就由 `.github/workflows/deploy-server.yml` 自動部署。要喺 GitHub 倉庫 Secrets 設定 `CLOUDFLARE_API_TOKEN` 同 `CLOUDFLARE_ACCOUNT_ID`。
+- 部署完,將 Workers 網址(`wss://mahjong-room.<子網域>.workers.dev`)填入 `index.html` 嘅 `SERVER_URL`,客戶端就會改用伺服器。
+- 臨時試用:網址後面加 `?server=wss://…`;加 `?net=fb` 強制用舊嘅 Firebase 版。
+- 本機測試:`cd server && npm install && npx wrangler dev`,再用 `?server=ws://127.0.0.1:8787` 開網頁。
+- 冇人喺度時牌局暫停並存檔(12 小時),有人用房號返嚟就繼續。

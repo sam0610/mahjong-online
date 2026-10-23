@@ -1,0 +1,12 @@
+{
+  "name": "mahjong-room",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && wrangler dev",
+    "deploy": "node build.mjs && wrangler deploy",
+    "test": "node build.mjs && node test/engine.test.mjs"
+  },
+  "devDependencies": { "wrangler": "^4" }
+}

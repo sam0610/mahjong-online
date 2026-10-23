@@ -414,6 +414,7 @@ body.pondmode .sheet{color:var(--ink)}
 <script>
 (function(){
 'use strict';
+/*@engine:begin base*/
 var CANCEL={cancel:true};
 var NUM=['一','二','三','四','五','六','七','八','九'];
 var SUIT=['萬','筒','索'], WIND=['東','南','西','北'], DRAG=['中','發','白'], FLOW=['春','夏','秋','冬','梅','蘭','菊','竹'];
@@ -432,6 +433,7 @@ function removeOne(a,t){var i=a.indexOf(t);if(i>=0)a.splice(i,1);}
 function removeN(a,t,n){for(var k=0;k<n;k++)removeOne(a,t);}
 function fanLabel(ev){return ev.fan>=CAP?'滿貫':ev.fan+'番';}
 
+/*@engine:end*/
 /* ---------- tile faces ---------- */
 var INK='var(--f-ink)',RED='var(--f-red)',GRN='var(--f-grn)',BLU='var(--f-blu)',IV='var(--f-iv)',FLW='var(--f-fl)';
 var DP=[null,[[20,28]],[[20,15],[20,41]],[[11,12],[20,28],[29,44]],[[12,16],[28,16],[12,40],[28,40]],[[11,14],[29,14],[20,28],[11,42],[29,42]],[[12,12],[28,12],[12,28],[28,28],[12,44],[28,44]],[[10,10],[20,15],[30,20],[12,38],[28,38],[12,49],[28,49]],[[12,10],[28,10],[12,22],[28,22],[12,34],[28,34],[12,46],[28,46]],[[10,12],[20,12],[30,12],[10,28],[20,28],[30,28],[10,44],[20,44],[30,44]]];
@@ -468,6 +470,7 @@ function tileEl(t,cls,tag){tag=tag||'span';return '<'+tag+' class="t '+(cls||'')
 var BACK='<span class="t back"></span>';
 function takenMark(h,k){return k?h.replace('data-t=','data-tk="'+k+'" data-t='):h;}
 
+/*@engine:begin eval*/
 /* ---------- hand evaluation ---------- */
 var ORPH=[0,8,9,17,18,26,27,28,29,30,31,32,33];
 function isThirteen(c){var tot=0,pair=0,i;for(i=0;i<34;i++)tot+=c[i];if(tot!==14)return false;var s=0;
@@ -992,6 +995,8 @@ function aiTurn(p,ev,kongs){
   return {a:'discard',t:chooseDiscard(p)};
 }
 
+/*@engine:end*/
+/*@engine:begin state*/
 /* ---------- state ----------
    S = authoritative game state (lives on the host / single player only).
    V = what this screen draws: built from S on the host, received from the host on a guest.
@@ -1000,6 +1005,7 @@ var S={pond:[],n:4,minFan:3,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,
   asks:{},ready:{},token:0,speed:1,call:null,result:null,winTile:null,discN:0,running:false};
 var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
+var HOSTSEAT=1,HOOKS={};   /* HOSTSEAT:房主佔一個座位(自己部機做主機);伺服器版係 0 */
 var PREFIX='hkmj-';
 var NET={peer:null,conn:null,hub:null,sb:null,fb:null,pend:[],members:[],ponds:[],lobby:null,rx:0,state:''};
 var PEER_OPTS={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
@@ -1007,7 +1013,7 @@ var PEER_OPTS={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'
 
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host'?'房主':'玩家');}
-function netOK(){return (typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function')||sbOK()||fbOK());}
+function netOK(){return wsMode()||(typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function')||sbOK()||fbOK());}
 function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function(){if(tok===S.token)res();else rej(CANCEL);},ms*S.speed);});}
 
 /* ---------- 自動聽牌: when exactly 1 tile from winning (tenpai), the game waits for the winning tile and discards the rest ---------- */
@@ -1155,6 +1161,7 @@ function takeover(seat){
 }
 
 
+/*@engine:end*/
 /* ---------- saving progress ----------
    Always saved in this browser (localStorage). If CLOUD.url / CLOUD.key are filled in (Supabase), the same
    snapshot is also stored on the server under a private save code, so it survives cleared browsers and works on another device. */
@@ -1230,14 +1237,21 @@ function rememberRoom(code){try{localStorage.setItem(ROOM_KEY,JSON.stringify({c:
 function forgetRoom(){try{localStorage.removeItem(ROOM_KEY);}catch(e){}}
 function lastRoom(){try{var o=JSON.parse(localStorage.getItem(ROOM_KEY)||'null');return (o&&o.c&&Date.now()-o.t<ROOM_TTL)?o.c:'';}catch(e){return '';}}
 function roomPidIdx(o,pid){var r=-1;if(pid)o.players.forEach(function(p,i){if(p.pid&&p.pid===pid)r=i;});return r;}
-function snapshot(phase,turn){
-  var hostSave=U.role==='host'&&!!U.code;
-  if((U.role!=='solo'&&!hostSave)||!S.running||!S.players.length)return;
+/*@engine:begin snap*/
+function snapObj(phase,turn){
   var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,
     cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,
     result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner}:S.result?{type:'draw'}:null,
     players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn,pid:p.pid||'',baseName:p.baseName||'',away:!!p.away};})};
-  if(hostSave)o.room={code:U.code,cfg:{n:U.cfg.n,minFan:U.cfg.minFan,level:U.cfg.level}};
+  if(U.code)o.room={code:U.code,cfg:{n:U.cfg.n,minFan:U.cfg.minFan,level:U.cfg.level}};
+  return o;
+}
+/*@engine:end*/
+function snapshot(phase,turn){
+  var hostSave=U.role==='host'&&!!U.code;
+  if((U.role!=='solo'&&!hostSave)||!S.running||!S.players.length)return;
+  var o=snapObj(phase,turn);
+  if(!hostSave)delete o.room;
   var str;try{str=JSON.stringify(o);}catch(e){return;}
   if(hostSave){roomPut(JSON.parse(str));return;}
   try{localStorage.setItem(SAVE_KEY,str);}catch(e){}
@@ -1275,6 +1289,7 @@ function resumeGame(){
   render();
 }
 
+/*@engine:begin flow*/
 /* ---------- game flow (host / single player) ---------- */
 function callout(i,text){var id=++callId;S.call={i:i,text:text,id:id};render();setTimeout(function(){if(S.call&&S.call.id===id){S.call=null;render();}},1100);}
 function buildWall(){
@@ -1525,16 +1540,17 @@ function broadcast(){
   if(NET.ponds.length&&S.running){var pv={t:'pond',v:pondView()};NET.ponds.forEach(function(m){safeSend(m.conn,pv);});}
 }
 function lobbyInfo(){
-  return {t:'lobby',n:U.cfg.n,minFan:U.cfg.minFan,code:U.code,players:[myName()].concat(NET.members.map(function(m){return m.name;}))};
+  return {t:'lobby',n:U.cfg.n,minFan:U.cfg.minFan,code:U.code,players:(HOSTSEAT?[myName()]:[]).concat(NET.members.map(function(m){return m.name;}))};
 }
-function sendLobby(){var l=lobbyInfo();NET.members.forEach(function(m){safeSend(m.conn,l);});}
+function sendLobby(){if(HOOKS.lobby){HOOKS.lobby();return;}var l=lobbyInfo();NET.members.forEach(function(m){safeSend(m.conn,l);});}
 function randCode(){var cs='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<5;i++)s+=cs[Math.floor(Math.random()*cs.length)];return s;}
 
+/*@engine:end*/
 /* ---- MQTT fallback transport (works when WebRTC is blocked): speaks the same conn API as PeerJS ---- */
 var BROKERS=['wss://broker.hivemq.com:8884/mqtt','wss://broker.emqx.io:8084/mqtt'];
 var MQ_NS='hkmj1/';
 /* 房間連線只用 Firebase(fbOK 時),其他線路(WebRTC/MQTT/Supabase Realtime)只喺 Firebase 用唔到先備用 */
-function fbFirst(){return typeof window!=='undefined'&&!!window.firebase&&!!window.firebase.database&&!!window.firebase.auth&&!!FB_CONFIG.apiKey;}
+function fbFirst(){return wsMode()||typeof window!=='undefined'&&!!window.firebase&&!!window.firebase.database&&!!window.firebase.auth&&!!FB_CONFIG.apiKey;}
 function mqOK(){return !fbFirst()&&typeof window!=='undefined'&&window.mqtt&&typeof window.mqtt.connect==='function';}
 function rtcOK(){return !fbFirst()&&typeof window!=='undefined'&&typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined';}
 function Em(){var h={};return {on:function(e,f){(h[e]=h[e]||[]).push(f);return this;},emit:function(e,a){(h[e]||[]).slice().forEach(function(f){try{f(a);}catch(x){console.error(x);}});}};}
@@ -1728,6 +1744,31 @@ function sbGuest(code){
   return conn;
 }
 
+/* ---- 房間伺服器(Cloudflare Durable Object):設咗 SERVER_URL 就全部走 WebSocket,房主唔再重要 ---- */
+var SERVER_URL='';   /* 例:'wss://mahjong-room.<你嘅子網域>.workers.dev' ;網址加 ?net=fb 可以強制用舊嘅 Firebase 版 */
+function serverUrl(){
+  var q=/[?&]server=([^&#]+)/.exec(location.search||'');
+  if(q){try{return decodeURIComponent(q[1]).replace(/\/$/,'');}catch(e){}}
+  if(/[?&]net=fb\b/.test(location.search||''))return '';
+  return SERVER_URL;
+}
+function wsMode(){return typeof WebSocket!=='undefined'&&!!serverUrl();}
+function wsGuest(code){
+  var c=Em();c.open=false;c.seen=Date.now();var ws=null,dead=false,piv=0;
+  try{ws=new WebSocket(serverUrl()+'/room/'+code);}catch(e){setTimeout(function(){c.emit('error',{type:'peer-unavailable'});},0);return c;}
+  c.send=function(d){if(c.open){try{ws.send(JSON.stringify(d));}catch(e){}}};
+  c.remoteClose=function(){if(!c.open)return;c.open=false;clearInterval(piv);c.emit('close');try{ws.close();}catch(e){}};
+  c.close=function(){dead=true;clearInterval(piv);try{ws.close();}catch(e){}if(c.open){c.open=false;c.emit('close');}};
+  ws.onopen=function(){
+    c.open=true;c.seen=Date.now();c.emit('open');
+    piv=setInterval(function(){if(Date.now()-c.seen>45000){dlog('WS-TIMEOUT');c.remoteClose();return;}try{ws.send('{"t":"ping"}');}catch(e){}},15000);
+  };
+  ws.onmessage=function(e){c.seen=Date.now();var d;try{d=JSON.parse(e.data);}catch(x){return;}c.emit('data',d);};
+  ws.onclose=function(){clearInterval(piv);if(c.open){c.open=false;c.emit('close');}else if(!dead){c.emit('error',{type:'peer-unavailable'});}};
+  ws.onerror=function(){};
+  return c;
+}
+
 /* ---- Firebase Realtime Database transport(匿名登入;用現有規則 rooms/$code/meta + inbox/$peer,冇廣播,每人專屬收件箱) ---- */
 function fbOK(){return typeof window!=='undefined'&&!!window.firebase&&!!window.firebase.database&&!!window.firebase.auth&&!!FB_CONFIG.apiKey;}
 var FBA=null,FBOFF=0,LEASE_MS=15000;
@@ -1861,7 +1902,8 @@ function fbGuest(code){
   return conn;
 }
 function hostOpen(){
-  if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  if(wsMode()){U.creating=true;U.createTry=(U.createTry||0)+1;U.roomInput=randCode();U.rejoin='';joinRoom();return;}
+  if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()&&!wsMode()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role='host';U.screen='lobby';U.notice='';U.code='';NET.members=[];
   openRoom(0);render();
 }
@@ -1903,7 +1945,7 @@ function startTakeover(code,o,opt){
 }
 /* 房主斷咗線:搵雲端存檔,有我份就接手;冇人接手先繼續等 */
 function scheduleTakeover(code){
-  if(U.toTimer||!fbOK())return;
+  if(wsMode()||U.toTimer||!fbOK())return;
   U.toTimer=setTimeout(function(){
     U.toTimer=0;
     if(U.rejoin!==code||NET.conn||U.role==='host'||U.resuming)return;
@@ -1914,7 +1956,7 @@ function scheduleTakeover(code){
   },1500+Math.random()*3500);
 }
 function tryTakeoverOnce(code){
-  if(!fbOK())return;
+  if(wsMode()||!fbOK())return;
   roomLoad(code).then(function(o){
     if(!o||U.resuming||U.role!=='solo'||NET.conn||S.running)return;
     if(roomPidIdx(o,myPid())>=0)startTakeover(code,o);
@@ -1990,6 +2032,7 @@ function openRoom(attempt,opts){
     };
   }
 }
+/*@engine:begin onHostConn*/
 function onHostConn(conn){
   var m={conn:conn,name:'玩家',seat:-1,joined:false,pond:false};
   /* 收到 hello 先決定係玩家定係牌河屏;玩家先檢查人數同有冇開咗局 */
@@ -2004,11 +2047,13 @@ function onHostConn(conn){
         pl.human=true;pl.remote=true;pl.away=false;pl.auto=false;pl.proxy=false;if(pl.baseName)pl.name=pl.baseName;
         m.seat=si;m.joined=true;m.pid=d.pid;m.name=pl.name;NET.members.push(m);
         safeSend(conn,{t:'view',v:buildView(si)});render();
+        if(HOOKS.seated)HOOKS.seated(si);
         return true;
       }
     }
     if(S.running){safeSend(conn,{t:'full',msg:'遊戲已經開始,入唔到。'});setTimeout(function(){try{conn.close();}catch(e){}},300);return false;}
-    if(NET.members.length>=U.cfg.n-1){safeSend(conn,{t:'full',msg:'房已經夠人。'});setTimeout(function(){try{conn.close();}catch(e){}},300);return false;}
+    if(NET.members.length>=U.cfg.n-HOSTSEAT){safeSend(conn,{t:'full',msg:'房已經夠人。'});setTimeout(function(){try{conn.close();}catch(e){}},300);return false;}
+    if(m.pid){NET.members.filter(function(x){return x!==m&&x.pid&&x.pid===m.pid;}).forEach(function(x){NET.members.splice(NET.members.indexOf(x),1);x.seat=-1;try{x.conn.close();}catch(e){}});}   /* 同一個人重連:踢走舊連線 */
     NET.members.push(m);m.joined=true;
     m.name='玩家'+NET.members.length;
     return true;
@@ -2033,15 +2078,21 @@ function onHostConn(conn){
   conn.on('close',function(){
     if(m.pond){var pi=NET.ponds.indexOf(m);if(pi>=0)NET.ponds.splice(pi,1);return;}
     var i=NET.members.indexOf(m);if(i<0)return;
-    if(!S.running){NET.members.splice(i,1);sendLobby();render();}
-    else{var seat=m.seat;m.seat=-1;NET.members.splice(i,1);if(seat>=0){takeover(seat);checkReady();}}
+    if(!S.running){NET.members.splice(i,1);sendLobby();render();if(HOOKS.closed)HOOKS.closed();}
+    else{var seat=m.seat;m.seat=-1;NET.members.splice(i,1);if(seat>=0){takeover(seat);checkReady();}if(HOOKS.closed)HOOKS.closed();}
   });
 }
 
+/*@engine:end*/
 /* ---------- guest: try WebRTC first, fall back to MQTT after 6s ---------- */
 function myPid(){var k='mj_pid',v='';try{v=localStorage.getItem(k)||'';if(!v){v=Math.random().toString(36).slice(2,12)+Date.now().toString(36);localStorage.setItem(k,v);}}catch(e){}
   if(!v){if(!window.__pid)window.__pid=Math.random().toString(36).slice(2,14);v=window.__pid;}return v;}
-function helloMsg(){return U.pondMode?{t:'hello',role:'pond',name:'牌河屏'}:{t:'hello',name:myName(),pid:myPid()};}
+function helloMsg(){
+  if(U.pondMode)return {t:'hello',role:'pond',name:'牌河屏'};
+  var h={t:'hello',name:myName(),pid:myPid()};
+  if(U.creating){h.create=true;h.cfg={n:U.cfg.n,minFan:U.cfg.minFan,level:U.cfg.level};}
+  return h;
+}
 function pondRetry(msg){
   leaveAll();U.role='pond';NET.state=(msg||'')+' 4 秒後自動重連…';V=null;draw();
   setTimeout(function(){if(U.pondMode&&U.role==='pond'&&!NET.conn&&!NET.peer)joinRoom();},4000);
@@ -2049,7 +2100,7 @@ function pondRetry(msg){
 function joinRoom(){
   var code=(U.roomInput||'').trim().toUpperCase();
   if(!code){U.notice='請輸入房號。';render();return;}
-  if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()&&!wsMode()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role=U.pondMode?'pond':'client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;NET.rx=0;NET.state='連線中…';NET.pend=[];
   var peer=null,chosen=null,dead=false,gen=U.joinGen=(U.joinGen||0)+1;
   function fail(msg){if(dead||U.joinGen!==gen||U.resuming)return;dlog('FAIL',msg);dead=true;var wasIn=!U.pondMode&&U.role==='client'&&!!V;
@@ -2062,7 +2113,7 @@ function joinRoom(){
   /* 已入房:睇住房主租約。租約消失或者過期超過 6 秒,就當房主走咗,觸發接手 */
   var lw=null,lwBad=0,lwLast=undefined,lwIv=0,lwSeen=0,lwEpoch=null;
   function watchLease(){
-    if(lw||U.pondMode||!fbOK())return;
+    if(lw||U.pondMode||wsMode()||!fbOK())return;
     try{
       lw=fbInit().db.ref('rooms/mj'+code+'/meta');
       lw.on('value',function(sn){lwLast=sn.val();},function(){});
@@ -2105,7 +2156,8 @@ function joinRoom(){
     if(NET.conn&&NET.conn.open&&!NET.lobby)safeSend(NET.conn,helloMsg());
   },2000);
   var tFallback=(rtcOK()||sbOK()||fbOK())?setTimeout(startMq,6000):null;
-  if(fbOK())attach(fbGuest(code),'Firebase');
+  if(wsMode())attach(wsGuest(code),'伺服器');
+  else if(fbOK())attach(fbGuest(code),'Firebase');
   if(sbOK())attach(sbGuest(code),'Supabase');
   var tAll=setTimeout(function(){if(!chosen)fail('連唔到房間 '+code+',請確認房號,或者再試一次。');},22000);
   if(rtcOK()){
@@ -2115,7 +2167,7 @@ function joinRoom(){
       attach(peer.connect(PREFIX+code,{reliable:true,serialization:'json'}),'直連');
     });
     peer.on('error',function(){if(NET.peer===peer&&!chosen){NET.state='直連唔到,轉用備用線路…';startMq();}});
-  }else if(!sbOK()&&!fbOK())startMq();
+  }else if(!sbOK()&&!fbOK()&&!wsMode())startMq();
   render();
 }
 function onClientData(d){
@@ -2127,7 +2179,12 @@ function onClientData(d){
     else if(d.t==='closed'||d.t==='full'){pondRetry(d.t==='closed'?'房主已經關咗房。':(d.msg||''));}
     return;
   }
-  if(d.t==='lobby'){NET.lobby=d;if(!V)U.screen='lobby';render();}
+  if(d.t==='lobby'){NET.lobby=d;U.creating=false;U.createTry=0;if(!V)U.screen='lobby';render();}
+  else if(d.t==='taken'){
+    if(U.creating&&U.createTry<6){leaveAll(true);hostOpen();}
+    else{U.creating=false;U.rejoin='';forgetRoom();leaveAll();U.notice='房號已經有人用,請再試一次。';render();}
+  }
+  else if(d.t==='none'){U.creating=false;U.rejoin='';forgetRoom();leaveAll();U.notice='搵唔到呢個房號(房間可能已經過期)。';render();}
   else if(d.t==='view'){V=d.v;if(V)V.dl=V.cd!=null?Date.now()+V.cd:0;U.screen='game';U.rejoinN=0;if(U.code)rememberRoom(U.code);render();}
   else if(d.t==='full'){var m=d.msg;U.rejoin='';leaveAll();U.notice=m;render();}
   else if(d.t==='closed'){U.rejoin='';forgetRoom();leaveAll();U.notice='房主已經關咗房。';render();}
@@ -2390,9 +2447,9 @@ function setupHTML(){
 }
 function lobbyHTML(){
   if(U.resuming)return '<div class="ov"><div class="sheet"><h2>接手房間</h2><p>房號 <b>'+esc(U.resuming)+'</b> · 房主斷咗線,你嚟接手,連線中…</p><div class="opts"><button class="btn" data-act="leave">取消</button></div></div></div>';
-  var host=U.role==='host',l=host?lobbyInfo():NET.lobby;
+  var host0=U.role==='host',l=host0?lobbyInfo():NET.lobby,host=host0||!!(l&&l.owner);
   var link='';
-  if(host&&U.code){link=location.origin+location.pathname+'?room='+U.code;}
+  if(host&&U.code&&!U.creating){link=location.origin+location.pathname+'?room='+U.code;}
   var h='<div class="ov"><div class="sheet"><h2>'+(host?'房間':'等房主開始')+'</h2>';
   if(host){
     h+=U.code?'<div class="opts"><button class="btn pri" data-act="startRoom">開始遊戲(撳咗,朋友嗰邊先會入牌桌)</button></div><div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="qrrow">'+(qrSVG(link)?'<div class="qr sm">'+qrSVG(link)+'</div>':'')+'<div class="linkbox">'+esc(link)+'</div></div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button><button class="btn sm" data-act="sharePond">開牌河屏</button></div>':'<p>開緊房…</p>';
@@ -2403,7 +2460,7 @@ function lobbyHTML(){
     h+='<h3>玩家('+l.players.length+' / '+l.n+')</h3><div class="plist">'+l.players.map(function(nm,i){return '<div>'+esc(nm)+(i===0?'<span class="rel">房主</span>':'')+'</div>';}).join('')+
       new Array(Math.max(0,l.n-l.players.length)+1).join('<div class="empty">電腦補位</div>')+'</div><p class="note">'+l.n+' 個座位 · '+l.minFan+' 番起糊</p>';
   }
-  h+='<div class="opts">'+(host?'<button class="btn pri" data-act="startRoom"'+(U.code?'':' disabled')+'>開始遊戲</button>':'')+'<button class="btn" data-act="leave">'+(host?'關房':'離開')+'</button></div></div></div>';
+  h+='<div class="opts">'+(host?'<button class="btn pri" data-act="startRoom"'+(U.code?'':' disabled')+'>開始遊戲</button>':'')+'<button class="btn" data-act="leave">'+(host0?'關房':'離開')+'</button></div></div></div>';
   return h;
 }
 function rulesHTML(){
@@ -2517,7 +2574,7 @@ function handleAct(act,b){
   else if(act==='loadcode'){loadCloudSave(U.codeInput||'',true);}
   else if(act==='host')needPw(hostOpen);
   else if(act==='join')joinRoom();
-  else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();}
+  else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();else if(U.role==='client'&&NET.conn){safeSend(NET.conn,{t:'start'});}}
   else if(act==='leave'||act==='setup'){U.rejoin='';if(U.resuming){U.resuming='';}forgetRoom();leaveAll();U.notice='';render();}
   else if(act==='rejoinRoom'){var lr=lastRoom();if(lr){U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();scheduleTakeover(lr);}}
   else if(act==='copy'){
@@ -2694,7 +2751,7 @@ function boot2(){
   setTimeout(function(){
     try{
       var lr=lastRoom(),lt0=0;try{lt0=JSON.parse(localStorage.getItem(ROOM_KEY)||'{}').t||0;}catch(e){}
-      if(lr&&Date.now()-lt0<1800000&&fbOK()&&U.role==='solo'&&!S.running&&!U.pondMode&&!U.resuming&&!NET.conn){dlog('AUTO-REJOIN',lr);U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();scheduleTakeover(lr);}
+      if(lr&&Date.now()-lt0<1800000&&(fbOK()||wsMode())&&U.role==='solo'&&!S.running&&!U.pondMode&&!U.resuming&&!NET.conn){dlog('AUTO-REJOIN',lr);U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();scheduleTakeover(lr);}
     }catch(e){}
   },900);
 }
