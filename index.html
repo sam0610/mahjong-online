@@ -2530,8 +2530,7 @@ function tilesHTML(){
   var demo=[4,13,22,27,31,32,35];
   return '<div class="ov"><div class="sheet"><h2>牌面設計</h2><div class="tp-list">'+TILE_NAMES.map(function(n,i){
     return '<button class="tp-opt'+((U.tile||0)===i?' on':'')+'" data-act="tileSet" data-v="'+i+'"><span class="tp-n">'+n+'</span><span class="tp-t"'+(i?' data-tile="'+i+'"':'')+'>'+demo.map(function(t){return tileEl(t);}).join('')+'</span></button>';}).join('')+'</div>'+
-    (U.diagShow?'<textarea readonly style="width:100%;height:120px;font-size:11px;margin-top:8px">'+esc(U.diagShow)+'</textarea>':'')+
-    '<div class="opts"><button class="btn" data-act="copyDiag">複製診斷資料</button><button class="btn pri" data-act="closeTiles">完成</button></div></div></div>';
+    '<div class="opts"><button class="btn pri" data-act="closeTiles">完成</button></div></div></div>';
 }
 function drawOverlay(){
   var h='';
@@ -2606,7 +2605,6 @@ function handleAct(act,b){
   else if(act==='closeRules'){U.rules=false;render();}
   else if(act==='tiles'){U.tiles=true;render();}
   else if(act==='closeTiles'){U.tiles=false;U.diagShow='';render();}
-  else if(act==='copyDiag'){copyDiag();}
   else if(act==='tileSet'){setTileTheme(v);render();}
   else if(act==='speed'){S.speed=S.speed===1?0.4:1;render();}
   else if(act==='next'){
