@@ -1543,7 +1543,7 @@ function lobbyInfo(){
   return {t:'lobby',n:U.cfg.n,minFan:U.cfg.minFan,code:U.code,players:(HOSTSEAT?[myName()]:[]).concat(NET.members.map(function(m){return m.name;}))};
 }
 function sendLobby(){if(HOOKS.lobby){HOOKS.lobby();return;}var l=lobbyInfo();NET.members.forEach(function(m){safeSend(m.conn,l);});}
-function randCode(){var cs='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<5;i++)s+=cs[Math.floor(Math.random()*cs.length)];return s;}
+function randCode(){var L='ABCDEFGHJKLMNPQRSTUVWXYZ',D='23456789',s=L[Math.floor(Math.random()*L.length)];for(var i=0;i<3;i++)s+=D[Math.floor(Math.random()*D.length)];return s;}   /* 一個英文字母 + 3 個數字,例如 K382 */
 
 /*@engine:end*/
 /* ---- MQTT fallback transport (works when WebRTC is blocked): speaks the same conn API as PeerJS ---- */
@@ -2278,9 +2278,10 @@ function tseat(i,k,ps){
 function tpool(i,ps){
   var p=V.players[i];
   return '<div class="tp ps-'+ps+'"><div class="tpool">'+p.discards.map(function(t,j){
-    var last=V.last&&V.last.seat===i&&j===p.discards.length-1;
     var k=p.taken&&p.taken[j]||'';
-    return takenMark(tileEl(t,(last?'last':'')+(k?' taken':'')),k);
+    if(k)return '';   /* 被碰/上/槓走嘅牌直接移走 */
+    var last=V.last&&V.last.seat===i&&j===p.discards.length-1;
+    return tileEl(t,last?'last':'');
   }).join('')+'</div></div>';
 }
 function drawTable(){
@@ -2328,7 +2329,8 @@ function drawPond(){
   var legend='<div class="plg">'+V.players.map(function(p,i){return '<span class="lg s'+rel(i)+'"><i></i>'+esc(p.name)+'</span>';}).join('')+'<span class="pc">已打 '+(V.pond||[]).length+' 張</span><button class="tog" data-act="togPond">收埋</button></div>';
   var list=V.pond||[];
   var tiles=list.map(function(e,j){
-    return takenMark(tileEl(e.t,'s'+rel(e.s)+(j===list.length-1&&V.last?' last':'')+(e.k?' taken':'')),e.k);
+    if(e.k)return '';   /* 被碰/上/槓走嘅牌直接移走 */
+    return tileEl(e.t,'s'+rel(e.s)+(j===list.length-1&&V.last?' last':''));
   }).join('');
   els.pond.innerHTML=legend+'<div class="pool">'+tiles+'</div>';
 }
@@ -2438,11 +2440,11 @@ function lobbyHTML(){
   var host0=U.role==='host',l=host0?lobbyInfo():NET.lobby,host=host0||!!(l&&l.owner);
   var link='';
   if(host&&U.code&&!U.creating){link=location.origin+location.pathname+'?room='+U.code;}
-  var h='<div class="ov"><div class="sheet"><h2>'+(host?'房間':'等房主開始')+'</h2>';
+  var h='<div class="ov"><div class="sheet"><h2>'+(host?'房間':'等開始')+'</h2>';
   if(host){
-    h+=U.code?'<div class="opts"><button class="btn pri" data-act="startRoom">開始遊戲(撳咗,朋友嗰邊先會入牌桌)</button></div><div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="qrrow">'+(qrSVG(link)?'<div class="qr sm">'+qrSVG(link)+'</div>':'')+'<div class="linkbox">'+esc(link)+'</div></div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button><button class="btn sm" data-act="sharePond">開牌河屏</button></div>':'<p>開緊房…</p>';
+    h+=U.code?'<div class="opts"><button class="btn pri" data-act="startRoom">開始遊戲(撳咗,朋友嗰邊先會入牌桌)</button></div><div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="qrrow">'+(qrSVG(link)?'<div class="qr sm">'+qrSVG(link)+'</div>':'')+'<div class="linkbox">'+esc(link)+'</div></div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button></div>':'<p>開緊房…</p>';
   }else{
-    h+='<p>房號 <b>'+esc(U.code)+'</b>'+(l?'(連接咗)':'(連線中…)')+'</p><p class="note">狀態:'+esc(NET.state||'連線中…')+' · 收到 '+NET.rx+' 個訊息'+(NET.rx>0&&!V?' · 等房主撳「開始遊戲」':'')+'</p>';
+    h+='<p>房號 <b>'+esc(U.code)+'</b>'+(l?'(連接咗)':'(連線中…)')+'</p><p class="note">狀態:'+esc(NET.state||'連線中…')+' · 收到 '+NET.rx+' 個訊息'+(NET.rx>0&&!V?' · 等開房嗰位撳「開始遊戲」':'')+'</p>';
   }
   if(l){
     h+='<h3>玩家('+l.players.length+' / '+l.n+')</h3><div class="plist">'+l.players.map(function(nm,i){return '<div>'+esc(nm)+(i===0?'<span class="rel">房主</span>':'')+'</div>';}).join('')+
@@ -2718,7 +2720,7 @@ function boot2(){
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
   try{U.pondHidden=localStorage.getItem('mj_pondHide')==='1';}catch(e){}
   try{setTileTheme(localStorage.getItem('mj_tile'));}catch(e){}
-  var pm=/[?&#]pond=([A-Za-z0-9]+)/.exec((location.search||'')+(location.hash||''));
+  var pm=null;   /* 牌河屏功能已移除 */
   if(pm){
     U.pondMode=true;U.roomInput=pm[1].toUpperCase();document.body.classList.add('pondmode');
     window.addEventListener('resize',function(){fitPond();});
@@ -2726,7 +2728,7 @@ function boot2(){
     keepAwake();draw();joinRoom();return;
   }
   var m=/[?&#]room=([A-Za-z0-9]+)/.exec((location.search||'')+(location.hash||''));
-  if(m)U.roomInput=m[1].toUpperCase();
+  if(m){U.roomInput=m[1].toUpperCase();if(netOK()){U.rejoin='';joinRoom();}}   /* 分享連結:直接入房,唔經主頁 */
   setInterval(function(){
     var pr=NET.peer;if(pr&&pr.disconnected&&!pr.destroyed&&(U.role==='host'||U.pondOnly)){try{pr.reconnect();}catch(e){}}
     if(U.role==='host'&&!S.running&&NET.members.length)sendLobby();
