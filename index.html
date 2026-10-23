@@ -2747,13 +2747,6 @@ function boot2(){
     if(U.role==='host'&&S.running&&Object.keys(S.asks).some(function(k){return S.players[k]&&S.players[k].remote&&Date.now()-S.asks[k].since>25000;}))render();
   },3000);
   render();
-  /* 重新整理之後,如果 30 分鐘內仲喺房入面,自動返房/接手 */
-  setTimeout(function(){
-    try{
-      var lr=lastRoom(),lt0=0;try{lt0=JSON.parse(localStorage.getItem(ROOM_KEY)||'{}').t||0;}catch(e){}
-      if(lr&&Date.now()-lt0<1800000&&(fbOK()||wsMode())&&U.role==='solo'&&!S.running&&!U.pondMode&&!U.resuming&&!NET.conn){dlog('AUTO-REJOIN',lr);U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();scheduleTakeover(lr);}
-    }catch(e){}
-  },900);
 }
 window.__mj={roomLoad:roomLoad,diagText:diagText,dlog:dlog,planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover,startTakeover:startTakeover,roomPut:roomPut,roomKey:roomKey,validSave:validSave,roomPidIdx:roomPidIdx};
 if(typeof document!=='undefined'&&document.getElementById)boot();
