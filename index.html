@@ -36,6 +36,24 @@ button{font:inherit;color:inherit}
 .chip{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);border-radius:10px;height:44px;min-width:64px;padding:0 14px;cursor:pointer;font:500 15px var(--sans)}
 .chip.on{border-color:var(--accent);background:rgba(10,127,156,.1);color:var(--accent);font-weight:700}
 
+/* 牌面設計:預設米白,另有 8 款石墨灰藍(牌底 #2b3340)配色,用 data-tile 切換 */
+:root{--f-ink:#1c1a17;--f-red:#b3261e;--f-grn:#1f7a4d;--f-blu:#1d4e89;--f-iv:#f7f1e1;--f-fl:#b8541c;--f-ol:none}
+[data-tile="1"]{--tile-top:#323a49;--tile-bot:#2b3340;--tile-side:#1a2029;--tile-rim:#5d6a80;--f-ink:#ffffff;--f-red:#ff9aa8;--f-grn:#8ff0b0;--f-blu:#8ccbff;--f-iv:#2b3340;--f-fl:#ffd9a0;--f-ol:#fff}
+[data-tile="2"]{--tile-top:#323a49;--tile-bot:#2b3340;--tile-side:#1a2029;--tile-rim:#5d6a80;--f-ink:#ffffff;--f-red:#ff857c;--f-grn:#5eff9e;--f-blu:#66c2ff;--f-iv:#2b3340;--f-fl:#ffc94d;--f-ol:#fff}
+[data-tile="3"]{--tile-top:#323a49;--tile-bot:#2b3340;--tile-side:#1a2029;--tile-rim:#5d6a80;--f-ink:#fff1cc;--f-red:#ff9b73;--f-grn:#c6f26b;--f-blu:#ffd24a;--f-iv:#2b3340;--f-fl:#ffd24a;--f-ol:#fff}
+[data-tile="4"]{--tile-top:#323a49;--tile-bot:#2b3340;--tile-side:#1a2029;--tile-rim:#5d6a80;--f-ink:#f4f9ff;--f-red:#ff8fb8;--f-grn:#6df5dc;--f-blu:#8cc4ff;--f-iv:#2b3340;--f-fl:#c3b0ff;--f-ol:#fff}
+[data-tile="5"]{--tile-top:#323a49;--tile-bot:#2b3340;--tile-side:#1a2029;--tile-rim:#5d6a80;--f-ink:#ffffff;--f-red:#ff6ee0;--f-grn:#50ff2a;--f-blu:#29edff;--f-iv:#2b3340;--f-fl:#fff23a;--f-ol:#fff}
+[data-tile="6"]{--tile-top:#323a49;--tile-bot:#2b3340;--tile-side:#1a2029;--tile-rim:#5d6a80;--f-ink:#ffffff;--f-red:#ff8080;--f-grn:#fff0b8;--f-blu:#ffd166;--f-iv:#2b3340;--f-fl:#ffd166;--f-ol:#fff}
+[data-tile="7"]{--tile-top:#323a49;--tile-bot:#2b3340;--tile-side:#1a2029;--tile-rim:#5d6a80;--f-ink:#ffffff;--f-red:#ff9ec0;--f-grn:#ffc2d6;--f-blu:#d9b8ff;--f-iv:#2b3340;--f-fl:#ffd6e0;--f-ol:#fff}
+[data-tile="8"]{--tile-top:#323a49;--tile-bot:#2b3340;--tile-side:#1a2029;--tile-rim:#5d6a80;--f-ink:#f3fff8;--f-red:#ffb36b;--f-grn:#7ff5c3;--f-blu:#f6f27a;--f-iv:#2b3340;--f-fl:#f6f27a;--f-ol:#fff}
+[data-tile]:not([data-tile="0"]) .t{box-shadow:inset 0 0 0 max(1px,calc(var(--tw,30px)*.033)) var(--tile-rim),0 calc(var(--tw,30px)*.07) 0 var(--tile-side),0 calc(var(--tw,30px)*.12) calc(var(--tw,30px)*.1) rgba(30,40,60,.28)}
+[data-tile]:not([data-tile="0"]) .t.taken{outline-color:#dfe8f5;background:linear-gradient(#5a6882,#4a566e)}
+.tp-list{display:grid;gap:8px}
+.tp-opt{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font:700 15px var(--sans);color:var(--ink);text-align:left;width:100%}
+.tp-opt.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,127,156,.25)}
+.tp-opt .tp-n{min-width:5.5em}
+.tp-opt .tp-t{display:flex;gap:3px;--tw:26px;pointer-events:none}
+
 /* tiles */
 .t{width:var(--tw,30px);height:calc(var(--tw,30px)*1.36);display:inline-block;flex:none;position:relative;padding:calc(var(--tw,30px)*.05);margin:0;border:0;
   border-radius:calc(var(--tw,30px)*.12);background:linear-gradient(180deg,var(--tile-top),var(--tile-bot));
@@ -373,6 +391,7 @@ body.pondmode .sheet{color:var(--ink)}
   <header class="top">
     <h1>港式麻雀</h1>
     <span class="sp"></span>
+    <button class="btn sm" data-act="tiles">牌面</button>
     <button class="btn sm" data-act="speed" id="btnSpeed">速度:標準</button>
     <button class="btn sm" data-act="setup">新遊戲</button>
   </header>
@@ -414,12 +433,12 @@ function removeN(a,t,n){for(var k=0;k<n;k++)removeOne(a,t);}
 function fanLabel(ev){return ev.fan>=CAP?'滿貫':ev.fan+'番';}
 
 /* ---------- tile faces ---------- */
-var INK='#1c1a17',RED='#b3261e',GRN='#1f7a4d',BLU='#1d4e89',IV='#f7f1e1';
+var INK='var(--f-ink)',RED='var(--f-red)',GRN='var(--f-grn)',BLU='var(--f-blu)',IV='var(--f-iv)',FLW='var(--f-fl)';
 var DP=[null,[[20,28]],[[20,15],[20,41]],[[11,12],[20,28],[29,44]],[[12,16],[28,16],[12,40],[28,40]],[[11,14],[29,14],[20,28],[11,42],[29,42]],[[12,12],[28,12],[12,28],[28,28],[12,44],[28,44]],[[10,10],[20,15],[30,20],[12,38],[28,38],[12,49],[28,49]],[[12,10],[28,10],[12,22],[28,22],[12,34],[28,34],[12,46],[28,46]],[[10,12],[20,12],[30,12],[10,28],[20,28],[30,28],[10,44],[20,44],[30,44]]];
 var DC=[null,[GRN],[GRN,BLU],[BLU,RED,GRN],[BLU,GRN,GRN,BLU],[GRN,GRN,RED,GRN,GRN],[GRN,GRN,RED,RED,RED,RED],[GRN,GRN,GRN,RED,RED,RED,RED],[BLU,BLU,BLU,BLU,BLU,BLU,BLU,BLU],[GRN,GRN,GRN,RED,RED,RED,BLU,BLU,BLU]];
 var DR=[0,12,8,7,7.5,6.5,6.5,5.2,5.4,5.4];
 var BP=[null,null,[[20,15],[20,41]],[[20,14],[11,41],[29,41]],[[12,15],[28,15],[12,41],[28,41]],[[11,14],[29,14],[20,28],[11,42],[29,42]],[[12,11],[28,11],[12,28],[28,28],[12,45],[28,45]],[[20,11],[10,29],[20,29],[30,29],[10,46],[20,46],[30,46]],[[8,15],[16,15],[24,15],[32,15],[8,41],[16,41],[24,41],[32,41]],[[10,11],[20,11],[30,11],[10,28],[20,28],[30,28],[10,45],[20,45],[30,45]]];
-function dot(x,y,r,c){return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+c+'"/><circle cx="'+x+'" cy="'+y+'" r="'+(r*.62).toFixed(1)+'" fill="none" stroke="'+IV+'" stroke-width="1"/><circle cx="'+x+'" cy="'+y+'" r="'+(r*.26).toFixed(1)+'" fill="'+IV+'"/>';}
+function dot(x,y,r,c){return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+c+'" stroke="var(--f-ol)" stroke-width=".5"/><circle cx="'+x+'" cy="'+y+'" r="'+(r*.62).toFixed(1)+'" fill="none" stroke="'+IV+'" stroke-width="1"/><circle cx="'+x+'" cy="'+y+'" r="'+(r*.26).toFixed(1)+'" fill="'+IV+'"/>';}
 function stickR(x,y,h,c,rot){var w=5.4,r=rot?' transform="rotate('+rot+' '+x+' '+y+')"':'';return '<g'+r+'><rect x="'+(x-w/2)+'" y="'+(y-h/2)+'" width="'+w+'" height="'+h+'" rx="2" fill="'+c+'"/><path d="M'+(x-w/2)+' '+(y-h/6)+'h'+w+'M'+(x-w/2)+' '+(y+h/6)+'h'+w+'" stroke="'+IV+'" stroke-width=".9"/></g>';}
 function stick(x,y,h,c){var w=5.4;return '<rect x="'+(x-w/2)+'" y="'+(y-h/2)+'" width="'+w+'" height="'+h+'" rx="2" fill="'+c+'"/><path d="M'+(x-w/2)+' '+(y-h/6)+'h'+w+'M'+(x-w/2)+' '+(y+h/6)+'h'+w+'" stroke="'+IV+'" stroke-width=".9"/>';}
 function txt(ch,y,size,fill){return '<text x="20" y="'+y+'" text-anchor="middle" font-size="'+size+'" fill="'+fill+'">'+ch+'</text>';}
@@ -440,7 +459,7 @@ function face(t){
   else if(t===31){g=txt('中',40,34,RED);}
   else if(t===32){g=txt('發',40,34,GRN);}
   else if(t===33){g='<rect x="9" y="10" width="22" height="36" rx="3" fill="none" stroke="'+BLU+'" stroke-width="2.4"/>';}
-  else{var k=t-34;var col2=k<4?'#b8541c':GRN;
+  else{var k=t-34;var col2=k<4?FLW:GRN;
     g='<circle cx="20" cy="26" r="16" fill="none" stroke="'+col2+'" stroke-width="1.2" opacity=".5"/>'+txt(FLOW[k],34,24,col2)+txt(String((k%4)+1),52,10,INK);}
   return '<svg viewBox="0 0 40 56" aria-hidden="true">'+g+'</svg>';
 }
@@ -2261,9 +2280,18 @@ function resultHTML(pond){
   h+='<div class="opts">'+(mine?'<button class="btn" disabled>等緊其他玩家 ('+V.ready.length+' / '+humans+')</button>':'<button class="btn pri" data-act="next">下一局</button>')+'<button class="btn" data-act="hideModal">睇牌桌</button></div><p class="note cdn" data-cd style="text-align:center;margin:8px 0 0">'+cdText()+'</p></div></div>';
   return h;
 }
+var TILE_NAMES=['米白(預設)','粉彩','鮮明','暖金','冰藍','螢光','紅白金','櫻花','薄荷檸檬'];
+function setTileTheme(i){i=+i||0;U.tile=i;if(i)document.documentElement.setAttribute('data-tile',i);else document.documentElement.removeAttribute('data-tile');try{localStorage.setItem('mj_tile',i);}catch(e){}}
+function tilesHTML(){
+  var demo=[4,13,22,27,31,32,35];
+  return '<div class="ov"><div class="sheet"><h2>牌面設計</h2><div class="tp-list">'+TILE_NAMES.map(function(n,i){
+    return '<button class="tp-opt'+((U.tile||0)===i?' on':'')+'" data-act="tileSet" data-v="'+i+'"><span class="tp-n">'+n+'</span><span class="tp-t"'+(i?' data-tile="'+i+'"':'')+'>'+demo.map(function(t){return tileEl(t);}).join('')+'</span></button>';}).join('')+'</div>'+
+    '<div class="opts"><button class="btn pri" data-act="closeTiles">完成</button></div></div></div>';
+}
 function drawOverlay(){
   var h='';
-  if(U.rules)h=rulesHTML();
+  if(U.tiles)h=tilesHTML();
+  else if(U.rules)h=rulesHTML();
   else if(U.share&&(U.role==='host'||U.pondOnly))h=shareHTML();
   else if(U.screen==='setup')h=setupHTML();
   else if(U.screen==='lobby')h=lobbyHTML();
@@ -2320,6 +2348,9 @@ function handleAct(act,b){
   else if(act==='togPond'){U.pondHidden=!U.pondHidden;try{localStorage.setItem('mj_pondHide',U.pondHidden?'1':'0');}catch(e){}draw();}
   else if(act==='rules'){U.rules=true;render();}
   else if(act==='closeRules'){U.rules=false;render();}
+  else if(act==='tiles'){U.tiles=true;render();}
+  else if(act==='closeTiles'){U.tiles=false;render();}
+  else if(act==='tileSet'){setTileTheme(v);render();}
   else if(act==='speed'){S.speed=S.speed===1?0.4:1;render();}
   else if(act==='next'){
     if(!V||!V.over)return;
@@ -2449,6 +2480,7 @@ function boot2(){
   document.addEventListener('input',onInput);
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
   try{U.pondHidden=localStorage.getItem('mj_pondHide')==='1';}catch(e){}
+  try{setTileTheme(localStorage.getItem('mj_tile'));}catch(e){}
   var pm=/[?&#]pond=([A-Za-z0-9]+)/.exec((location.search||'')+(location.hash||''));
   if(pm){
     U.pondMode=true;U.roomInput=pm[1].toUpperCase();document.body.classList.add('pondmode');
