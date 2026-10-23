@@ -10,13 +10,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 22 }
       - name: 由 index.html 抽出牌局引擎
         run: node server/build.mjs
       - name: 部署到 Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: server
-          command: deploy
+        working-directory: server
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm install --no-audit --no-fund
+          set +e
+          npx wrangler deploy > /tmp/deploy.txt 2>&1
+          rc=$?
+          sed -i 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/deploy.txt
+          cat /tmp/deploy.txt
+          msg=$(tr '\n' '|' < /tmp/deploy.txt | cut -c1-1800)
+          if [ $rc -ne 0 ]; then echo "::error::wrangler deploy failed: $msg"; exit $rc; fi
+          echo "::notice::wrangler deploy ok: $msg"
