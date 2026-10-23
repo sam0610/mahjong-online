@@ -373,9 +373,7 @@ body.pondmode .sheet{color:var(--ink)}
   <header class="top">
     <h1>港式麻雀</h1>
     <span class="sp"></span>
-    <button class="btn sm" data-act="sharePond" id="btnShare" hidden>牌河屏</button>
     <button class="btn sm" data-act="speed" id="btnSpeed">速度:標準</button>
-    <button class="btn sm" data-act="rules">規則</button>
     <button class="btn sm" data-act="setup">新遊戲</button>
   </header>
   <section class="tbl" id="tbl"></section>
@@ -2207,7 +2205,6 @@ function setupHTML(){
       '<hr class="hr"><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="輸入房號加入" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
       (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
     '</div></div>'+
-    '<div class="opts"><button class="link" data-act="rules">睇規則</button></div>'+
     '</div></div>';
 }
 function lobbyHTML(){
