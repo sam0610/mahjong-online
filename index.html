@@ -1437,6 +1437,7 @@ function startGame(){
     var name=i===0?(U.role==='solo'?'你':uniq(myName())):(m?uniq(m.name):uniq(AI_NAMES[ai++]));
     S.players.push({id:i,name:name,human:human,remote:!!m,score:1000,level:S.level,hand:[],melds:[],flowers:[],discards:[],wind:0,drawn:null});
     if(m){m.seat=i;S.players[i].pid=m.pid||'';}
+    if(i===0&&U.role==='host')S.players[0].pid=myPid();   /* 房主都要有 pid,先可以斷線後用房號返嚟 */
   }
   mem.forEach(function(m,j){if(j>=n-1)m.seat=-1;});
   S.dealer=0;S.round=0;S.handNo=1;S.lian=0;S.over=false;S.running=true;
@@ -1919,7 +1920,7 @@ function openRoom(attempt,opts){
     peer.on('disconnected',function(){if(NET.peer===peer&&!peer.destroyed){try{peer.reconnect();}catch(e){}}});
     peer.on('error',function(e){
       if(NET.peer!==peer)return;
-      if(e&&e.type==='unavailable-id'&&opts.code&&!upDone){retryFixed();return;}
+      if(e&&e.type==='unavailable-id'&&opts.code){peerErr=true;check();return;}   /* 接手時 WebRTC 位仲被舊房主佔住:唔理佢,靠其他線路 */
       if(e&&e.type==='unavailable-id'&&attempt<5){
         try{peer.destroy();}catch(x){}
         if(hub){hub.close();NET.hub=null;}
@@ -2437,7 +2438,7 @@ function handleAct(act,b){
   else if(act==='join')joinRoom();
   else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();}
   else if(act==='leave'||act==='setup'){U.rejoin='';if(U.resuming){U.resuming='';}if(U.role!=='host')forgetRoom();leaveAll();U.notice='';render();}
-  else if(act==='rejoinRoom'){var lr=lastRoom();if(lr){U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();}}
+  else if(act==='rejoinRoom'){var lr=lastRoom();if(lr){U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();scheduleTakeover(lr);}}
   else if(act==='copy'){
     var link=location.origin+location.pathname+'?room='+U.code;
     try{navigator.clipboard.writeText(link).then(function(){U.copied=true;render();},function(){});}catch(e){}
