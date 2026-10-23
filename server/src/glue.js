@@ -88,7 +88,20 @@ function pauseGame(){
 /* 斷線緩衝:10 秒內返嚟就當冇事,逾時先由電腦代打 */
 var GRACE_MS=10000,graceT={},graceI={};
 function stopGrace(seat){clearTimeout(graceT[seat]);clearInterval(graceI[seat]);delete graceT[seat];delete graceI[seat];}
-function clearGrace(){Object.keys(graceT).forEach(function(k){stopGrace(k);});S.players.forEach(function(p){p.offline=false;p.offLeft=0;});}
+/* 有人離線倒數緊 → 全場凍結(冇人可以操作、電腦亦唔行),倒數完或者人返嚟先解凍 */
+function updateFreeze(){
+  var off=S.players.filter(function(p){return p.offline;});
+  if(off.length){
+    S.frozen=true;S.frozenName=off.map(function(p){return p.name;}).join('、');
+    S.frozenLeft=off.reduce(function(m,p){return Math.max(m,p.offLeft||0);},0);
+  }else if(S.frozen){
+    S.frozen=false;S.frozenName='';S.frozenLeft=0;
+    Object.keys(S.asks).forEach(function(k){scheduleAuto(+k);});
+    if(S.over){armNext();checkReady();}
+  }
+  render();
+}
+function clearGrace(){Object.keys(graceT).forEach(function(k){stopGrace(k);});S.players.forEach(function(p){p.offline=false;p.offLeft=0;});S.frozen=false;S.frozenName='';S.frozenLeft=0;}
 HOOKS.grace=function(seat){
   var p=S.players[seat];if(!p||!p.human||paused)return false;
   var end=Date.now()+GRACE_MS;
@@ -96,18 +109,18 @@ HOOKS.grace=function(seat){
   stopGrace(seat);
   graceI[seat]=setInterval(function(){
     if(S.players[seat]!==p||!p.offline){stopGrace(seat);return;}
-    p.offLeft=Math.max(1,Math.ceil((end-Date.now())/1000));render();
+    p.offLeft=Math.max(1,Math.ceil((end-Date.now())/1000));updateFreeze();
   },1000);
   graceT[seat]=setTimeout(function(){
     stopGrace(seat);
     if(S.players[seat]!==p||!p.offline||!p.human)return;
-    p.offline=false;p.offLeft=0;takeover(seat);checkReady();render();
+    p.offline=false;p.offLeft=0;takeover(seat);updateFreeze();checkReady();
   },GRACE_MS);
-  render();
+  updateFreeze();
   return true;
 };
 HOOKS.seated=function(si){
-  if(si!==undefined&&S.players[si]){S.players[si].offline=false;S.players[si].offLeft=0;stopGrace(si);}
+  if(si!==undefined&&S.players[si]){S.players[si].offline=false;S.players[si].offLeft=0;stopGrace(si);updateFreeze();}
   if(paused)resumeRun();
 };
 HOOKS.closed=function(){

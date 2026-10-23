@@ -197,6 +197,13 @@ button{font:inherit;color:inherit}
 .btn.auto{border-color:var(--accent);color:var(--accent);font-weight:700;background:rgba(10,127,156,.08)}
 .note.kq{color:var(--hot);font-weight:700;flex:1 1 100%}
 .note.autoon{color:var(--accent);font-weight:700}
+#fz{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:rgba(15,20,28,.58);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);text-align:center}
+#fz[hidden]{display:none}
+.fzc{width:min(62vw,240px);aspect-ratio:1;margin:0 auto;border-radius:50%;background:conic-gradient(#f2a24b calc(var(--p)*1%),rgba(255,255,255,.2) 0);display:grid;place-items:center;position:relative;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.fzc::before{content:'';position:absolute;inset:14px;border-radius:50%;background:#fffaf2}
+.fzc b{position:relative;font:900 min(24vw,104px)/1 var(--sans,system-ui);color:#7a3d00}
+.fzt{color:#fff;margin-top:18px;font:800 20px/1.4 var(--sans,system-ui)}
+.fzt small{font:500 14px var(--sans,system-ui);opacity:.85}
 .resume{display:grid;gap:8px;padding:12px 14px;border:1px solid #f0c08c;background:#fff0dc;border-radius:12px}
 .resume span{color:var(--muted)}
 .mono{font-family:var(--mono);letter-spacing:.08em;color:var(--ink)}
@@ -1014,7 +1021,7 @@ var PEER_OPTS={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host'?'房主':'玩家');}
 function netOK(){return wsMode()||(typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function')||sbOK()||fbOK());}
-function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function(){if(tok===S.token)res();else rej(CANCEL);},ms*S.speed);});}
+function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function chk(){if(tok!==S.token){rej(CANCEL);return;}if(S.frozen){setTimeout(chk,200);return;}res();},ms*S.speed);});}   /* S.frozen:有人斷線倒數緊,全場暫停 */
 
 /* ---------- 自動聽牌: when exactly 1 tile from winning (tenpai), the game waits for the winning tile and discards the rest ---------- */
 /* returns 0 only when the hand is one tile from winning AND at least one of the winning tiles is worth enough fan (>= minFan) */
@@ -1099,13 +1106,13 @@ function scheduleAuto(seat){
   },Math.round(500*S.speed));
 }
 function setProxy(seat,on){
-  var p=S.players[seat];if(!p||!p.human||!S.running)return;
+  var p=S.players[seat];if(!p||!p.human||!S.running||S.frozen)return;
   p.proxy=!!on;if(on)p.auto=false;
   if(on){scheduleAuto(seat);if(S.over){S.ready[seat]=1;checkReady();}}
   render();
 }
 function setAuto(seat,on){
-  var p=S.players[seat];if(!p||!p.human||!S.running)return;
+  var p=S.players[seat];if(!p||!p.human||!S.running||S.frozen)return;
   if(on){if(S.over||autoSh(p)>0)return;p.auto=true;}else p.auto=false;
   render();
   if(on)scheduleAuto(seat);
@@ -1139,6 +1146,7 @@ function validAnswer(seat,a,v){
   return false;
 }
 function answerSeat(seat,id,v){
+  if(S.frozen)return;
   var a=S.asks[seat];
   if(!a||a.id!==id||!validAnswer(seat,a,v))return;
   if(v.a==='auto')v=autoHumanAnswer(S.players[seat],a);
@@ -1486,7 +1494,7 @@ var NEXT_SEC=20;
 function armNext(){
   clearTimeout(S.nextT);S.nextAt=0;   /* 唔再自動開下一局:等玩家自己撳確認 */
   var tok=S.token,hn=S.handNo;
-  setTimeout(function(){if(S.running&&S.over&&S.token===tok&&S.handNo===hn){S.players.forEach(function(p){if(p.human&&p.proxy)S.ready[p.id]=1;});render();checkReady();}},3500);
+  setTimeout(function(){if(S.running&&S.over&&!S.frozen&&S.token===tok&&S.handNo===hn){S.players.forEach(function(p){if(p.human&&p.proxy)S.ready[p.id]=1;});render();checkReady();}},3500);
 }
 function cdLeft(){
   if(!V||!V.over)return null;
@@ -1503,7 +1511,7 @@ function nextHand(){
   runGame();render();
 }
 function checkReady(){
-  if(!S.over)return;
+  if(!S.over||S.frozen)return;
   var hs=S.players.filter(function(p){return p.human;});
   if(hs.every(function(p){return S.ready[p.id]||p.proxy;}))nextHand();
 }
@@ -1523,7 +1531,8 @@ function buildView(seat){
       hand:(i===seat||S.over)?p.hand:(U.debug&&seat===0&&!p.human&&U.role!=='client')?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
     auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
-    result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number)};
+    result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number),
+    fz:S.frozen?{n:S.frozenName||'',left:S.frozenLeft||0}:null};
 }
 /* 牌河屏用嘅公開資料:冇任何人嘅手牌(局終先公開) */
 function pondView(){
@@ -2536,11 +2545,20 @@ function drawOverlay(){
   els.overlay.setAttribute('data-h',h);
   els.overlay.innerHTML=h;
 }
+function drawFz(){
+  var e=document.getElementById('fz');
+  if(!e){e=document.createElement('div');e.id='fz';e.hidden=true;document.body.appendChild(e);}
+  if(V&&V.fz){
+    var l=V.fz.left||0;
+    e.hidden=false;
+    e.innerHTML='<div><div class="fzc" style="--p:'+Math.max(0,Math.min(100,l*10))+'"><b>'+l+'</b></div><div class="fzt">'+esc(V.fz.n)+' 離線<br><small>暫停緊,等佢返嚟;時間到由電腦暫代</small></div></div>';
+  }else if(!e.hidden){e.hidden=true;e.innerHTML='';}
+}
 function draw(){
   if(U.pondMode){drawPondScreen();return;}
   if(!els.opps)return;
   if(V&&!V.over)U.modalHidden=false;
-  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();
+  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
   els.speed.textContent='速度:'+(S.speed===1?'標準':'快');
