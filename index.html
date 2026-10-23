@@ -1721,7 +1721,7 @@ function sbGuest(code){
       kiv=setInterval(function(){
         if(!conn.open)return;
         try{ch.send({type:'broadcast',event:'g2h',payload:{t:'ping'}});}catch(e){}
-        if(Date.now()-conn.seen>20000)conn.remoteClose();
+        if(Date.now()-conn.seen>20000){dlog('PING-TIMEOUT');conn.remoteClose();}
       },3000);
     }else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!conn.open&&!subbed){conn.emit('error',{type:'broker'});}
   });
@@ -1855,7 +1855,7 @@ function fbGuest(code){
     kiv=setInterval(function(){
       if(!conn.open)return;
       fbPush('rooms/mj'+code+'/inbox/'+hp,me,{t:'ping'});
-      if(Date.now()-conn.seen>20000)conn.remoteClose();
+      if(Date.now()-conn.seen>20000){dlog('PING-TIMEOUT');conn.remoteClose();}
     },3000);
   },function(e){if(!closed)conn.emit('error',{type:'auth '+((e&&e.code)||'')});});
   return conn;
@@ -1867,7 +1867,7 @@ function hostOpen(){
 }
 /* 由雲端存檔接手做房主:自己轉做 0 號座位,其餘真人座位由電腦暫代,佢哋用房號返嚟就拎翻座位 */
 function startTakeover(code,o,opt){
-  if(U.resuming)return false;
+  if(U.resuming)return false;dlog('TAKEOVER',code);
   var k=roomPidIdx(o,myPid());if(k<0)return false;
   U.resuming=code;U.joinGen=(U.joinGen||0)+1;U.rejoin='';
   leaveAll(true);
@@ -2052,7 +2052,7 @@ function joinRoom(){
   if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role=U.pondMode?'pond':'client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;NET.rx=0;NET.state='連線中…';NET.pend=[];
   var peer=null,chosen=null,dead=false,gen=U.joinGen=(U.joinGen||0)+1;
-  function fail(msg){if(dead||U.joinGen!==gen||U.resuming)return;dead=true;var wasIn=!U.pondMode&&U.role==='client'&&!!V;
+  function fail(msg){if(dead||U.joinGen!==gen||U.resuming)return;dlog('FAIL',msg);dead=true;var wasIn=!U.pondMode&&U.role==='client'&&!!V;
     if(wasIn&&!U.rejoin){U.rejoin=code;U.rejoinN=0;}
     leaveAll();U.notice=msg;
     if(U.pondMode)pondRetry(msg);
@@ -2060,7 +2060,7 @@ function joinRoom(){
       setTimeout(function(){if(U.rejoin===code&&U.role==='solo'&&U.screen==='setup'&&!NET.conn){U.roomInput=code;joinRoom();}},3000);}
     else{U.rejoin='';render();if(!wasIn)tryTakeoverOnce(code);}}
   /* 已入房:睇住房主租約。租約消失或者過期超過 6 秒,就當房主走咗,觸發接手 */
-  var lw=null,lwBad=0,lwLast=undefined,lwIv=0,lwSeen=0;
+  var lw=null,lwBad=0,lwLast=undefined,lwIv=0,lwSeen=0,lwEpoch=null;
   function watchLease(){
     if(lw||U.pondMode||!fbOK())return;
     try{
@@ -2069,7 +2069,11 @@ function joinRoom(){
       lwIv=setInterval(function(){
         if(dead||!chosen||U.joinGen!==gen){clearInterval(lwIv);try{lw.off();}catch(e){}return;}
         if(lwLast===undefined)return;
-        if(!leaseStale(lwLast))lwSeen=1;
+        if(!leaseStale(lwLast)){lwSeen=1;
+          if(lwEpoch===null)lwEpoch=+lwLast.epoch||0;
+          else if((+lwLast.epoch||0)!==lwEpoch){   /* 房主換咗人(或者重新開咗):即刻重連,唔使等逾時 */
+            dlog('EPOCH-CHANGE',lwEpoch+'->'+lwLast.epoch);clearInterval(lwIv);try{lw.off();}catch(e){}try{if(chosen.remoteClose)chosen.remoteClose();else chosen.close();}catch(e){}return;}
+        }
         if(!lwSeen)return;   /* 房主從來冇喺 Firebase 開過租約(Firebase 連唔到):唔好誤判 */
         if(leaseStale(lwLast)){if(!lwBad)lwBad=Date.now();else if(Date.now()-lwBad>6000){clearInterval(lwIv);try{lw.off();}catch(e){}try{if(chosen.remoteClose)chosen.remoteClose();else chosen.close();}catch(e){}}}
         else lwBad=0;
@@ -2441,11 +2445,37 @@ function resultHTML(pond){
 }
 var TILE_NAMES=['米白(預設)','粉彩'];
 function setTileTheme(i){i=+i||0;if(i>1)i=0;U.tile=i;if(i)document.documentElement.setAttribute('data-tile',i);else document.documentElement.removeAttribute('data-tile');try{localStorage.setItem('mj_tile',i);}catch(e){}}
+/* ---------- 診斷記錄:俾 hang 機時查原因 ---------- */
+var DIAG=[];
+function dlog(k,d){try{DIAG.push(new Date().toTimeString().slice(0,8)+' '+k+(d!==undefined?' '+(typeof d==='string'?d:JSON.stringify(d)):''));if(DIAG.length>120)DIAG.shift();}catch(e){}}
+(function(){
+  try{
+    window.addEventListener('error',function(e){dlog('ERR',(e.message||'')+' @'+(e.lineno||'')+':'+(e.colno||''));});
+    window.addEventListener('unhandledrejection',function(e){var r=e.reason;if(r&&String(r).indexOf('CANCEL')>=0)return;dlog('REJ',String((r&&r.message)||r).slice(0,160));});
+    document.addEventListener('visibilitychange',function(){dlog(document.hidden?'HIDDEN':'VISIBLE');});
+    if(window.PerformanceObserver){var po=new PerformanceObserver(function(l){l.getEntries().forEach(function(en){if(en.duration>200)dlog('LONGTASK',Math.round(en.duration)+'ms');});});po.observe({entryTypes:['longtask']});}
+    var lt=Date.now();setInterval(function(){var n=Date.now();if(n-lt>3500&&!document.hidden)dlog('STALL',(n-lt)+'ms');lt=n;},1000);
+    window.addEventListener('online',function(){dlog('ONLINE');});window.addEventListener('offline',function(){dlog('OFFLINE');});
+  }catch(e){}
+})();
+function diagText(){
+  var st={};
+  try{st={role:U.role,screen:U.screen,code:U.code,net:NET.state,rx:NET.rx,conn:!!(NET.conn&&NET.conn.open),members:NET.members.length,running:S.running,cur:S.cur,asks:Object.keys(S.asks),hand:S.handNo,discN:S.discN,
+    V:V?{me:V.me,cur:V.cur,ask:!!V.ask,dl:V.dl?Math.round((V.dl-Date.now())/1000):0}:null,modal:U.modalHidden,tiles:U.tiles,share:U.share,resuming:U.resuming,rejoin:U.rejoin,fb:fbOK(),off:FBOFF,ua:navigator.userAgent.slice(0,120)};}catch(e){st.err=String(e);}
+  return JSON.stringify(st)+'\n'+DIAG.join('\n');
+}
+function copyDiag(){
+  var t=diagText();
+  function done(ok){U.notice=ok?'診斷資料已複製,貼俾我就得。':'複製唔到,請長按下面文字全選複製。';U.diagShow=ok?'':t;render();}
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){done(true);},function(){done(false);});return;}}catch(e){}
+  done(false);
+}
 function tilesHTML(){
   var demo=[4,13,22,27,31,32,35];
   return '<div class="ov"><div class="sheet"><h2>牌面設計</h2><div class="tp-list">'+TILE_NAMES.map(function(n,i){
     return '<button class="tp-opt'+((U.tile||0)===i?' on':'')+'" data-act="tileSet" data-v="'+i+'"><span class="tp-n">'+n+'</span><span class="tp-t"'+(i?' data-tile="'+i+'"':'')+'>'+demo.map(function(t){return tileEl(t);}).join('')+'</span></button>';}).join('')+'</div>'+
-    '<div class="opts"><button class="btn pri" data-act="closeTiles">完成</button></div></div></div>';
+    (U.diagShow?'<textarea readonly style="width:100%;height:120px;font-size:11px;margin-top:8px">'+esc(U.diagShow)+'</textarea>':'')+
+    '<div class="opts"><button class="btn" data-act="copyDiag">複製診斷資料</button><button class="btn pri" data-act="closeTiles">完成</button></div></div></div>';
 }
 function drawOverlay(){
   var h='';
@@ -2488,7 +2518,7 @@ function handleAct(act,b){
   else if(act==='host')needPw(hostOpen);
   else if(act==='join')joinRoom();
   else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();}
-  else if(act==='leave'||act==='setup'){U.rejoin='';if(U.resuming){U.resuming='';}if(U.role!=='host')forgetRoom();leaveAll();U.notice='';render();}
+  else if(act==='leave'||act==='setup'){U.rejoin='';if(U.resuming){U.resuming='';}forgetRoom();leaveAll();U.notice='';render();}
   else if(act==='rejoinRoom'){var lr=lastRoom();if(lr){U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();scheduleTakeover(lr);}}
   else if(act==='copy'){
     var link=location.origin+location.pathname+'?room='+U.code;
@@ -2510,7 +2540,8 @@ function handleAct(act,b){
   else if(act==='rules'){U.rules=true;render();}
   else if(act==='closeRules'){U.rules=false;render();}
   else if(act==='tiles'){U.tiles=true;render();}
-  else if(act==='closeTiles'){U.tiles=false;render();}
+  else if(act==='closeTiles'){U.tiles=false;U.diagShow='';render();}
+  else if(act==='copyDiag'){copyDiag();}
   else if(act==='tileSet'){setTileTheme(v);render();}
   else if(act==='speed'){S.speed=S.speed===1?0.4:1;render();}
   else if(act==='next'){
@@ -2659,8 +2690,15 @@ function boot2(){
     if(U.role==='host'&&S.running&&Object.keys(S.asks).some(function(k){return S.players[k]&&S.players[k].remote&&Date.now()-S.asks[k].since>25000;}))render();
   },3000);
   render();
+  /* 重新整理之後,如果 30 分鐘內仲喺房入面,自動返房/接手 */
+  setTimeout(function(){
+    try{
+      var lr=lastRoom(),lt0=0;try{lt0=JSON.parse(localStorage.getItem(ROOM_KEY)||'{}').t||0;}catch(e){}
+      if(lr&&Date.now()-lt0<1800000&&fbOK()&&U.role==='solo'&&!S.running&&!U.pondMode&&!U.resuming&&!NET.conn){dlog('AUTO-REJOIN',lr);U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();scheduleTakeover(lr);}
+    }catch(e){}
+  },900);
 }
-window.__mj={planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover,startTakeover:startTakeover,roomPut:roomPut,roomKey:roomKey,validSave:validSave,roomPidIdx:roomPidIdx};
+window.__mj={roomLoad:roomLoad,diagText:diagText,dlog:dlog,planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover,startTakeover:startTakeover,roomPut:roomPut,roomKey:roomKey,validSave:validSave,roomPidIdx:roomPidIdx};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>
