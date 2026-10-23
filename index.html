@@ -2035,7 +2035,7 @@ function joinRoom(){
       NET.pend.forEach(function(c){if(c!==conn){try{c.close();}catch(e){}}});
       safeSend(conn,helloMsg());render();
     });
-    conn.on('error',function(e){if(chosen)return;var ty=(e&&e.type)||e;if(ty==='peer-unavailable'){NET.state='('+kind+')搵唔到房主,房主可能已經離線,等緊其他人接手…';scheduleTakeover(code);}else NET.state='('+kind+')錯誤:'+ty;render();});
+    conn.on('error',function(e){if(chosen)return;var ty=(e&&e.type)||e;if(ty==='peer-unavailable'){NET.state='('+kind+')搵唔到房主,房主可能已經離線,等緊其他人接手…';if(U.rejoin===code)scheduleTakeover(code);else if(Date.now()-(U.tkAt||0)>8000){U.tkAt=Date.now();tryTakeoverOnce(code);}}else NET.state='('+kind+')錯誤:'+ty;render();});
     conn.on('data',function(d){if(NET.conn===conn)onClientData(d);});
     conn.on('close',function(){if(NET.conn!==conn)return;fail('同房主斷咗線。');});
   }
