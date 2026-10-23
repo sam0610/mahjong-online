@@ -2080,13 +2080,14 @@ function onClientData(d){
 }
 function leaveAll(silent){
   var hostCode=(U.role==='host'&&S.running)?U.code:'';
-  if(hostCode&&!silent){roomDel(hostCode);forgetRoom();}
+  var keepRoom=!!(hostCode&&!silent&&NET.members.length);  /* 仲有其他玩家喺度:房主走咗,房間照留,等人接手 */
+  if(hostCode&&!silent&&!keepRoom){roomDel(hostCode);forgetRoom();}
   S.token++;clearTimeout(S.nextT);
   Object.keys(S.asks).forEach(function(k){try{S.asks[k].rej(CANCEL);}catch(e){}});
   S.asks={};S.running=false;S.players=[];S.over=false;S.ready={};S.call=null;S.msg='';S.result=null;
   var conn=NET.conn,peer=NET.peer,mem=NET.members.concat(NET.ponds||[]);
   NET.conn=null;NET.peer=null;NET.members=[];NET.ponds=[];NET.lobby=null;U.share=false;U.pondSig='';U.pondOnly=false;U.pondFail=false;
-  mem.forEach(function(m){if(!silent)safeSend(m.conn,{t:'closed'});setTimeout(function(){try{m.conn.close();}catch(e){}},200);});
+  mem.forEach(function(m){if(!silent&&!keepRoom)safeSend(m.conn,{t:'closed'});setTimeout(function(){try{m.conn.close();}catch(e){}},200);});
   if(conn){try{conn.close();}catch(e){}}
   var pend=NET.pend||[];NET.pend=[];pend.forEach(function(c){try{c.close();}catch(e){}});
   var hub=NET.hub;NET.hub=null;if(hub)setTimeout(function(){hub.close();},250);
