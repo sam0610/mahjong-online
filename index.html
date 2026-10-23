@@ -324,6 +324,8 @@ body.pondmode .sheet{color:var(--ink)}
   .tp.ps-b{grid-column:1/4;grid-row:3;justify-self:center}
   .tp.ps-t,.tp.ps-b{max-width:calc(var(--pw)*14.5)}
   .tp.ps-l,.tp.ps-r{max-width:calc(var(--pw)*8)}
+  .mid .mi,.mid .mw,.mid .lastd{display:none}
+  .tpool .t.last{position:relative;transform:scale(1.9);z-index:6;box-shadow:0 4px 10px rgba(0,0,0,.35);outline:3px solid var(--hot);outline-offset:0}
   .tpool{display:flex;flex-wrap:wrap;gap:3px;--tw:var(--pw);align-content:flex-start;padding:6px 8px;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px #d3e0e0;min-height:calc(var(--pw)*1.36 + 14px);min-width:calc(var(--pw)*3)}
   .plate{grid-column:2;grid-row:2;align-self:center;position:relative;width:calc(var(--pw)*5.8);aspect-ratio:1;border-radius:16px;background:#d8e9e9;color:#16403f;display:grid;place-items:center;align-content:center;text-align:center;line-height:1.15;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
   .plate b{font:900 calc(var(--pw)*.9)/1 var(--sans)}
@@ -2087,7 +2089,7 @@ function drawMid(){
       if(pl&&pl.remote&&Date.now()-a.since>25000)extra+='<button class="btn sm" data-act="takeover" data-seat="'+k+'">由電腦代打 '+esc(pl.name)+'</button>';
     });
   }
-  els.mid.innerHTML='<span>'+info+'</span><span class="msg">'+msg+'</span>'+lastd+'<span>牌牆 <b>'+V.live+'</b></span>'+extra;
+  els.mid.innerHTML='<span class="mi">'+info+'</span><span class="msg">'+msg+'</span>'+lastd+'<span class="mw">牌牆 <b>'+V.live+'</b></span>'+extra;
 }
 function drawDock(){
   if(!V){els.dock.innerHTML='';els.dock.hidden=true;return;}
