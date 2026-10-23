@@ -86,23 +86,28 @@ function pauseGame(){
   paused=true;
 }
 /* 斷線緩衝:10 秒內返嚟就當冇事,逾時先由電腦代打 */
-var GRACE_MS=10000,graceT={};
-function clearGrace(){Object.keys(graceT).forEach(function(k){clearTimeout(graceT[k]);});graceT={};S.players.forEach(function(p){p.offline=false;});}
+var GRACE_MS=10000,graceT={},graceI={};
+function stopGrace(seat){clearTimeout(graceT[seat]);clearInterval(graceI[seat]);delete graceT[seat];delete graceI[seat];}
+function clearGrace(){Object.keys(graceT).forEach(function(k){stopGrace(k);});S.players.forEach(function(p){p.offline=false;p.offLeft=0;});}
 HOOKS.grace=function(seat){
   var p=S.players[seat];if(!p||!p.human||paused)return false;
-  p.offline=true;
-  clearTimeout(graceT[seat]);
+  var end=Date.now()+GRACE_MS;
+  p.offline=true;p.offLeft=Math.ceil(GRACE_MS/1000);
+  stopGrace(seat);
+  graceI[seat]=setInterval(function(){
+    if(S.players[seat]!==p||!p.offline){stopGrace(seat);return;}
+    p.offLeft=Math.max(1,Math.ceil((end-Date.now())/1000));render();
+  },1000);
   graceT[seat]=setTimeout(function(){
-    delete graceT[seat];
-    var q=S.players[seat];
-    if(q!==p||!p.offline||!p.human)return;
-    p.offline=false;takeover(seat);checkReady();render();
+    stopGrace(seat);
+    if(S.players[seat]!==p||!p.offline||!p.human)return;
+    p.offline=false;p.offLeft=0;takeover(seat);checkReady();render();
   },GRACE_MS);
   render();
   return true;
 };
 HOOKS.seated=function(si){
-  if(si!==undefined&&S.players[si]){S.players[si].offline=false;clearTimeout(graceT[si]);delete graceT[si];}
+  if(si!==undefined&&S.players[si]){S.players[si].offline=false;S.players[si].offLeft=0;stopGrace(si);}
   if(paused)resumeRun();
 };
 HOOKS.closed=function(){

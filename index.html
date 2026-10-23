@@ -1519,7 +1519,7 @@ function buildView(seat){
   var a=S.asks[seat];
   return {me:seat,n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
-    players:S.players.map(function(p,i){return {name:p.name+(p.offline?'(離線)':''),score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},n:p.hand.length,
+    players:S.players.map(function(p,i){return {name:p.name+(p.offline?'(離線'+(p.offLeft?' '+p.offLeft+' 秒':'')+')':''),score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:(U.debug&&seat===0&&!p.human&&U.role!=='client')?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
     auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,

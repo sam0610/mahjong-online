@@ -7,7 +7,7 @@ const A=mk('甲','pa'),B=mk('乙','pb');A.hello();B.hello();await sleep(100);eng
 B.send({t:'proxy',on:true});
 const nm=()=>B.view.players.map(p=>p.name).join(',');
 A.conn.remoteClose();await sleep(500);
-console.log('right after A drops:',nm());
+console.log('right after A drops:',nm());await sleep(3100);console.log('3s later:',nm());
 // A returns after 4s
 await sleep(4000);const A2=mk('甲','pa');A2.hello();await sleep(300);
 console.log('A back at ~5s:',nm(),'A2 seat',A2.view&&A2.view.me,'human?',A2.view&&A2.view.players[0].human);
