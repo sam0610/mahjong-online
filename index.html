@@ -135,6 +135,7 @@ button{font:inherit;color:inherit}
 .btn.big{font:900 17px var(--sans);height:44px;padding:0 20px;background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 3px 0 rgba(0,0,0,.22)}
 .btn.big.o{background:var(--hot);border-color:var(--hot);color:#fff}
 .btn.passb{color:var(--muted);height:36px;padding:0 14px}
+.btn.big.passb{height:44px;padding:0 22px;font:900 17px var(--sans);letter-spacing:.06em;background:var(--surface-2);color:var(--ink);border-color:var(--line-2);box-shadow:0 3px 0 rgba(0,0,0,.12)}
 @keyframes alertpulse{50%{box-shadow:0 0 0 6px rgba(217,67,45,.18),0 4px 14px rgba(217,67,45,.35)}}
 .hand{display:flex;align-items:flex-end;gap:2px;--tw:var(--hw);padding-top:14px;min-height:calc(var(--hw)*1.36 + 20px)}
 .hand .t{cursor:pointer;transition:transform .1s}
@@ -2115,7 +2116,7 @@ function drawDock(){
         var ts=[s[0],s[1],o.tile].sort(function(x,y){return x-y;});
         acts+='<button class="btn big" data-act="chow" data-seq="'+s[0]+','+s[1]+'">上 <span class="bt">'+faces(ts)+'</span></button>';
       });
-      acts+='<span class="sp"></span><button class="btn passb" data-act="pass">過</button></div>';
+      acts+='<button class="btn big passb" data-act="pass">PASS</button></div>';
       if(U.vibId!==a.id){U.vibId=a.id;try{if(navigator.vibrate&&COARSE)navigator.vibrate([90,60,90]);}catch(e){}}
     }
   }
