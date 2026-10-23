@@ -68,3 +68,27 @@
 - 每局完(食糊或流局)結果畫面有 20 秒倒數,夠鐘自動開下一局,唔使等晒所有人撳。
 - 「電腦代打」掣:隨時撳,由電腦 AI 幫你摸牌打牌、食糊、碰上,每局完自動準備下一局;再撳「取消代打」即刻自己玩。單人同多人都有(分別於「自動聽牌」,後者只喺欠一隻先出現)。
 - 闊屏(iPad 橫放 / 電腦,闊 900px 以上、高 560px 以上)用白底淡青枱面佈局:三家圍住、各家牌河靠自己嗰邊、中間牌牆格;手機同窄屏維持原本畫面。
+
+
+## Firebase 規則(房主租約版)
+
+房間而家用 `rooms/mj房號/meta` 做「房主租約」(房主每 5 秒續租,15 秒冇續租就當過期),牌局存檔放 `rooms/mj房號/state`。Firebase Realtime Database 規則建議:
+
+```json
+{
+  "rules": {
+    "rooms": {
+      "$code": {
+        "meta": {
+          ".read": "auth != null",
+          ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid || data.child('ts').val() < now - 15000 || !newData.exists() && data.child('uid').val() === auth.uid)"
+        },
+        "state": { ".read": "auth != null", ".write": "auth != null" },
+        "inbox": { "$peer": { ".read": "auth != null", ".write": "auth != null" } }
+      }
+    }
+  }
+}
+```
+
+冇改規則都用得:`state` 寫唔到就會靠 Supabase 存檔頂住;但 `meta` 規則如果唔准「過期租約被搶」,房主死機(冇乾淨斷線)時要等 Firebase 自己清走(約 1 分鐘)先接手到。

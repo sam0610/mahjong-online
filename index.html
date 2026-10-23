@@ -1194,17 +1194,38 @@ function cloudPut(obj){
 var ROOM_KEY='mj_room_v1',ROOM_TTL=43200000;
 function roomKey(code){return ('MJRMRMKS'+String(code||'').toUpperCase()+'RMKSRMKS').slice(0,16);}
 var roomBusy=false,roomPend=null;
+function fbStatePut(code,o){
+  if(!fbOK())return Promise.resolve();
+  return fbUser().then(function(){return fbInit().db.ref('rooms/mj'+code+'/state').set({ts:o.ts,s:JSON.stringify(o)});}).then(function(){},function(){});
+}
+function fbStateGet(code){
+  if(!fbOK())return Promise.resolve(null);
+  return fbUser().then(function(){return fbInit().db.ref('rooms/mj'+code+'/state').once('value');}).then(function(sn){
+    var v=sn.val();if(!v||!v.s)return null;try{return JSON.parse(v.s);}catch(e){return null;}
+  }).catch(function(){return null;});
+}
 function roomPut(o){
-  if(!cloudOn()||!o||!o.room||!o.room.code)return;
+  if(!o||!o.room||!o.room.code)return;
   if(roomBusy){roomPend=o;return;}
   roomBusy=true;
-  cloudCall('save_game',{p_code:roomKey(o.room.code),p_state:o}).then(function(){},function(){}).then(function(){roomBusy=false;if(roomPend){var x=roomPend;roomPend=null;roomPut(x);}});
+  var ps=[fbStatePut(o.room.code,o)];
+  if(cloudOn())ps.push(cloudCall('save_game',{p_code:roomKey(o.room.code),p_state:o}).then(function(){},function(){}));
+  Promise.all(ps).then(function(){roomBusy=false;if(roomPend){var x=roomPend;roomPend=null;roomPut(x);}});
 }
 function roomLoad(code){
-  if(!cloudOn())return Promise.resolve(null);
-  return cloudCall('load_game',{p_code:roomKey(code)}).then(function(o){return (validSave(o)&&o.room&&o.room.code===code&&Date.now()-o.ts<ROOM_TTL)?o:null;});
+  function tmo(p){return Promise.race([p,new Promise(function(r){setTimeout(function(){r(null);},7000);})]);}
+  var a=tmo(fbStateGet(code)),b=cloudOn()?tmo(cloudCall('load_game',{p_code:roomKey(code)}).catch(function(){return null;})):Promise.resolve(null);
+  return Promise.all([a,b]).then(function(r){
+    var best=null;
+    r.forEach(function(o){if(validSave(o)&&o.room&&o.room.code===code&&Date.now()-o.ts<ROOM_TTL&&(!best||o.ts>best.ts))best=o;});
+    return best;
+  });
 }
-function roomDel(code){roomPend=null;if(cloudOn()&&code)cloudCall('delete_game',{p_code:roomKey(code)}).catch(function(){});}
+function roomDel(code){
+  roomPend=null;if(!code)return;
+  if(cloudOn())cloudCall('delete_game',{p_code:roomKey(code)}).catch(function(){});
+  try{if(fbOK())fbUser().then(function(){return fbInit().db.ref('rooms/mj'+code+'/state').remove();}).catch(function(){});}catch(e){}
+}
 function rememberRoom(code){try{localStorage.setItem(ROOM_KEY,JSON.stringify({c:code,t:Date.now()}));}catch(e){}}
 function forgetRoom(){try{localStorage.removeItem(ROOM_KEY);}catch(e){}}
 function lastRoom(){try{var o=JSON.parse(localStorage.getItem(ROOM_KEY)||'null');return (o&&o.c&&Date.now()-o.t<ROOM_TTL)?o.c:'';}catch(e){return '';}}
@@ -1707,11 +1728,12 @@ function sbGuest(code){
 
 /* ---- Firebase Realtime Database transport(匿名登入;用現有規則 rooms/$code/meta + inbox/$peer,冇廣播,每人專屬收件箱) ---- */
 function fbOK(){return typeof window!=='undefined'&&!!window.firebase&&!!window.firebase.database&&!!window.firebase.auth&&!!FB_CONFIG.apiKey;}
-var FBA=null;
+var FBA=null,FBOFF=0,LEASE_MS=15000;
 function fbInit(){
   if(!FBA){
     try{window.firebase.initializeApp(FB_CONFIG);}catch(e){}
     FBA={db:window.firebase.database(),auth:window.firebase.auth(),user:null};
+    try{FBA.db.ref('.info/serverTimeOffset').on('value',function(s){FBOFF=+s.val()||0;});}catch(e){}
   }
   return FBA;
 }
@@ -1720,6 +1742,8 @@ function fbUser(){
   if(!A.user)A.user=A.auth.signInAnonymously().then(function(r){return r.user;},function(e){A.user=null;throw e;});
   return A.user;
 }
+function fbNow(){return Date.now()+FBOFF;}
+function leaseStale(v){return !v||!v.host||fbNow()-(+v.ts||0)>LEASE_MS;}
 function fbPush(path,from,o){
   try{fbInit().db.ref(path).push({topic:'k',from:from,p:JSON.stringify(o)}).catch(function(){});}catch(e){}
 }
@@ -1749,7 +1773,13 @@ function fbHost(code,onConn,onReady,onFail,onTaken){
     var db=fbInit().db,uid=u.uid,hp=uid+'_h';hub.hp=hp;
     var meta=db.ref('rooms/mj'+code+'/meta'),inbox=db.ref('rooms/mj'+code+'/inbox/'+hp);
     hub.meta=meta;hub.inbox=inbox;
-    meta.set({uid:uid,host:hp,ts:window.firebase.database.ServerValue.TIMESTAMP}).then(function(){
+    var TS=window.firebase.database.ServerValue.TIMESTAMP;
+    /* 租約:冇人持有、自己持有、或者舊房主超過 15 秒冇續租,先搶到 */
+    meta.transaction(function(cur){
+      if(!cur||cur.uid===uid||leaseStale(cur))return {uid:uid,host:hp,ts:TS,epoch:((cur&&+cur.epoch)||0)+1};
+      return;
+    }).then(function(res){
+      if(!res.committed){var tk=new Error('taken');tk.code='PERMISSION_DENIED';throw tk;}
       if(hub.closed){try{meta.remove();}catch(e){}return;}
       try{meta.onDisconnect().remove();inbox.onDisconnect().remove();}catch(e){}
       return inbox.remove().then(function(){
@@ -1760,10 +1790,11 @@ function fbHost(code,onConn,onReady,onFail,onTaken){
           var mv=ms.val();
           if(mv&&mv.host&&mv.host!==hp){if(hub.onLost)hub.onLost();}
           else if(!mv){
-            meta.set({uid:uid,host:hp,ts:window.firebase.database.ServerValue.TIMESTAMP}).then(function(){try{meta.onDisconnect().remove();}catch(e){}},function(){});
+            meta.transaction(function(c){return c?undefined:{uid:uid,host:hp,ts:TS,epoch:1};}).then(function(){try{meta.onDisconnect().remove();}catch(e){}},function(){});
           }
         });
         onReady();
+        hub.hb=setInterval(function(){if(!hub.closed){try{meta.child('ts').set(TS);}catch(e){}}},5000);
         hub.iv=setInterval(function(){
           Object.keys(hub.conns).forEach(function(cid){
             var cn=hub.conns[cid];if(!cn.open)return;
@@ -1778,10 +1809,10 @@ function fbHost(code,onConn,onReady,onFail,onTaken){
     });
   },function(){if(!hub.closed)onFail();});
   hub.close=function(){
-    hub.closed=true;clearInterval(hub.iv);
+    hub.closed=true;clearInterval(hub.iv);clearInterval(hub.hb);
     Object.keys(hub.conns).forEach(function(k){try{hub.conns[k].close();}catch(e){}});
     setTimeout(function(){
-      try{if(hub.inbox){hub.inbox.off();hub.inbox.remove();}if(hub.meta)hub.meta.remove();}catch(e){}
+      try{if(hub.inbox){hub.inbox.off();hub.inbox.remove();}if(hub.meta){hub.meta.off();hub.meta.transaction(function(c){return (c&&c.host===hub.hp)?null:undefined;});}}catch(e){}
     },400);
   };
   return hub;
@@ -1870,7 +1901,7 @@ function startTakeover(code,o,opt){
 }
 /* 房主斷咗線:搵雲端存檔,有我份就接手;冇人接手先繼續等 */
 function scheduleTakeover(code){
-  if(U.toTimer||!fbOK()||!cloudOn())return;
+  if(U.toTimer||!fbOK())return;
   U.toTimer=setTimeout(function(){
     U.toTimer=0;
     if(U.rejoin!==code||NET.conn||U.role==='host'||U.resuming)return;
@@ -1881,7 +1912,7 @@ function scheduleTakeover(code){
   },1500+Math.random()*3500);
 }
 function tryTakeoverOnce(code){
-  if(!fbOK()||!cloudOn())return;
+  if(!fbOK())return;
   roomLoad(code).then(function(o){
     if(!o||U.resuming||U.role!=='solo'||NET.conn||S.running)return;
     if(roomPidIdx(o,myPid())>=0)startTakeover(code,o);
@@ -1942,7 +1973,7 @@ function openRoom(attempt,opts){
   if(fbOK()){
     fbh=fbHost(code,function(conn){if(NET.fb===fbh)onHostConn(conn);},function(){readyPing(true);},function(){fbErr=true;if(opts.onUp&&!upDone&&(NET.peer||NET.hub||NET.sb))up();check();},function(){
       if(NET.fb!==fbh)return;
-      if(opts.code){retryFixed();return;}
+      if(opts.code){if(opts.onGiveUp&&!upDone)opts.onGiveUp();else retryFixed();return;}   /* 租約已經喺別人手:唔爭,改為以玩家身份加入新房主 */
       if(attempt<5){
         try{if(peer)peer.destroy();}catch(x){}
         if(hub){hub.close();NET.hub=null;}
@@ -2026,11 +2057,28 @@ function joinRoom(){
     else if(U.rejoin===code&&U.rejoinN<25){U.rejoinN++;U.notice=msg+' 自動重連中('+U.rejoinN+')…';render();scheduleTakeover(code);
       setTimeout(function(){if(U.rejoin===code&&U.role==='solo'&&U.screen==='setup'&&!NET.conn){U.roomInput=code;joinRoom();}},3000);}
     else{U.rejoin='';render();if(!wasIn)tryTakeoverOnce(code);}}
+  /* 已入房:睇住房主租約。租約消失或者過期超過 6 秒,就當房主走咗,觸發接手 */
+  var lw=null,lwBad=0,lwLast=undefined,lwIv=0,lwSeen=0;
+  function watchLease(){
+    if(lw||U.pondMode||!fbOK())return;
+    try{
+      lw=fbInit().db.ref('rooms/mj'+code+'/meta');
+      lw.on('value',function(sn){lwLast=sn.val();},function(){});
+      lwIv=setInterval(function(){
+        if(dead||!chosen||U.joinGen!==gen){clearInterval(lwIv);try{lw.off();}catch(e){}return;}
+        if(lwLast===undefined)return;
+        if(!leaseStale(lwLast))lwSeen=1;
+        if(!lwSeen)return;   /* 房主從來冇喺 Firebase 開過租約(Firebase 連唔到):唔好誤判 */
+        if(leaseStale(lwLast)){if(!lwBad)lwBad=Date.now();else if(Date.now()-lwBad>6000){clearInterval(lwIv);try{lw.off();}catch(e){}try{if(chosen.remoteClose)chosen.remoteClose();else chosen.close();}catch(e){}}}
+        else lwBad=0;
+      },2000);
+    }catch(e){}
+  }
   function attach(conn,kind){
     NET.pend.push(conn);
     conn.on('open',function(){
       if(dead||chosen){try{conn.close();}catch(e){}return;}
-      chosen=conn;NET.conn=conn;clearTimeout(tFallback);clearTimeout(tAll);
+      chosen=conn;NET.conn=conn;clearTimeout(tFallback);clearTimeout(tAll);watchLease();
       NET.state='已連上房主('+kind+')';
       NET.pend.forEach(function(c){if(c!==conn){try{c.close();}catch(e){}}});
       safeSend(conn,helloMsg());render();
