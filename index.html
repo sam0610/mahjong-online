@@ -398,6 +398,7 @@ body.pondmode .sheet{color:var(--ink)}
     <h1>港式麻雀</h1>
     <span class="roomtag" id="roomTag" hidden></span>
     <span class="sp"></span>
+    <button class="btn sm" data-act="rename">改名</button>
     <button class="btn sm" data-act="tiles">牌面</button>
     <button class="btn sm" data-act="speed" id="btnSpeed">速度:標準</button>
     <button class="btn sm" data-act="setup">新遊戲</button>
@@ -2079,6 +2080,17 @@ function onHostConn(conn){
       if(!m.joined){m.pid=String(d.pid||'').slice(0,24);if(!admit(d))return;if(m.seat>=0)return;}
       m.name=String(d.name||m.name).slice(0,8);sendLobby();render();
     }
+    else if(d.t==='rename'){
+      if(!m.joined||m.pond)return;
+      var nm=String(d.name||'').trim().slice(0,8);if(!nm)return;
+      var base=nm,k2=2;
+      function taken(x){return S.players.some(function(p,i){return i!==m.seat&&p.name===x;})||NET.members.some(function(o){return o!==m&&o.name===x;});}
+      while(taken(nm)){nm=base+k2;k2++;}
+      m.name=nm;
+      if(m.seat>=0&&S.players[m.seat]){S.players[m.seat].name=nm;if(S.players[m.seat].baseName)S.players[m.seat].baseName=nm;}
+      else sendLobby();
+      render();
+    }
     else if(d.t==='ans'){if(m.seat>=0)answerSeat(m.seat,d.id,d.v);}
     else if(d.t==='auto'){if(m.seat>=0)setAuto(m.seat,!!d.on);}
     else if(d.t==='proxy'){if(m.seat>=0)setProxy(m.seat,!!d.on);}
@@ -2526,6 +2538,24 @@ function copyDiag(){
   try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){done(true);},function(){done(false);});return;}}catch(e){}
   done(false);
 }
+function renameHTML(){
+  return '<div class="ov"><div class="sheet"><h2>改名</h2><p class="note">最多 8 個字,會即時顯示俾其他玩家睇。</p>'+
+    '<div class="opts"><input class="inp" id="newname" maxlength="8" autocomplete="off" placeholder="你嘅名" value="'+esc(U.renameInit||'')+'"></div>'+
+    '<div class="opts"><button class="btn pri" data-act="renameOk">確定</button><button class="btn" data-act="renameCancel">取消</button></div></div></div>';
+}
+function myCurName(){
+  var n='';
+  try{if(V&&V.players&&V.players[V.me])n=String(V.players[V.me].name).replace(/\(離線[^)]*\)$/,'').replace(/\(電腦\)$/,'');}catch(e){}
+  return n||U.name||'';
+}
+function applyRename(){
+  var nm=String(U.nameDraft==null?U.renameInit:U.nameDraft).trim().slice(0,8);
+  if(!nm)return;
+  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}
+  if(U.role==='client'&&NET.conn)safeSend(NET.conn,{t:'rename',name:nm});
+  else if(S.running&&S.players[0]&&(U.role==='host'||U.role==='solo'))S.players[0].name=nm;
+  U.renaming=false;U.nameDraft=null;
+}
 function tilesHTML(){
   var demo=[4,13,22,27,31,32,35];
   return '<div class="ov"><div class="sheet"><h2>牌面設計</h2><div class="tp-list">'+TILE_NAMES.map(function(n,i){
@@ -2534,7 +2564,8 @@ function tilesHTML(){
 }
 function drawOverlay(){
   var h='';
-  if(U.tiles)h=tilesHTML();
+  if(U.renaming)h=renameHTML();
+  else if(U.tiles)h=tilesHTML();
   else if(U.rules)h=rulesHTML();
   else if(U.share&&(U.role==='host'||U.pondOnly))h=shareHTML();
   else if(U.screen==='setup')h=setupHTML();
@@ -2604,6 +2635,9 @@ function handleAct(act,b){
   else if(act==='rules'){U.rules=true;render();}
   else if(act==='closeRules'){U.rules=false;render();}
   else if(act==='tiles'){U.tiles=true;render();}
+  else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
+  else if(act==='renameOk'){applyRename();render();}
+  else if(act==='renameCancel'){U.renaming=false;U.nameDraft=null;render();}
   else if(act==='closeTiles'){U.tiles=false;U.diagShow='';render();}
   else if(act==='tileSet'){setTileTheme(v);render();}
   else if(act==='speed'){S.speed=S.speed===1?0.4:1;render();}
@@ -2697,6 +2731,7 @@ function onClick(e){
 function onInput(e){
   var id=e.target&&e.target.id;
   if(id==='pname'){U.name=e.target.value;try{localStorage.setItem('mj_name',U.name);}catch(x){}}
+  else if(id==='newname'){U.nameDraft=e.target.value;}
   else if(id==='roomcode'){U.roomInput=e.target.value.toUpperCase();}
   else if(id==='savecode'){U.codeInput=e.target.value.toUpperCase();}
 }
