@@ -391,6 +391,62 @@ body.pondmode .sheet{color:var(--ink)}
   .mep{background:#fff;border-color:#d3e0e0}
 }
 @media (max-width:700px){.pc2 .pch{font-size:13px}}
+
+/* ===== 試玩版新增:出牌動畫、金圈、散落牌河、對話氣泡、結算畫面 ===== */
+@keyframes fly{0%{transform:var(--fv,translate(0,0)) scale(2.2) rotate(-14deg);opacity:.1}55%{opacity:1}100%{transform:none;opacity:1}}
+.t.fly{animation:fly .46s cubic-bezier(.2,.75,.25,1) var(--fd,0ms) both;z-index:6}
+@keyframes ring{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:.65}}
+.tpool .t.last,.pool .t.last{outline:none}
+.tpool .t.last::before,.pool .t.last::before{content:'';position:absolute;inset:-7px -9px;border:3px solid #f0b400;border-radius:50%;pointer-events:none;animation:ring 1.3s ease-in-out infinite;z-index:3}
+.hand .t.sel{transform:translateY(-20px) scale(1.14);z-index:4;box-shadow:0 10px 18px rgba(20,30,40,.3)}
+.call{background:#2b2e34!important;color:#ffe9b0!important;border:2px solid #e8d6a8;border-radius:14px!important}
+@keyframes bub{0%{opacity:0;transform:translateY(-50%) scale(.6)}12%{opacity:1;transform:translateY(-50%) scale(1.06)}20%{transform:translateY(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-50%) scale(.96)}}
+.dbub{position:absolute;top:50%;z-index:8;display:inline-flex;--tw:30px;padding:8px 10px;border-radius:14px;background:#2b2e34;border:2px solid #e8d6a8;animation:bub 1.9s ease-out var(--fd,0ms) both;pointer-events:none}
+.dbub.ps-r{right:calc(100% + 14px)}
+.dbub:not(.ps-r){left:calc(100% + 14px)}
+.dbub::after{content:'';position:absolute;top:50%;width:11px;height:11px;background:#2b2e34;border:2px solid #e8d6a8;transform:translateY(-50%) rotate(45deg)}
+.dbub.ps-r::after{right:-7px;border-left:0;border-bottom:0}
+.dbub:not(.ps-r)::after{left:-7px;border-right:0;border-top:0}
+.btn.big.passb,.cmerge .btn.big.passb{background:#6a4bb0!important;border-color:#6a4bb0!important;color:#fff!important;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.protag{font:700 11px/1 var(--sans);background:#f0b400;color:#2b2e34;border-radius:999px;padding:4px 8px;white-space:nowrap}
+.sheet{position:relative}
+@keyframes stamp{0%{opacity:0;transform:rotate(-14deg) scale(2.4)}60%{opacity:1;transform:rotate(-14deg) scale(.92)}100%{opacity:.92;transform:rotate(-14deg) scale(1)}}
+.stamp{position:absolute;right:16px;top:12px;font:900 26px/1 var(--sans);letter-spacing:.12em;color:#d9432d;border:4px double #d9432d;border-radius:12px;padding:8px 12px;animation:stamp .5s cubic-bezier(.2,.8,.3,1) .25s both;pointer-events:none;z-index:2}
+.ftags{display:flex;flex-wrap:wrap;gap:8px}
+.ftag{display:inline-flex;align-items:center;gap:8px;font:700 14px/1 var(--sans);color:#fff;background:#2f8f5b;border-radius:999px;padding:7px 8px 7px 14px}
+.ftag i{font:900 13px/1 var(--mono);font-style:normal;background:rgba(255,255,255,.28);border-radius:999px;min-width:22px;padding:3px 6px;text-align:center}
+.ftag.f2{background:#0a7f9c}.ftag.f3{background:#d9822b}.ftag.f4{background:#c9561f}.ftag.f5{background:#d9432d}
+.bigfan{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line)}
+.bigfan span{font:900 22px var(--sans)}
+.bigfan em{font:900 34px/1 var(--mono);font-style:normal;font-variant-numeric:tabular-nums;color:#128048}
+.bigfan em .pos{color:#128048}
+.pay .cu{font-weight:700}
+@media (prefers-reduced-motion:reduce){.t.fly,.dbub,.stamp,.tpool .t.last::before,.pool .t.last::before{animation:none}.dbub{opacity:1}}
+
+/* ===== 試玩版:靠右向上直排(只喺闊屏牌桌) ===== */
+.btn.big .lb{font-weight:900}
+.t.hit{background:linear-gradient(180deg,#ffe3df,#f8c9c2)}
+.hand .t.pv{transform:translateY(-16px);outline:3px solid var(--accent);outline-offset:2px}
+@media (min-width:900px) and (min-height:560px){
+  .actions:has(.cmerge){position:relative}
+  .cmerge{position:absolute;right:0;bottom:0;z-index:6;width:224px;flex-direction:column;align-items:stretch;gap:6px;padding:0;background:none;box-shadow:none;border-radius:0}
+  .cmerge .alert{flex:none;background:linear-gradient(180deg,#e85a41,#cf3a24);border-radius:14px;padding:8px 14px 8px 10px;font-size:18px;gap:12px;box-shadow:0 5px 16px rgba(217,67,45,.45);animation:alertpulse 1.2s ease-in-out infinite}
+  .cmerge .alert .claimtile{--tw:40px;margin:0;filter:none}
+  .cmerge .alert>span:last-child{display:block}
+  .cmerge .alert small{display:block;margin:2px 0 0}
+  .cmerge .claimrow{flex-direction:column;align-items:stretch;flex-wrap:nowrap;margin:0;gap:6px}
+  .cmerge .btn.big{height:50px;width:100%;justify-content:flex-start;gap:10px;padding:0 10px 0 7px;background:#fff!important;color:var(--ink)!important;border-color:#fff!important;font-size:16px;box-shadow:0 3px 0 rgba(0,0,0,.22),0 6px 14px rgba(30,50,60,.2);transition:transform .12s}
+  .cmerge .btn.big:hover{transform:translateX(-5px)}
+  .cmerge .btn.big .lb{display:grid;place-items:center;min-width:36px;height:36px;border-radius:10px;font:900 22px/1 var(--sans);color:#fff;background:#0a7f9c}
+  .cmerge .btn.big .lb.k1{background:#d9822b}.cmerge .btn.big .lb.k2{background:#d9432d}
+  .cmerge .btn.big .bt{--tw:24px;gap:2px;margin-left:auto}
+  .cmerge .btn.win{width:100%;height:50px;font-size:19px;justify-content:center}
+  .cmerge .btn.big.passb{height:40px;justify-content:center;background:#6a4bb0!important;color:#fff!important;border-color:#6a4bb0!important;font-size:17px}
+}
+
+.hands .wintile{--tw:calc(var(--tw0,26px)*1.3);display:inline-flex;flex-direction:column;align-items:center;gap:3px;margin-left:auto;padding:4px 8px 6px;border-radius:10px;background:rgba(217,67,45,.1)}
+.hands .wintile small{font:900 12px/1 var(--sans);color:var(--hot);letter-spacing:.08em}
+.hands .wintile .t.win{outline:2px solid var(--hot);outline-offset:2px}
 </style>
 
 <div class="app">
@@ -1408,7 +1464,7 @@ function endWin(w,from,ev,self,tile){
   if(self){var each=S.n===2?PTS[ev.fan]:PSELF[ev.fan];   /* 2 players: self-draw is paid in full like a discard win */P.forEach(function(p,i){if(i!==w){deltas[i]-=each;deltas[w]+=each;}});}
   else{deltas[from]-=base;deltas[w]+=base;}
   P.forEach(function(p,i){p.score+=deltas[i];p.drawn=null;});
-  S.over=true;S.ready={};armNext();S.winTile=tile;S.last=null;S.result={type:'win',winner:w,from:from,self:self,ev:ev,deltas:deltas};
+  S.over=true;S.ready={};armNext();S.winTile=tile;S.last=null;S.result={type:'win',winner:w,from:from,self:self,ev:ev,deltas:deltas,tile:tile};
   S.msg=P[w].name+(self?' 自摸':' 食糊');
   callout(w,self?'自摸':'胡');
   snapshot('over');
@@ -2287,7 +2343,9 @@ function drawOpps(){
 function tseat(i,k,ps){
   var p=V.players[i],cur=V.cur===i&&!V.over;
   var call=(V.call&&V.call.i===i)?'<span class="call">'+esc(V.call.text)+'</span>':'';
-  var chip='<div class="tchip'+(cur?' on':'')+'">'+call+'<span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span><span class="rel">'+relLabel(k,V.n)+'</span>'+
+  var bub='';
+  if(V.last&&V.last.seat===i&&!V.over){var be=Date.now()-(U.flyAt||0);if(be<1900)bub='<span class="dbub ps-'+ps+'" style="--fd:-'+be+'ms">'+tileEl(V.last.t)+'</span>';}
+  var chip='<div class="tchip'+(cur?' on':'')+'">'+call+bub+'<span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span><span class="rel">'+relLabel(k,V.n)+'</span>'+
     (i===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+p.score.toLocaleString()+'</span>'+
     (!V.over?'<span class="numbadge"><b>'+p.n+'</b>張</span>':'')+'</div>';
   var body;
@@ -2296,18 +2354,24 @@ function tseat(i,k,ps){
   var open=(p.melds.length||p.flowers.length)?'<div class="topen">'+meldsHTML(p,false)+flowersHTML(p)+'</div>':'';
   return '<div class="tseat ps-'+ps+'">'+chip+'<div class="tbody">'+body+open+'</div></div>';
 }
+function pxs(i,j){var h=(((i+1)*131+(j+1)*977)*2654435761)>>>0;var r=((h%1000)/1000-.5)*26,dx=(((h>>>10)%1000)/1000-.5)*5,dy=(((h>>>20)%1000)/1000-.5)*5;return '--r:'+r.toFixed(1)+'deg;--dx:'+dx.toFixed(1)+'px;--dy:'+dy.toFixed(1)+'px';}
+function flyKey(){if(!V||!V.last)return;var s0=V.last.seat,key=s0+':'+V.players[s0].discards.length+':'+V.last.t;if(U.flyKey!==key){U.flyKey=key;U.flyAt=Date.now();}}
+var FLYV={b:'0px,170px',t:'0px,-170px',l:'-190px,0px',r:'190px,0px'};
+function mark(html,i,j,last,ps){var st=pxs(i,j),cls='';if(last){var el=Date.now()-(U.flyAt||0);if(el<520){st+=';--fd:-'+el+'ms;--fv:translate('+FLYV[ps]+')';cls='fly ';}}
+  return html.replace('<span class="t ','<span style="'+st+'" class="t '+cls);}
 function tpool(i,ps){
   var p=V.players[i];
   return '<div class="tp ps-'+ps+'"><div class="tpool">'+p.discards.map(function(t,j){
     var k=p.taken&&p.taken[j]||'';
     if(k)return '';   /* 被碰/上/槓走嘅牌直接移走 */
     var last=V.last&&V.last.seat===i&&j===p.discards.length-1;
-    return tileEl(t,last?'last':'');
+    return mark(tileEl(t,last?'last':''),i,j,last,ps);
   }).join('')+'</div></div>';
 }
 function drawTable(){
   if(!els.tbl)return;
   if(!V){els.tbl.innerHTML='';return;}
+  flyKey();
   var n=V.n,map=n===4?{1:'r',2:'t',3:'l'}:n===3?{1:'r',2:'l'}:{1:'t'};
   var seats={t:'',l:'',r:''},pools={t:'',l:'',r:'',b:tpool(V.me,'b')};
   for(var k=1;k<n;k++){var i=(V.me+k)%n,ps=map[k];seats[ps]=tseat(i,k,ps);pools[ps]=tpool(i,ps);}
@@ -2318,7 +2382,7 @@ function drawTable(){
     wds+='<span class="wd wd'+m[1]+(V.cur===m[0]&&!V.over?' on':'')+'">'+WIND[wp.wind]+'</span>';});
   var lo='';
   if(V.last){var lps=V.last.seat===V.me?'b':map[(V.last.seat-V.me+n)%n];
-    if(lps)lo='<span class="lastout lo'+lps+'">'+tileEl(V.last.t)+'</span>';}
+    /* 試玩版:移除中間放大咗嘅最後打出牌 */}
   var plate='<div class="plate"><small>'+WIND[V.round]+'風圈</small><b>'+V.live+'</b><small>牌牆</small>'+wds+lo+'</div>';
   els.tbl.innerHTML=seats.t+seats.l+'<div class="tboard">'+pools.t+pools.l+plate+pools.r+pools.b+'</div>'+seats.r;
   fitSide();
@@ -2349,9 +2413,11 @@ function drawPond(){
   if(U.pondHidden){els.pond.innerHTML='<div class="slim"><span>牌河已收埋 · 已打 <b>'+(V.pond||[]).length+'</b> 張</span>'+(V.last?'<span class="sl">最後打出 '+tileEl(V.last.t)+'</span>':'')+'<button class="tog" data-act="togPond">顯示</button></div>';return;}
   var legend='<div class="plg">'+V.players.map(function(p,i){return '<span class="lg s'+rel(i)+'"><i></i>'+esc(p.name)+'</span>';}).join('')+'<span class="pc">已打 '+(V.pond||[]).length+' 張</span><button class="tog" data-act="togPond">收埋</button></div>';
   var list=V.pond||[];
+  flyKey();
   var tiles=list.map(function(e,j){
     if(e.k)return '';   /* 被碰/上/槓走嘅牌直接移走 */
-    return tileEl(e.t,'s'+rel(e.s)+(j===list.length-1&&V.last?' last':''));
+    var lastp=(j===list.length-1&&V.last);
+    return mark(tileEl(e.t,'s'+rel(e.s)+(lastp?' last':'')),e.s,j,!!lastp,rel(e.s)===0?'b':'t');
   }).join('');
   els.pond.innerHTML=legend+'<div class="pool">'+tiles+'</div>';
 }
@@ -2401,11 +2467,11 @@ function drawDock(){
       var can=[];if(o.ev)can.push('胡');if(o.kong)can.push('槓');if(o.pung)can.push('碰');if((o.chows||[]).length)can.push('上');
       acts+='<div class="cmerge"><div class="alert"><span class="claimtile">'+tileEl(o.tile)+'</span><span>'+esc(V.players[o.from].name)+' 打出 '+tname(o.tile)+'<small>你可以 '+can.join(' / ')+'</small></span></div><div class="claimrow">';
       if(o.ev)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+'</button>';
-      if(o.kong)acts+='<button class="btn big o" data-act="claimkong">槓</button>';
-      if(o.pung)acts+='<button class="btn big o" data-act="pung">碰</button>';
+      if(o.kong)acts+='<button class="btn big o" data-act="claimkong"><span class="lb k2">槓</span><span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
+      if(o.pung)acts+='<button class="btn big o" data-act="pung"><span class="lb k1">碰</span><span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
       (o.chows||[]).forEach(function(s){
         var ts=[s[0],s[1],o.tile].sort(function(x,y){return x-y;});
-        acts+='<button class="btn big" data-act="chow" data-seq="'+s[0]+','+s[1]+'">上 <span class="bt">'+faces(ts)+'</span></button>';
+        acts+='<button class="btn big" data-act="chow" data-seq="'+s[0]+','+s[1]+'"><span class="lb k3">上</span><span class="bt">'+ts.map(function(x){return tileEl(x,x===o.tile?'hit':'');}).join('')+'</span></button>';
       });
       acts+='<button class="btn big passb" data-act="pass">PASS</button></div></div>';
       if(U.vibId!==a.id){U.vibId=a.id;try{if(navigator.vibrate&&COARSE)navigator.vibrate([90,60,90]);}catch(e){}}
@@ -2451,7 +2517,6 @@ function setupHTML(){
     '<div class="step"><h4><i>2</i>點樣玩</h4><div class="card">'+
       '<button class="btn pri block" data-act="solo">單人對電腦</button>'+
       '<button class="btn block" data-act="host"'+(ok?'':' disabled')+'>開房同朋友打</button>'+
-      '<a class="btn block" style="text-decoration:none;text-align:center;display:block" href="beta.html'+(location.search||'')+'">轉玩 BETA 版(新介面,可同舊版對戰)</a>'+
       '<hr class="hr"><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="輸入房號加入" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
       (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
     '</div></div>'+
@@ -2491,21 +2556,28 @@ function rulesHTML(){
   '<p>未有搶槓、七對子、坎坎糊、地糊。</p>'+
   '<div class="opts"><button class="btn pri" data-act="closeRules">明白</button></div></div></div>';
 }
+function winTileOf(r){
+  if(r.tile!=null)return r.tile;
+  if(!r.self)return U.tkLast!=null?U.tkLast:null;
+  return r.winner===V.me&&U.tkDrawn!=null?U.tkDrawn:null;
+}
 function resultHTML(pond){
-  var r=V.result,P=V.players,h='<div class="ov"><div class="sheet">';
+  var r=V.result,P=V.players,wt=r.type==='win'?winTileOf(r):null,h='<div class="ov"><div class="sheet">';
   if(r.type==='draw'){
     h+='<h2>流局</h2><p>牌牆已摸完,莊家連莊。</p>';
   }else{
     var w=P[r.winner];
+    h+='<span class="stamp">'+(r.self?'自摸':'食糊')+'</span>';
     h+='<h2>'+esc(w.name)+(r.self?' 自摸':' 食糊')+(r.self?'':'(出銃:'+esc(P[r.from].name)+')')+'</h2>';
     h+='<div class="hands"><span class="hh">'+w.melds.map(function(m){return '<span class="meld" style="margin-right:6px;display:inline-flex;gap:1px">'+faces(m.tiles)+'</span>';}).join('')+'</span>'+
-       '<span class="hh">'+faces(w.hand||[])+'</span></div>';
-    h+='<div class="fan">'+r.ev.items.map(function(x){return '<div><span>'+x[0]+'</span><span>'+(r.ev.limit?'滿貫':x[1]+' 番')+'</span></div>';}).join('')+
-       '<div class="tot"><span>合共</span><span>'+fanLabel(r.ev)+'</span></div></div>';
+       '<span class="hh">'+faces((function(){var hh=(w.hand||[]).slice();if(wt!=null){var ix=hh.indexOf(wt);if(ix>=0)hh.splice(ix,1);}return hh;})())+'</span>'+(wt!=null&&(w.hand||[]).indexOf(wt)>=0?'<span class="wintile"><small>'+(r.self?'自摸':'食糊')+'</small>'+tileEl(wt,'win')+'</span>':'')+'</div>';
+    var gain=(r.deltas?r.deltas[r.winner]:0);
+    h+='<div class="ftags">'+r.ev.items.map(function(x){var f=r.ev.limit?9:x[1];return '<span class="ftag f'+Math.min(f,5)+'">'+x[0]+'<i>'+(r.ev.limit?'滿':x[1])+'</i></span>';}).join('')+'</div>'+
+       '<div class="bigfan"><span>共 '+(r.ev.limit?'滿貫':r.ev.fan+' 番')+'</span><em><span class="pos">+</span><b class="cu" data-to="'+gain+'">'+gain+'</b></em></div>';
   }
   h+='<div class="pay">'+P.map(function(p,i){
     var d=r.deltas?r.deltas[i]:0;
-    return '<div><span>'+esc(p.name)+'</span><span><span class="'+(d>0?'pos':d<0?'neg':'')+'">'+(d>0?'+':'')+d+'</span> · '+p.score.toLocaleString()+'</span></div>';
+    return '<div><span>'+esc(p.name)+'</span><span><span class="'+(d>0?'pos':d<0?'neg':'')+'">'+(d>0?'+':d<0?'−':'')+'<b class="cu" data-to="'+Math.abs(d)+'">'+Math.abs(d)+'</b></span> · '+p.score.toLocaleString()+'</span></div>';
   }).join('')+'</div>';
   if(pond){return h+'<p class="note" style="text-align:center">等玩家開下一局…<span class="cdn" data-cd> '+cdText()+'</span></p></div></div>';}
   var humans=P.filter(function(p){return p.human;}).length,mine=V.ready.indexOf(V.me)>=0;
@@ -2588,7 +2660,10 @@ function drawFz(){
 function draw(){
   if(U.pondMode){drawPondScreen();return;}
   if(!els.opps)return;
-  if(V&&!V.over)U.modalHidden=false;
+  if(V&&!V.over){U.modalHidden=false;
+    /* 記低最後一隻出牌/自己摸嘅牌:房間伺服器(舊引擎)嘅結果冇 tile,贏牌時靠呢個推出食糊牌 */
+    if(V.last&&V.last.t!=null)U.tkLast=V.last.t;
+    var mp=V.players&&V.players[V.me];if(mp&&mp.drawn!=null)U.tkDrawn=mp.drawn;}
   drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
@@ -2790,5 +2865,67 @@ function boot2(){
 }
 window.__mj={roomLoad:roomLoad,diagText:diagText,dlog:dlog,planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover,startTakeover:startTakeover,roomPut:roomPut,roomKey:roomKey,validSave:validSave,roomPidIdx:roomPidIdx};
 if(typeof document!=='undefined'&&document.getElementById)boot();
+})();
+</script>
+
+<script>
+(function(){
+  /* 結算分數由 0 數到實數 */
+  function run(el){
+    if(el.getAttribute('data-run'))return;el.setAttribute('data-run','1');
+    var to=+el.getAttribute('data-to')||0,t0=performance.now(),dur=900;
+    function step(t){var p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=Math.round(to*e);if(p<1)requestAnimationFrame(step);}
+    el.textContent='0';requestAnimationFrame(step);
+  }
+  var ov=document.getElementById('overlay');
+  if(ov&&window.MutationObserver)new MutationObserver(function(){
+    ov.querySelectorAll('.cu:not([data-run])').forEach(run);
+  }).observe(ov,{childList:true,subtree:true});
+})();
+</script>
+
+<script>
+(function(){
+  /* 移上去碰/槓/上:手牌入面會用到嘅牌彈高 */
+  function clear(){document.querySelectorAll('.hand .t.pv').forEach(function(e){e.classList.remove('pv');});}
+  document.addEventListener('mouseover',function(e){
+    var b=e.target.closest&&e.target.closest('.cmerge .btn.big');clear();
+    if(!b||!window.__mj)return;
+    var V=window.__mj.V;if(!V||!V.ask||!V.ask.opts)return;
+    var o=V.ask.opts,act=b.getAttribute('data-act'),need=[];
+    if(act==='pung'){need=[o.tile,o.tile];}
+    else if(act==='claimkong'){need=[o.tile,o.tile,o.tile];}
+    else if(act==='chow'){need=b.getAttribute('data-seq').split(',').map(Number);}
+    else return;
+    var used=[];
+    need.forEach(function(t){
+      var els=document.querySelectorAll('.hand .t[data-t="'+t+'"]');
+      for(var i=0;i<els.length;i++){if(used.indexOf(els[i])<0){used.push(els[i]);els[i].classList.add('pv');break;}}
+    });
+  });
+  document.addEventListener('click',clear);
+})();
+</script>
+
+<script>
+(function(){
+  /* 紅色提示卡獨立移到「我嘅牌河」同「中間牌枱」之間 */
+  var mq=window.matchMedia('(min-width:900px) and (min-height:560px)');
+  function place(){
+    var a=document.querySelector('.cmerge .alert');if(!a)return;
+    var plate=document.querySelector('.tbl .plate'),pool=document.querySelector('.tbl .tp.ps-b .tpool');
+    if(!mq.matches||!plate||!pool){a.style.position='';a.style.left='';a.style.top='';return;}
+    var p=plate.getBoundingClientRect(),q=pool.getBoundingClientRect();
+    var w=a.offsetWidth,h=a.offsetHeight;
+    var act=document.querySelector('#dock .actions'),at=act?act.getBoundingClientRect().top:q.bottom+h+14;
+    var cx=p.left+p.width/2,cy=(q.bottom+at)/2;if(cy-h/2<q.bottom+2)cy=q.bottom+2+h/2;
+    a.style.position='fixed';a.style.zIndex='7';a.style.margin='0';
+    a.style.left=Math.round(cx-w/2)+'px';a.style.top=Math.round(cy-h/2)+'px';
+  }
+  var dock=document.getElementById('dock');
+  if(dock&&window.MutationObserver)new MutationObserver(place).observe(dock,{childList:true});
+  window.addEventListener('resize',place);
+  var tbl=document.getElementById('tbl');
+  if(tbl&&window.MutationObserver)new MutationObserver(place).observe(tbl,{childList:true});
 })();
 </script>
