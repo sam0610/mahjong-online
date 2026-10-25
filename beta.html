@@ -444,7 +444,7 @@ body.pondmode .sheet{color:var(--ink)}
   .cmerge .btn.big.passb{height:40px;justify-content:center;background:#6a4bb0!important;color:#fff!important;border-color:#6a4bb0!important;font-size:17px}
 }
 
-.hands .wintile{display:inline-flex;flex-direction:column;align-items:center;gap:3px;margin-left:auto;padding:4px 8px 6px;border-radius:10px;background:rgba(217,67,45,.1)}
+.hands .wintile{--tw:calc(var(--tw0,26px)*1.3);display:inline-flex;flex-direction:column;align-items:center;gap:3px;margin-left:auto;padding:4px 8px 6px;border-radius:10px;background:rgba(217,67,45,.1)}
 .hands .wintile small{font:900 12px/1 var(--sans);color:var(--hot);letter-spacing:.08em}
 .hands .wintile .t.win{outline:2px solid var(--hot);outline-offset:2px}
 </style>
@@ -2557,8 +2557,13 @@ function rulesHTML(){
   '<p>未有搶槓、七對子、坎坎糊、地糊。</p>'+
   '<div class="opts"><button class="btn pri" data-act="closeRules">明白</button></div></div></div>';
 }
+function winTileOf(r){
+  if(r.tile!=null)return r.tile;
+  if(!r.self)return U.tkLast!=null?U.tkLast:null;
+  return r.winner===V.me&&U.tkDrawn!=null?U.tkDrawn:null;
+}
 function resultHTML(pond){
-  var r=V.result,P=V.players,h='<div class="ov"><div class="sheet">';
+  var r=V.result,P=V.players,wt=r.type==='win'?winTileOf(r):null,h='<div class="ov"><div class="sheet">';
   if(r.type==='draw'){
     h+='<h2>流局</h2><p>牌牆已摸完,莊家連莊。</p>';
   }else{
@@ -2566,7 +2571,7 @@ function resultHTML(pond){
     h+='<span class="stamp">'+(r.self?'自摸':'食糊')+'</span>';
     h+='<h2>'+esc(w.name)+(r.self?' 自摸':' 食糊')+(r.self?'':'(出銃:'+esc(P[r.from].name)+')')+'</h2>';
     h+='<div class="hands"><span class="hh">'+w.melds.map(function(m){return '<span class="meld" style="margin-right:6px;display:inline-flex;gap:1px">'+faces(m.tiles)+'</span>';}).join('')+'</span>'+
-       '<span class="hh">'+faces((function(){var hh=(w.hand||[]).slice();if(r.tile!=null){var ix=hh.indexOf(r.tile);if(ix>=0)hh.splice(ix,1);}return hh;})())+'</span>'+(r.tile!=null?'<span class="wintile"><small>'+(r.self?'自摸':'食糊')+'</small>'+tileEl(r.tile,'win')+'</span>':'')+'</div>';
+       '<span class="hh">'+faces((function(){var hh=(w.hand||[]).slice();if(wt!=null){var ix=hh.indexOf(wt);if(ix>=0)hh.splice(ix,1);}return hh;})())+'</span>'+(wt!=null&&(w.hand||[]).indexOf(wt)>=0?'<span class="wintile"><small>'+(r.self?'自摸':'食糊')+'</small>'+tileEl(wt,'win')+'</span>':'')+'</div>';
     var gain=(r.deltas?r.deltas[r.winner]:0);
     h+='<div class="ftags">'+r.ev.items.map(function(x){var f=r.ev.limit?9:x[1];return '<span class="ftag f'+Math.min(f,5)+'">'+x[0]+'<i>'+(r.ev.limit?'滿':x[1])+'</i></span>';}).join('')+'</div>'+
        '<div class="bigfan"><span>共 '+(r.ev.limit?'滿貫':r.ev.fan+' 番')+'</span><em><span class="pos">+</span><b class="cu" data-to="'+gain+'">'+gain+'</b></em></div>';
@@ -2656,7 +2661,10 @@ function drawFz(){
 function draw(){
   if(U.pondMode){drawPondScreen();return;}
   if(!els.opps)return;
-  if(V&&!V.over)U.modalHidden=false;
+  if(V&&!V.over){U.modalHidden=false;
+    /* 記低最後一隻出牌/自己摸嘅牌:房間伺服器(舊引擎)嘅結果冇 tile,贏牌時靠呢個推出食糊牌 */
+    if(V.last&&V.last.t!=null)U.tkLast=V.last.t;
+    var mp=V.players&&V.players[V.me];if(mp&&mp.drawn!=null)U.tkDrawn=mp.drawn;}
   drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
