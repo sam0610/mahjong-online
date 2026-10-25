@@ -1000,7 +1000,7 @@ function chooseDiscard(p){
   var flushish=L.n>=L.total*0.72;
   var shs={},minSh=99,t;
   for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=psh(c,m,plan);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
-  var bestT=-1,bestCost=Infinity;
+  var bestT=-1,bestCost=Infinity,cands=[];
   for(t=0;t<34;t++){
     if(shs[t]===undefined||shs[t]>minSh)continue;
     c[t]--;
@@ -1016,7 +1016,13 @@ function chooseDiscard(p){
     var keep=keepOf(p,t,c,L,plan);
     c[t]++;
     var cost=minSh*1000+(shs[t]-minSh)*45-uke*4+keep*6+Math.random()*3;
+    cands.push([cost,t]);
     if(cost<bestCost){bestCost=cost;bestT=t;}
+  }
+  /* 普通:打牌馬虎,約 35% 機會唔打最好嗰張,改打第 2-3 好嗰張(慢啲聽牌,唔會亂打到完全唔合理) */
+  if(cands.length>1&&Math.random()<0.35){
+    cands.sort(function(x,y){return x[0]-y[0];});
+    bestT=cands[Math.min(cands.length-1,1+Math.floor(Math.random()*2))][1];
   }
   if(bestT<0){for(t=0;t<34;t++)if(c[t]){bestT=t;break;}}
   return bestT;
@@ -2501,7 +2507,7 @@ function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
-  var lvNote=c.level===1?'普通:基本打法':c.level===2?'高手:識防守、計番數':'大師:深度計算、精準防守';
+  var lvNote=c.level===1?'普通:打法基本,有時會打錯牌':c.level===2?'高手:識防守、計番數':'大師:深度計算、精準防守';
   var rot=[-9,-4,0,5,10],lift=[10,2,-6,2,10],tl=[8,25,31,32,27];
   var hero='<div class="hero"><div class="logo">麻雀</div><div class="tag">HONG KONG MAHJONG · 2–4 人 · 可網上對戰</div><div class="tiles">'+
     tl.map(function(t,i){return '<span class="ht" style="transform:translateY('+lift[i]+'px) rotate('+rot[i]+'deg)">'+tileEl(t,'')+'</span>';}).join('')+'</div></div>';
