@@ -2451,6 +2451,7 @@ function setupHTML(){
     '<div class="step"><h4><i>2</i>點樣玩</h4><div class="card">'+
       '<button class="btn pri block" data-act="solo">單人對電腦</button>'+
       '<button class="btn block" data-act="host"'+(ok?'':' disabled')+'>開房同朋友打</button>'+
+      '<a class="btn block" style="text-decoration:none;text-align:center;display:block" href="beta.html'+(location.search||'')+'">轉玩 BETA 版(新介面,可同舊版對戰)</a>'+
       '<hr class="hr"><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="輸入房號加入" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
       (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
     '</div></div>'+
