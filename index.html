@@ -202,7 +202,8 @@ button{font:inherit;color:inherit}
 .dc-p.tie .dc-nm{background:#fff3d6;border-color:#f0b400}
 .dc-p.out{opacity:.5}
 .dc-wd{font:900 13px var(--sans);color:#fff;background:var(--hot);border-radius:6px;padding:1px 8px}
-.kbsel{outline:3px solid #f0b400;outline-offset:3px;transform:scale(1.3);transform-origin:right center;z-index:5;position:relative}
+.kbsel{outline:3px solid #f0b400;outline-offset:3px;transform:scale(1.3);transform-origin:right center;z-index:5;position:relative;transition:transform .12s}
+.kbsel.armed{transform:translateX(-28px) scale(1.3);box-shadow:0 0 0 6px rgba(240,180,0,.35)}
 .kbh{display:block;color:var(--muted);font:500 12px var(--sans);margin-top:4px;text-align:center;white-space:nowrap}
 .kbh kbd{font:700 11px/1 var(--mono);background:rgba(0,0,0,.1);border-radius:4px;padding:2px 5px;margin:0 2px}
 .btn kbd,.note kbd{font:700 11px/1 var(--mono);background:rgba(0,0,0,.14);border-radius:4px;padding:2px 5px;margin-left:6px;color:inherit}
@@ -2637,7 +2638,7 @@ function drawDock(){
       }
       o.kongs.forEach(function(t){if(o.kongDrawn!=null&&U.kqDismiss!==a.id&&t===o.kongDrawn)return;acts+='<button class="btn" data-act="kong" data-t="'+t+'">槓 '+tname(t)+'</button>';});
       if(COARSE&&U.sel&&U.selT!=null)acts+='<button class="btn pri" data-act="discardsel">打出 '+tname(U.selT)+'</button>';
-      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點一下揀牌(放大),再點(連按兩下)打出;鍵盤:<kbd>←</kbd><kbd>→</kbd> 揀牌,<kbd>Space</kbd>/<kbd>↑</kbd>/快按兩下<kbd>←</kbd> 打出')+'</span>';
+      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點一下揀牌(放大),再點(連按兩下)打出;鍵盤:<kbd>←</kbd><kbd>→</kbd> 揀牌,<kbd>Space</kbd>/<kbd>↑</kbd> 打出')+'</span>';
     }else if(a.kind==='claim'){
       var can=[];if(o.ev)can.push('胡');if(o.kong)can.push('槓');if(o.pung)can.push('碰');if((o.chows||[]).length)can.push('上');
       acts+='<div class="cmerge"><div class="alert"><span class="claimtile">'+tileEl(o.tile)+'</span><span>'+esc(V.players[o.from].name)+' 打出 '+tname(o.tile)+'<small>你可以 '+can.join(' / ')+'</small></span></div><div class="claimrow">';
@@ -2648,7 +2649,7 @@ function drawDock(){
         var ts=[s[0],s[1],o.tile].sort(function(x,y){return x-y;});
         acts+='<button class="btn big" data-act="chow" data-seq="'+s[0]+','+s[1]+'"><span class="lb k3">上</span><span class="bt">'+ts.map(function(x){return tileEl(x,x===o.tile?'hit':'');}).join('')+'</span></button>';
       });
-      acts+='<button class="btn big passb" data-act="pass">PASS</button></div>'+(COARSE?'':'<small class="kbh"><kbd>↑</kbd><kbd>↓</kbd> 揀 · <kbd>Space</kbd> 確認 · <kbd>Esc</kbd> PASS</small>')+'</div>';
+      acts+='<button class="btn big passb" data-act="pass">PASS</button></div>'+(COARSE?'':'<small class="kbh"><kbd>↑</kbd><kbd>↓</kbd> 揀 · <kbd>←</kbd> 移出,再按 <kbd>←</kbd> 確認 · <kbd>Esc</kbd> PASS</small>')+'</div>';
       if(U.vibId!==a.id){U.vibId=a.id;try{if(navigator.vibrate&&COARSE)navigator.vibrate([90,60,90]);}catch(e){}}
     }
   }
@@ -2673,7 +2674,7 @@ function drawDock(){
   els.dock.innerHTML='<div class="actions">'+mep+(dmsg?'<span class="dmsg">'+dmsg+'</span>':'')+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
   if(a&&a.kind==='claim'&&!COARSE&&(!U.cq||U.cq.id!==a.id))U.cq={id:a.id,idx:0};   /* 有得食/碰/槓/上:自動跳去揀動作 */
   if(a&&a.kind==='claim'&&U.cq&&U.cq.id===a.id){
-    var cb=els.dock.querySelectorAll('.claimrow .btn');if(cb[U.cq.idx])cb[U.cq.idx].classList.add('kbsel');
+    var cb=els.dock.querySelectorAll('.claimrow .btn');if(cb[U.cq.idx]){cb[U.cq.idx].classList.add('kbsel');if(U.cq.armed)cb[U.cq.idx].classList.add('armed');}
   }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
@@ -3228,9 +3229,13 @@ function boot2(){
     if(a.kind==='claim'){
       var cbs=[].slice.call(els.dock.querySelectorAll('.claimrow .btn')),act=U.cq&&U.cq.id===a.id;
       if(K==='C'){done();U.cq={id:a.id,idx:0};draw();}
-      else if(act&&(K==='ArrowDown'||K==='ArrowRight')){done();U.cq.idx=(U.cq.idx+1)%cbs.length;draw();}
-      else if(act&&K==='ArrowLeft'&&Date.now()-(U.lkT||0)<320&&U.lkIdx===U.cq.idx){var cbl=cbs[U.cq.idx];U.lkT=0;if(cbl){done();U.cq=null;handleAct(cbl.getAttribute('data-act'),cbl);}}
-      else if(act&&(K==='ArrowUp'||K==='ArrowLeft')){done();U.cq.idx=(U.cq.idx-1+cbs.length)%cbs.length;U.lkT=K==='ArrowLeft'?Date.now():0;U.lkIdx=U.cq.idx;draw();}
+      else if(act&&(K==='ArrowDown'||K==='ArrowRight')){done();U.cq.idx=(U.cq.idx+1)%cbs.length;U.cq.armed=false;draw();}
+      else if(act&&K==='ArrowLeft'){   /* 第一下 ← :揀中嗰項向左移出(待確認);再按 ← :確認 */
+        var cbl=cbs[U.cq.idx];
+        if(!U.cq.armed){done();U.cq.armed=true;draw();}
+        else if(cbl){done();U.cq=null;handleAct(cbl.getAttribute('data-act'),cbl);}
+      }
+      else if(act&&K==='ArrowUp'){done();U.cq.idx=(U.cq.idx-1+cbs.length)%cbs.length;U.cq.armed=false;draw();}
       else if(act&&go){var cbt=cbs[U.cq.idx];if(cbt){done();U.cq=null;handleAct(cbt.getAttribute('data-act'),cbt);}}
       else if(go||K==='Escape'){done();U.cq=null;answer({a:'pass'});}
       return;
@@ -3250,10 +3255,7 @@ function boot2(){
     var cur=-1;tiles.forEach(function(x,i){if(x.getAttribute('data-k')===U.sel)cur=i;});
     function pick(i){i=Math.max(0,Math.min(tiles.length-1,i));U.sel=tiles[i].getAttribute('data-k');U.selT=+tiles[i].getAttribute('data-t');done();draw();}
     /* 第一下 ← 揀最左第一隻,第一下 → 揀最右第一隻;之後 ← → 逐隻移 */
-    if(K==='ArrowLeft'&&cur>=0&&Date.now()-(U.lkT||0)<320&&U.lkSel===U.sel){   /* 快速連按兩下 ← :打出揀中嗰隻 */
-      U.lkT=0;done();answer({a:'discard',t:+tiles[cur].getAttribute('data-t')});
-    }
-    else if(K==='ArrowLeft'||K==='A'){pick(cur<0?0:cur-1);U.lkT=K==='ArrowLeft'?Date.now():0;U.lkSel=U.sel;}
+    if(K==='ArrowLeft'||K==='A'){pick(cur<0?0:cur-1);}
     else if(K==='ArrowRight'||K==='D'){pick(cur<0?tiles.length-1:cur+1);}
     else if((K===' '||K==='ArrowUp')&&cur>=0){
       done();answer({a:'discard',t:+tiles[cur].getAttribute('data-t')});
