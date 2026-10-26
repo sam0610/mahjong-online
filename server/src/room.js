@@ -70,7 +70,12 @@ export class Room{
         }else if(!eng.exists()){sendRaw({t:'none'});try{ws.close(1000,'none');}catch(e){}return;}
         eng.accept(conn);accepted=true;
       }
-      if(d.t==='start'){eng.start(conn,d.names);return;}
+      if(d.t==='start'){
+        const ns=this.env.NAMES;
+        (ns?ns.get(ns.idFromName('global')).fetch('https://names/names').then(x=>x.json()).then(j=>j.names):Promise.resolve(null))
+          .catch(()=>null).then(names=>{eng.start(conn,names);});
+        return;
+      }
       if(d.t==='ping'||d.t==='pong'){return;}
       conn.emit('data',d);
     });

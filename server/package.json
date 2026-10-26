@@ -6,7 +6,7 @@
     "build": "node build.mjs",
     "dev": "node build.mjs && wrangler dev",
     "deploy": "node build.mjs && wrangler deploy",
-    "test": "node build.mjs && node test/engine.test.mjs && node test/dice.test.mjs"
+    "test": "node build.mjs && node test/engine.test.mjs && node test/dice.test.mjs && node test/names.test.mjs"
   },
   "devDependencies": { "wrangler": "^4" }
 }

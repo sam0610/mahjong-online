@@ -2805,18 +2805,31 @@ function copyDiag(){
   try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){done(true);},function(){done(false);});return;}}catch(e){}
   done(false);
 }
-/* ---------- 電腦玩家名單(存喺呢部機;房主嘅名單會用嚟俾電腦取名) ---------- */
-function aiList(){var a=null;try{a=JSON.parse(localStorage.getItem('mj_ainames')||'null');}catch(e){}return Array.isArray(a)?a.filter(function(x){return typeof x==='string'&&x;}).slice(0,60):AI_POOL.slice();}
-function saveAiList(a){a=a.slice(0,60);try{localStorage.setItem('mj_ainames',JSON.stringify(a));}catch(e){}AI_CUSTOM=a.slice();}
-function addAiName(nm){nm=String(nm||'').trim().slice(0,8);if(!nm)return false;var a=aiList();if(a.indexOf(nm)>=0)return false;a.push(nm);saveAiList(a);return true;}
+/* ---------- 電腦玩家名單(全站共用,存喺 Cloudflare 伺服器;瀏覽器存一份快取) ---------- */
+function aiList(){var a=null;try{a=JSON.parse(localStorage.getItem('mj_ainames')||'null');}catch(e){}return Array.isArray(a)&&a.length?a.filter(function(x){return typeof x==='string'&&x;}):AI_POOL.slice();}
+function setAiList(a){try{localStorage.setItem('mj_ainames',JSON.stringify(a));}catch(e){}AI_CUSTOM=a.slice();}
+function namesUrl(){var u=serverUrl();return u?u.replace(/^ws/,'http').replace(/\/+$/,'')+'/names':'';}
+function aiCall(body,done){
+  var url=namesUrl();if(!url){U.nlMsg='連唔到伺服器。';render();return;}
+  fetch(url,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:{}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(function(x){
+    if(x.j&&Array.isArray(x.j.names))setAiList(x.j.names);
+    if(x.j&&x.j.canUndo!=null)U.nlUndo=!!x.j.canUndo;
+    U.nlMsg=x.ok?(done||''):((x.j&&x.j.err)||'失敗');
+    render();
+  }).catch(function(){U.nlMsg='連唔到伺服器,改動未儲存。';render();});
+}
+function fetchAiNames(){aiCall(null,'');}
 function nameListHTML(){
   var a=aiList();
-  return '<div class="ov"><div class="sheet"><h2>電腦玩家名單('+a.length+')</h2><p class="note">電腦玩家會喺呢個名單隨機攞名(最多 8 個字)。人人都可以改、加、刪;名單存喺你自己部機,開房時用房主部機嘅名單。名單少過 3 個會用預設名補。</p>'+
+  return '<div class="ov"><div class="sheet"><h2>電腦玩家名單('+a.length+')</h2><p class="note">所有玩家共用同一份名單,電腦玩家會喺入面隨機攞名。你改嘅,其他人都會見到,發揮創意啦!每個名最多 8 個字,最少保留 10 個,最多 100 個。</p>'+
+    (U.nlMsg?'<p class="note" style="color:var(--hot)">'+esc(U.nlMsg)+'</p>':'')+
     '<div class="opts"><input class="inp" id="nlnew" maxlength="8" autocomplete="off" placeholder="新增一個電腦名" style="flex:1;min-width:0"><button class="btn pri" data-act="nlAdd">新增</button></div>'+
     '<div style="display:grid;gap:8px">'+a.map(function(n,i){
-      return '<div class="opts"><input class="inp" data-nl="'+i+'" maxlength="8" autocomplete="off" value="'+esc(n)+'" style="flex:1;min-width:0"><button class="btn sm" data-act="nlDel" data-i="'+i+'">刪除</button></div>';
+      return '<div class="opts"><input class="inp" data-nl="'+i+'" data-old="'+esc(n)+'" maxlength="8" autocomplete="off" value="'+esc(n)+'" style="flex:1;min-width:0"><button class="btn sm" data-act="nlDel" data-i="'+i+'">刪除</button></div>';
     }).join('')+'</div>'+
-    '<div class="opts"><button class="btn" data-act="nlReset">還原預設名單</button><button class="btn" data-act="nlBack">返回設定</button></div></div></div>';
+    '<h3>管理(要密碼)</h3><div class="opts"><input class="inp" id="nlpw" type="password" inputmode="numeric" autocomplete="off" placeholder="密碼" style="flex:1;min-width:0"></div>'+
+    '<div class="opts"><button class="btn" data-act="nlUndo">撤銷上一次改動</button><button class="btn" data-act="nlReset">還原預設名單</button></div>'+
+    '<div class="opts"><button class="btn" data-act="nlBack">返回設定</button></div></div></div>';
 }
 function settingsHTML(){
   var b=function(act,t,extra){return '<button class="btn block" data-act="setItem" data-v="'+act+'" style="justify-content:space-between">'+t+(extra||'')+'</button>';};
@@ -2961,7 +2974,7 @@ function handleAct(act,b){
   else if(act==='loadcode'){loadCloudSave(U.codeInput||'',true);}
   else if(act==='host')needPw(hostOpen);
   else if(act==='join')joinRoom();
-  else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();else if(U.role==='client'&&NET.conn){safeSend(NET.conn,{t:'start',names:aiList()});}}
+  else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();else if(U.role==='client'&&NET.conn){safeSend(NET.conn,{t:'start'});}}
   else if(act==='leave'||act==='setup'){U.rejoin='';if(U.resuming){U.resuming='';}forgetRoom();leaveAll();U.notice='';render();}
   else if(act==='rejoinRoom'){var lr=lastRoom();if(lr){U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();scheduleTakeover(lr);}}
   else if(act==='copy'){
@@ -2990,11 +3003,11 @@ function handleAct(act,b){
   else if(act==='closeSfx'){U.sfxOpen=false;render();}
   else if(act==='settings'){U.settings=true;render();}
   else if(act==='closeSet'){U.settings=false;U.nlOpen=false;render();}
-  else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else if(v==='names'){U.nlOpen=true;render();}else{handleAct(v,b);}}
+  else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else if(v==='names'){U.nlOpen=true;U.nlMsg='';fetchAiNames();render();}else{handleAct(v,b);}}
   else if(act==='nlBack'){U.nlOpen=false;render();}
-  else if(act==='nlAdd'){var ne=document.getElementById('nlnew');if(ne&&addAiName(ne.value))ne.value='';render();}
-  else if(act==='nlDel'){var la=aiList();la.splice(+b.getAttribute('data-i'),1);saveAiList(la);render();}
-  else if(act==='nlReset'){saveAiList(AI_POOL.slice());render();}
+  else if(act==='nlAdd'){var ne=document.getElementById('nlnew'),nv=ne?ne.value:'';if(ne)ne.value='';aiCall({op:'add',name:nv},'');}
+  else if(act==='nlDel'){var dn=aiList()[+b.getAttribute('data-i')];if(dn)aiCall({op:'del',name:dn},'');}
+  else if(act==='nlUndo'||act==='nlReset'){var pe=document.getElementById('nlpw');aiCall({op:act==='nlUndo'?'undo':'reset',pw:pe?pe.value:''},act==='nlUndo'?'已撤銷':'已還原預設');if(pe)pe.value='';}
   else if(act==='gateOk')gateGo();
   else if(act==='gateNo'){U.joinGate=false;U.roomInput='';render();}
   else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
@@ -3096,9 +3109,9 @@ function onClick(e){
 document.addEventListener('change',function(e){
   var t=e.target,i=t&&t.getAttribute&&t.getAttribute('data-nl');
   if(i==null)return;
-  var a=aiList(),v=String(t.value).trim().slice(0,8);
-  if(!v||a.some(function(x,k){return k!==+i&&x===v;})){t.value=a[+i]||'';return;}
-  a[+i]=v;saveAiList(a);render();
+  var old=t.getAttribute('data-old'),v=String(t.value).trim().slice(0,8);
+  if(!v||v===old){t.value=old;return;}
+  aiCall({op:'rename',from:old,to:v},'');
 });
 function onInput(e){
   var id=e.target&&e.target.id;
@@ -3188,6 +3201,7 @@ function boot2(){
   document.addEventListener('input',onInput);
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
   try{if(localStorage.getItem('mj_ainames'))AI_CUSTOM=aiList();}catch(e){}
+  fetchAiNames();
   try{U.pondHidden=localStorage.getItem('mj_pondHide')==='1';}catch(e){}
   try{setTileTheme(localStorage.getItem('mj_tile'));}catch(e){}
   var pm=null;   /* 牌河屏功能已移除 */
