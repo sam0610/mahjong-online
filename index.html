@@ -3230,7 +3230,7 @@ function boot2(){
     if(a.kind==='claim'){
       var cbs=[].slice.call(els.dock.querySelectorAll('.claimrow .btn')),act=U.cq&&U.cq.id===a.id;
       if(K==='C'){done();U.cq={id:a.id,idx:0};draw();}
-      else if(act&&(K==='ArrowDown'||K==='ArrowRight')){done();U.cq.idx=(U.cq.idx+1)%cbs.length;U.cq.armed=false;draw();}
+      else if(act&&K==='ArrowDown'){done();U.cq.idx=(U.cq.idx+1)%cbs.length;U.cq.armed=false;draw();}
       else if(act&&K==='ArrowLeft'){   /* 第一下 ← :揀中嗰項向左移出(待確認);再按 ← :確認 */
         var cbl=cbs[U.cq.idx];
         if(!U.cq.armed){done();U.cq.armed=true;draw();}
@@ -3238,6 +3238,7 @@ function boot2(){
       }
       else if(act&&K==='ArrowUp'){done();U.cq.idx=(U.cq.idx-1+cbs.length)%cbs.length;U.cq.armed=false;draw();}
       else if(act&&go){var cbt=cbs[U.cq.idx];if(cbt){done();U.cq=null;handleAct(cbt.getAttribute('data-act'),cbt);}}
+      else if(K==='ArrowRight'){done();}   /* 食碰槓上:→ 冇反應 */
       else if(go||K==='Escape'){done();U.cq=null;answer({a:'pass'});}
       return;
     }
