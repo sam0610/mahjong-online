@@ -70,7 +70,7 @@ export class Room{
         }else if(!eng.exists()){sendRaw({t:'none'});try{ws.close(1000,'none');}catch(e){}return;}
         eng.accept(conn);accepted=true;
       }
-      if(d.t==='start'){eng.start(conn);return;}
+      if(d.t==='start'){eng.start(conn,d.names);return;}
       if(d.t==='ping'||d.t==='pong'){return;}
       conn.emit('data',d);
     });

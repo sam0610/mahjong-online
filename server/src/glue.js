@@ -146,7 +146,8 @@ return {
   onPersist:function(f){persistCb=f;},
   makeConn:makeConn,
   accept:function(conn){onHostConn(conn);},
-  start:function(conn){
+  start:function(conn,names){
+    if(Array.isArray(names))AI_CUSTOM=names.filter(function(x){return typeof x==='string'&&x.trim();}).map(function(x){return x.trim().slice(0,8);}).slice(0,60);
     var i=NET.members.findIndex(function(m){return m.conn===conn;});
     if(i!==0)return false;    // 淨係房主(第一個入嘅人)可以開始
     return startServerGame();

@@ -536,7 +536,9 @@ var CAP=8;
 /* 電腦玩家名:每局由名單隨機抽(麻雀同音梗、地道花名),最多 8 字 */
 var AI_POOL=['食糊黃','鄧俄林壯','戴對對','詐糊查','街市阿岑','放槍大王','麻雀龔','偷雞盧','牌神EASON','十三IU','三番市','四筒發達','大牌檔','拆牌專家','SMALL黃','一索得藍','青衣色','字魔是我','大山園','山缺一哥','食葫蘆','最愛碰碰車','洗白白','一世書家','營家之主','雀神','麻雀公爵','雞鴨湖','門前青草地','親一色','亂打一TONE','三番都唔夠','無PIE用','運財童子','九萬李','清一色雞糊','紅鍾','成地雀仔'];
 var AI_NAMES=AI_POOL.slice(0,3);
-function aiNamesShuffle(){var a=AI_POOL.slice(),i,j,t;for(i=a.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];a[j]=t;}return a;}
+var AI_CUSTOM=null;   /* 玩家自訂嘅電腦名單(冇設就用 AI_POOL) */
+function shuf(a){a=a.slice();var i,j,t;for(i=a.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function aiNamesShuffle(){var c=(AI_CUSTOM||[]).filter(function(x){return typeof x==='string'&&x;}),rest=AI_POOL.filter(function(x){return c.indexOf(x)<0;});return shuf(c).concat(shuf(rest));}
 var COARSE=(typeof matchMedia!=='undefined')&&matchMedia('(pointer: coarse)').matches;
 
 function tname(t){return t<27?NUM[t%9]+SUIT[(t/9)|0]:t<31?WIND[t-27]:t<34?DRAG[t-31]:FLOW[t-34];}
@@ -2803,45 +2805,40 @@ function copyDiag(){
   try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){done(true);},function(){done(false);});return;}}catch(e){}
   done(false);
 }
-/* ---------- 備用玩家名單(存喺呢部機) ---------- */
-function nameList(){var a=[];try{a=JSON.parse(localStorage.getItem('mj_names')||'[]');}catch(e){}return Array.isArray(a)?a.filter(function(x){return typeof x==='string'&&x;}).slice(0,20):[];}
-function saveNameList(a){try{localStorage.setItem('mj_names',JSON.stringify(a.slice(0,20)));}catch(e){}}
-function addName(nm){nm=String(nm||'').trim().slice(0,8);if(!nm)return false;var a=nameList();if(a.indexOf(nm)>=0)return false;a.push(nm);saveNameList(a);return true;}
-function nameChips(inputId){
-  var a=nameList();if(!a.length)return '';
-  return '<div class="opts nlchips">'+a.map(function(n,i){return '<button class="chip" data-act="nlPick" data-i="'+i+'" data-t="'+inputId+'">'+esc(n)+'</button>';}).join('')+'</div>';
-}
+/* ---------- 電腦玩家名單(存喺呢部機;房主嘅名單會用嚟俾電腦取名) ---------- */
+function aiList(){var a=null;try{a=JSON.parse(localStorage.getItem('mj_ainames')||'null');}catch(e){}return Array.isArray(a)?a.filter(function(x){return typeof x==='string'&&x;}).slice(0,60):AI_POOL.slice();}
+function saveAiList(a){a=a.slice(0,60);try{localStorage.setItem('mj_ainames',JSON.stringify(a));}catch(e){}AI_CUSTOM=a.slice();}
+function addAiName(nm){nm=String(nm||'').trim().slice(0,8);if(!nm)return false;var a=aiList();if(a.indexOf(nm)>=0)return false;a.push(nm);saveAiList(a);return true;}
 function nameListHTML(){
-  var a=nameList(),cur=(U.name||'').trim();
-  return '<div class="ov"><div class="sheet"><h2>備用名單</h2><p class="note">儲低幾個常用名,改名或者入房時一撳就用。改完字會自動儲存(只存喺呢部機)。</p>'+
-    '<div style="display:grid;gap:8px">'+(a.length?a.map(function(n,i){
-      return '<div class="opts"><input class="inp" data-nl="'+i+'" maxlength="8" autocomplete="off" value="'+esc(n)+'" style="flex:1;min-width:0">'+
-        (n===cur?'<span class="note">使用中</span>':'<button class="btn sm" data-act="nlUse" data-i="'+i+'">使用</button>')+'<button class="btn sm" data-act="nlDel" data-i="'+i+'">刪除</button></div>';
-    }).join(''):'<p class="note">暫時冇名,喺下面新增。</p>')+'</div>'+
-    '<div class="opts"><input class="inp" id="nlnew" maxlength="8" autocomplete="off" placeholder="新增一個名" style="flex:1;min-width:0"><button class="btn pri" data-act="nlAdd">新增</button></div>'+
-    '<div class="opts"><button class="btn" data-act="nlBack">返回設定</button></div></div></div>';
+  var a=aiList();
+  return '<div class="ov"><div class="sheet"><h2>電腦玩家名單('+a.length+')</h2><p class="note">電腦玩家會喺呢個名單隨機攞名(最多 8 個字)。人人都可以改、加、刪;名單存喺你自己部機,開房時用房主部機嘅名單。名單少過 3 個會用預設名補。</p>'+
+    '<div class="opts"><input class="inp" id="nlnew" maxlength="8" autocomplete="off" placeholder="新增一個電腦名" style="flex:1;min-width:0"><button class="btn pri" data-act="nlAdd">新增</button></div>'+
+    '<div style="display:grid;gap:8px">'+a.map(function(n,i){
+      return '<div class="opts"><input class="inp" data-nl="'+i+'" maxlength="8" autocomplete="off" value="'+esc(n)+'" style="flex:1;min-width:0"><button class="btn sm" data-act="nlDel" data-i="'+i+'">刪除</button></div>';
+    }).join('')+'</div>'+
+    '<div class="opts"><button class="btn" data-act="nlReset">還原預設名單</button><button class="btn" data-act="nlBack">返回設定</button></div></div></div>';
 }
 function settingsHTML(){
   var b=function(act,t,extra){return '<button class="btn block" data-act="setItem" data-v="'+act+'" style="justify-content:space-between">'+t+(extra||'')+'</button>';};
   return '<div class="ov"><div class="sheet"><h2>設定</h2><div class="opts" style="display:grid;gap:10px">'+
-    b('rename','改名')+b('names','備用名單','<span>'+nameList().length+' 個</span>')+b('tiles','牌面設計')+b('sfx','音效提示')+
+    b('rename','改名')+b('names','電腦玩家名單','<span>'+aiList().length+' 個</span>')+b('tiles','牌面設計')+b('sfx','音效提示')+
     (U.role==='client'?'':b('speed','遊戲速度','<span>'+(S.speed===1?'標準':'快')+'</span>'))+
     '</div><div class="opts"><button class="btn pri" data-act="closeSet">完成</button></div></div></div>';
 }
 function gateHTML(){
   return '<div class="ov"><div class="sheet"><h2>加入房間 '+esc(U.roomInput||'')+'</h2><p class="note">請先輸入你嘅名(最多 8 個字),其他玩家會見到。</p>'+
-    '<div class="opts"><input class="inp" id="gname" maxlength="8" autocomplete="off" placeholder="例如:阿強"></div>'+nameChips('gname')+
+    '<div class="opts"><input class="inp" id="gname" maxlength="8" autocomplete="off" placeholder="例如:阿強"></div>'+
     '<div class="opts"><button class="btn pri" data-act="gateOk">加入</button><button class="btn" data-act="gateNo">取消</button></div></div></div>';
 }
 function gateGo(){
   var el=document.getElementById('gname'),nm=el?String(el.value).trim().slice(0,8):'';
   if(!nm){if(el)el.focus();return;}
-  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}addName(nm);
+  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}
   U.joinGate=false;U.rejoin='';joinRoom();
 }
 function renameHTML(){
   return '<div class="ov"><div class="sheet"><h2>改名</h2><p class="note">最多 8 個字,會即時顯示俾其他玩家睇。</p>'+
-    '<div class="opts"><input class="inp" id="newname" maxlength="8" autocomplete="off" placeholder="你嘅名" value="'+esc(U.renameInit||'')+'"></div>'+nameChips('newname')+
+    '<div class="opts"><input class="inp" id="newname" maxlength="8" autocomplete="off" placeholder="你嘅名" value="'+esc(U.renameInit||'')+'"></div>'+
     '<div class="opts"><button class="btn pri" data-act="renameOk">確定</button><button class="btn" data-act="renameCancel">取消</button></div></div></div>';
 }
 function myCurName(){
@@ -2852,7 +2849,7 @@ function myCurName(){
 function applyRename(){
   var nm=String(U.nameDraft==null?U.renameInit:U.nameDraft).trim().slice(0,8);
   if(!nm)return;
-  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}addName(nm);
+  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}
   if(U.role==='client'&&NET.conn)safeSend(NET.conn,{t:'rename',name:nm});
   else if(S.running&&S.players[0]&&(U.role==='host'||U.role==='solo'))S.players[0].name=nm;
   else if(U.role==='host'&&U.screen==='lobby'&&!S.running)sendLobby();
@@ -2964,7 +2961,7 @@ function handleAct(act,b){
   else if(act==='loadcode'){loadCloudSave(U.codeInput||'',true);}
   else if(act==='host')needPw(hostOpen);
   else if(act==='join')joinRoom();
-  else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();else if(U.role==='client'&&NET.conn){safeSend(NET.conn,{t:'start'});}}
+  else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();else if(U.role==='client'&&NET.conn){safeSend(NET.conn,{t:'start',names:aiList()});}}
   else if(act==='leave'||act==='setup'){U.rejoin='';if(U.resuming){U.resuming='';}forgetRoom();leaveAll();U.notice='';render();}
   else if(act==='rejoinRoom'){var lr=lastRoom();if(lr){U.roomInput=lr;U.rejoin=lr;U.rejoinN=0;joinRoom();scheduleTakeover(lr);}}
   else if(act==='copy'){
@@ -2995,10 +2992,9 @@ function handleAct(act,b){
   else if(act==='closeSet'){U.settings=false;U.nlOpen=false;render();}
   else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else if(v==='names'){U.nlOpen=true;render();}else{handleAct(v,b);}}
   else if(act==='nlBack'){U.nlOpen=false;render();}
-  else if(act==='nlAdd'){var ne=document.getElementById('nlnew');if(ne&&addName(ne.value))ne.value='';render();}
-  else if(act==='nlDel'){var la=nameList();la.splice(+b.getAttribute('data-i'),1);saveNameList(la);render();}
-  else if(act==='nlUse'){var un=nameList()[+b.getAttribute('data-i')];if(un){U.nameDraft=un;U.renameInit=un;applyRename();}render();}
-  else if(act==='nlPick'){var pn=nameList()[+b.getAttribute('data-i')],pe=document.getElementById(b.getAttribute('data-t'));if(pn&&pe){pe.value=pn;if(pe.id==='newname')U.nameDraft=pn;pe.focus();}}
+  else if(act==='nlAdd'){var ne=document.getElementById('nlnew');if(ne&&addAiName(ne.value))ne.value='';render();}
+  else if(act==='nlDel'){var la=aiList();la.splice(+b.getAttribute('data-i'),1);saveAiList(la);render();}
+  else if(act==='nlReset'){saveAiList(AI_POOL.slice());render();}
   else if(act==='gateOk')gateGo();
   else if(act==='gateNo'){U.joinGate=false;U.roomInput='';render();}
   else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
@@ -3100,9 +3096,9 @@ function onClick(e){
 document.addEventListener('change',function(e){
   var t=e.target,i=t&&t.getAttribute&&t.getAttribute('data-nl');
   if(i==null)return;
-  var a=nameList(),v=String(t.value).trim().slice(0,8);
+  var a=aiList(),v=String(t.value).trim().slice(0,8);
   if(!v||a.some(function(x,k){return k!==+i&&x===v;})){t.value=a[+i]||'';return;}
-  a[+i]=v;saveNameList(a);render();
+  a[+i]=v;saveAiList(a);render();
 });
 function onInput(e){
   var id=e.target&&e.target.id;
@@ -3191,7 +3187,7 @@ function boot2(){
   window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
   document.addEventListener('input',onInput);
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
-  addName(U.name);   /* 現有嘅名自動入備用名單 */
+  try{if(localStorage.getItem('mj_ainames'))AI_CUSTOM=aiList();}catch(e){}
   try{U.pondHidden=localStorage.getItem('mj_pondHide')==='1';}catch(e){}
   try{setTileTheme(localStorage.getItem('mj_tile'));}catch(e){}
   var pm=null;   /* 牌河屏功能已移除 */
