@@ -493,16 +493,6 @@ var CAP=8;
 var AI_POOL=['陳太','肥仔','阿Sir','牌神阿伯','食糊婆婆','輸錢大王','摸魚阿Sir','八卦嬸','三番都唔夠','自摸仔','大三元叔','碰碰糊嬸','雞糊大王','詐糊專家','偷雞佬','遲到阿叔','夜貓阿姐','茶餐廳阿伯','廣場舞大媽','街市阿嬸','地鐵大叔','打工仔','放槍王','一炮三響','冇牌用','手氣差差','財神到','運財童子','車神大佬','豬扒包','菠蘿油','奶茶阿伯','雞蛋仔','咖喱魚蛋','老作阿叔','麻雀仙子'];
 var AI_NAMES=AI_POOL.slice(0,3);
 function aiNamesShuffle(){var a=AI_POOL.slice(),i,j,t;for(i=a.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];a[j]=t;}return a;}
-/* 隨機玩家名:形容 + 稱呼,最多 8 字 */
-var NAME_A=['幸運','靚仔','好運','牌神','穩陣','快手','大頭','細路','神準','爆棚','淡定','食胡','摸牌','清一色','門前','金牌'];
-var NAME_B=['阿強','阿叔','阿嬸','阿伯','阿婆','阿哥','阿姐','仔仔','先生','老闆','大佬','師兄','小姐','阿sir','肥仔','四眼仔'];
-function randName(){
-  for(var i=0;i<20;i++){
-    var n=NAME_A[Math.floor(Math.random()*NAME_A.length)]+NAME_B[Math.floor(Math.random()*NAME_B.length)];
-    if(n.length<=8)return n;
-  }
-  return '玩家';
-}
 var COARSE=(typeof matchMedia!=='undefined')&&matchMedia('(pointer: coarse)').matches;
 
 function tname(t){return t<27?NUM[t%9]+SUIT[(t/9)|0]:t<31?WIND[t-27]:t<34?DRAG[t-31]:FLOW[t-34];}
@@ -2540,7 +2530,7 @@ function setupHTML(){
     (U.notice?'<p class="warn">'+esc(U.notice)+'</p>':'')+
     savedHTML()+(lastRoom()&&netOK()?'<div class="resume"><b>返回房間 '+esc(lastRoom())+'</b><span>房主走咗都唔緊要,你可以入翻去繼續</span><div class="opts"><button class="btn pri" data-act="rejoinRoom">返回房間</button></div></div>':'')+
     '<div class="step"><h4><i>1</i>牌局設定</h4><div class="card">'+
-      '<div><span class="lab">你嘅名(多人對戰用)</span><div class="opts"><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'"><button class="btn" data-act="rollName" title="隨機換一個名" aria-label="隨機換名">🎲 隨機</button></div></div>'+
+      '<div><span class="lab">你嘅名(多人對戰用)</span><div class="opts"><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'"></div></div>'+
       '<div><span class="lab">座位數</span>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+'</div>'+
       '<div><span class="lab">起糊番數</span>'+chipRow('cfgF',[1,2,3],c.minFan,function(v){return v+' 番'+(v===3?' <small>標準</small>':'');})+'</div>'+
       '<div><span class="lab">電腦強度</span>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手':'大師';})+'<p class="note">'+lvNote+'</p></div>'+
@@ -2644,7 +2634,7 @@ function copyDiag(){
 }
 function renameHTML(){
   return '<div class="ov"><div class="sheet"><h2>改名</h2><p class="note">最多 8 個字,會即時顯示俾其他玩家睇。</p>'+
-    '<div class="opts"><input class="inp" id="newname" maxlength="8" autocomplete="off" placeholder="你嘅名" value="'+esc(U.renameInit||'')+'"><button class="btn" data-act="rollRename" aria-label="隨機換名">🎲 隨機</button></div>'+
+    '<div class="opts"><input class="inp" id="newname" maxlength="8" autocomplete="off" placeholder="你嘅名" value="'+esc(U.renameInit||'')+'"></div>'+
     '<div class="opts"><button class="btn pri" data-act="renameOk">確定</button><button class="btn" data-act="renameCancel">取消</button></div></div></div>';
 }
 function myCurName(){
@@ -2792,8 +2782,6 @@ function handleAct(act,b){
   else if(act==='sfxTog'){SFX.on[v]=SFX.on[v]?0:1;sfxSave();sfxCtx();if(SFX.on[v])sfxPlay(v==='turn'?'turn':v==='disc'?'disc':'call');render();}
   else if(act==='sfxTest'){sfxCtx();sfxPlay('turn');setTimeout(function(){sfxPlay('disc');},500);setTimeout(function(){sfxPlay('call');},900);}
   else if(act==='closeSfx'){U.sfxOpen=false;render();}
-  else if(act==='rollName'){U.name=randName();try{localStorage.setItem('mj_name',U.name);}catch(e){}render();}
-  else if(act==='rollRename'){U.renameInit=randName();U.nameDraft=U.renameInit;render();}
   else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
   else if(act==='renameOk'){applyRename();render();}
   else if(act==='renameCancel'){U.renaming=false;U.nameDraft=null;render();}
@@ -2928,7 +2916,6 @@ function boot2(){
   window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
   document.addEventListener('input',onInput);
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
-  if(!U.name){U.name=randName();try{localStorage.setItem('mj_name',U.name);}catch(e){}}   /* 第一次入嚟冇名:隨機派一個,可以隨時改 */
   try{U.pondHidden=localStorage.getItem('mj_pondHide')==='1';}catch(e){}
   try{setTileTheme(localStorage.getItem('mj_tile'));}catch(e){}
   var pm=null;   /* 牌河屏功能已移除 */
