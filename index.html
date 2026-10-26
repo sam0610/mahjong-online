@@ -503,10 +503,7 @@ body.pondmode .sheet{color:var(--ink)}
     <h1>港式麻雀</h1>
     <span class="roomtag" id="roomTag" hidden></span>
     <span class="sp"></span>
-    <button class="btn sm" data-act="rename">改名</button>
-    <button class="btn sm" data-act="tiles">牌面</button>
-    <button class="btn sm" data-act="sfx">音效</button>
-    <button class="btn sm" data-act="speed" id="btnSpeed">速度:標準</button>
+    <button class="btn sm" data-act="settings">設定</button>
     <button class="btn sm" data-act="setup">離開</button>
   </header>
   <section class="tbl" id="tbl"></section>
@@ -2791,6 +2788,13 @@ function copyDiag(){
   try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){done(true);},function(){done(false);});return;}}catch(e){}
   done(false);
 }
+function settingsHTML(){
+  var b=function(act,t,extra){return '<button class="btn block" data-act="setItem" data-v="'+act+'" style="justify-content:space-between">'+t+(extra||'')+'</button>';};
+  return '<div class="ov"><div class="sheet"><h2>設定</h2><div class="opts" style="display:grid;gap:10px">'+
+    b('rename','改名')+b('tiles','牌面設計')+b('sfx','音效提示')+
+    (U.role==='client'?'':b('speed','遊戲速度','<span>'+(S.speed===1?'標準':'快')+'</span>'))+
+    '</div><div class="opts"><button class="btn pri" data-act="closeSet">完成</button></div></div></div>';
+}
 function gateHTML(){
   return '<div class="ov"><div class="sheet"><h2>加入房間 '+esc(U.roomInput||'')+'</h2><p class="note">請先輸入你嘅名(最多 8 個字),其他玩家會見到。</p>'+
     '<div class="opts"><input class="inp" id="gname" maxlength="8" autocomplete="off" placeholder="例如:阿強"></div>'+
@@ -2830,6 +2834,7 @@ function tilesHTML(){
 function drawOverlay(){
   var h='';
   if(U.joinGate)h=gateHTML();
+  else if(U.settings&&!U.renaming&&!U.tiles&&!U.sfxOpen)h=settingsHTML();
   else if(U.renaming)h=renameHTML();
   else if(U.tiles)h=tilesHTML();
   else if(U.sfxOpen)h=sfxHTML();
@@ -2906,8 +2911,6 @@ function draw(){
   drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
-  els.speed.textContent='速度:'+(S.speed===1?'標準':'快');
-  els.speed.hidden=U.role==='client';
   if(els.share)els.share.hidden=!((U.role==='host'&&U.code)||(U.role==='solo'&&V));
 }
 function render(){
@@ -2954,6 +2957,9 @@ function handleAct(act,b){
   else if(act==='sfxTog'){SFX.on[v]=SFX.on[v]?0:1;sfxSave();sfxCtx();if(SFX.on[v])sfxPlay(v==='turn'?'turn':v==='disc'?'disc':'call');render();}
   else if(act==='sfxTest'){sfxCtx();sfxPlay('turn');setTimeout(function(){sfxPlay('disc');},500);setTimeout(function(){sfxPlay('call');},900);}
   else if(act==='closeSfx'){U.sfxOpen=false;render();}
+  else if(act==='settings'){U.settings=true;render();}
+  else if(act==='closeSet'){U.settings=false;render();}
+  else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else{handleAct(v,b);}}
   else if(act==='gateOk')gateGo();
   else if(act==='gateNo'){U.joinGate=false;U.roomInput='';render();}
   else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
@@ -3087,7 +3093,7 @@ function boot2(){
     document.querySelectorAll('[data-cd]').forEach(function(e){var x=e.classList.contains('cdn')&&e.parentNode&&e.parentNode.classList.contains('note')?' '+t:t;if(e.textContent!==x)e.textContent=x;});
     document.querySelectorAll('[data-cd2]').forEach(function(e){e.textContent=Math.ceil(l/1000);});}catch(x){}},250);
   els.opps=document.getElementById('opps');els.mid=document.getElementById('mid');els.pond=document.getElementById('pond');els.tbl=document.getElementById('tbl');
-  els.dock=document.getElementById('dock');els.overlay=document.getElementById('overlay');els.speed=document.getElementById('btnSpeed');els.share=document.getElementById('btnShare');
+  els.dock=document.getElementById('dock');els.overlay=document.getElementById('overlay');els.share=document.getElementById('btnShare');
   /* 房主排位:拖放(Pointer Events,手指/滑鼠)+ 先撳後撳 */
   (function(){
     var drag=null;
