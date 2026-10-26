@@ -2648,7 +2648,7 @@ function drawDock(){
         var ts=[s[0],s[1],o.tile].sort(function(x,y){return x-y;});
         acts+='<button class="btn big" data-act="chow" data-seq="'+s[0]+','+s[1]+'"><span class="lb k3">上</span><span class="bt">'+ts.map(function(x){return tileEl(x,x===o.tile?'hit':'');}).join('')+'</span></button>';
       });
-      acts+='<button class="btn big passb" data-act="pass">PASS</button></div>'+(COARSE?'':'<small class="kbh"><kbd>C</kbd> 揀 · <kbd>↑</kbd><kbd>↓</kbd> 移動 · <kbd>Space</kbd> 確認</small>')+'</div>';
+      acts+='<button class="btn big passb" data-act="pass">PASS</button></div>'+(COARSE?'':'<small class="kbh"><kbd>↑</kbd><kbd>↓</kbd> 揀 · <kbd>Space</kbd> 確認 · <kbd>Esc</kbd> PASS</small>')+'</div>';
       if(U.vibId!==a.id){U.vibId=a.id;try{if(navigator.vibrate&&COARSE)navigator.vibrate([90,60,90]);}catch(e){}}
     }
   }
@@ -2671,6 +2671,7 @@ function drawDock(){
   var mep=((V.call&&V.call.i===V.me)?'<span class="call">'+esc(V.call.text)+'</span>':'')+'<span class="mep'+(mturn?' on':'')+'"><span class="wchip">'+WIND[mp.wind]+'</span>'+(mp.name!=='你'?'<span class="nm">'+esc(mp.name)+'</span>':'')+(V.me===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+mp.score.toLocaleString()+'</span></span>';
   var dmsg=curMsg();
   els.dock.innerHTML='<div class="actions">'+mep+(dmsg?'<span class="dmsg">'+dmsg+'</span>':'')+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
+  if(a&&a.kind==='claim'&&!COARSE&&(!U.cq||U.cq.id!==a.id))U.cq={id:a.id,idx:0};   /* 有得食/碰/槓/上:自動跳去揀動作 */
   if(a&&a.kind==='claim'&&U.cq&&U.cq.id===a.id){
     var cb=els.dock.querySelectorAll('.claimrow .btn');if(cb[U.cq.idx])cb[U.cq.idx].classList.add('kbsel');
   }
