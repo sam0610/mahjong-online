@@ -37,7 +37,7 @@ function startServerGame(){
   var n=U.cfg.n,mem=NET.members.filter(function(m){return m.joined&&!m.pond;}).slice(0,n);
   S.token++;S.asks={};S.ready={};
   S.n=n;S.minFan=U.cfg.minFan;S.level=U.cfg.level;S.players=[];
-  var used={},ai=0;
+  AI_NAMES=aiNamesShuffle();var used={},ai=0;
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
   for(var i=0;i<n;i++){
     var m=mem[i],human=!!m;

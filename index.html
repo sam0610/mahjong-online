@@ -489,7 +489,10 @@ var SUIT=['萬','筒','索'], WIND=['東','南','西','北'], DRAG=['中','發',
 var PTS={0:1,1:2,2:5,3:16,4:32,5:48,6:64,7:96,8:128};
 var PSELF={0:1,1:1,2:3,3:8,4:16,5:24,6:32,7:48,8:64};
 var CAP=8;
-var AI_NAMES=['陳太','肥仔','阿Sir'];
+/* 電腦玩家名:每局由名單隨機抽(地道搞笑花名),最多 8 字 */
+var AI_POOL=['陳太','肥仔','阿Sir','牌神阿伯','食糊婆婆','輸錢大王','摸魚阿Sir','八卦嬸','三番都唔夠','自摸仔','大三元叔','碰碰糊嬸','雞糊大王','詐糊專家','偷雞佬','遲到阿叔','夜貓阿姐','茶餐廳阿伯','廣場舞大媽','街市阿嬸','地鐵大叔','打工仔','放槍王','一炮三響','冇牌用','手氣差差','財神到','運財童子','車神大佬','豬扒包','菠蘿油','奶茶阿伯','雞蛋仔','咖喱魚蛋','老作阿叔','麻雀仙子'];
+var AI_NAMES=AI_POOL.slice(0,3);
+function aiNamesShuffle(){var a=AI_POOL.slice(),i,j,t;for(i=a.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];a[j]=t;}return a;}
 /* 隨機玩家名:形容 + 稱呼,最多 8 字 */
 var NAME_A=['幸運','靚仔','好運','牌神','穩陣','快手','大頭','細路','神準','爆棚','淡定','食胡','摸牌','清一色','門前','金牌'];
 var NAME_B=['阿強','阿叔','阿嬸','阿伯','阿婆','阿哥','阿姐','仔仔','先生','老闆','大佬','師兄','小姐','阿sir','肥仔','四眼仔'];
@@ -1558,7 +1561,7 @@ function startGame(){
   var n=U.cfg.n,mem=U.role==='host'?NET.members:[];
   S.n=n;S.minFan=U.cfg.minFan;S.level=U.cfg.level;
   S.players=[];
-  var used={},ai=0;
+  AI_NAMES=aiNamesShuffle();var used={},ai=0;
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
   for(var i=0;i<n;i++){
     var m=i===0?null:mem[i-1];
