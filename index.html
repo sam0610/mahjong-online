@@ -202,7 +202,13 @@ button{font:inherit;color:inherit}
 .dc-p.tie .dc-nm{background:#fff3d6;border-color:#f0b400}
 .dc-p.out{opacity:.5}
 .dc-wd{font:900 13px var(--sans);color:#fff;background:var(--hot);border-radius:6px;padding:1px 8px}
-.dc-res{text-align:center;font:700 15px var(--sans);min-height:22px}
+.dcgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px}
+.dcp{display:grid;justify-items:center;gap:6px;background:var(--surface-2);border-radius:12px;padding:8px 4px}
+.dcell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;padding:2px 0}
+.dcell.dout{opacity:.5}
+.dcell.dwin .die{box-shadow:inset 0 0 0 2px var(--hot),0 3px 0 #b5c6c6}
+.tpool .die{width:32px;height:32px;padding:4px;border-radius:8px}
+.tpool .dc-sum{font-size:17px;min-height:0}
 .ov{position:fixed;inset:0;background:rgba(22,26,34,.55);display:grid;place-items:center;z-index:20;overflow:auto;
   padding-block:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .sheet{width:min(580px,100%);max-height:100%;overflow:auto;background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:20px;display:grid;gap:14px}
@@ -2495,8 +2501,17 @@ function flyKey(){if(!V||!V.last)return;var s0=V.last.seat,key=s0+':'+V.players[
 var FLYV={b:'0px,170px',t:'0px,-170px',l:'-190px,0px',r:'190px,0px'};
 function mark(html,i,j,last,ps){var st=pxs(i,j),cls='';if(last){var el=Date.now()-(U.flyAt||0);if(el<520){st+=';--fd:-'+el+'ms;--fv:translate('+FLYV[ps]+')';cls='fly ';}}
   return html.replace('<span class="t ','<span style="'+st+'" class="t '+cls);}
+function diceCell(i){
+  var D=V.dice,n=V.n,v=D.vals[i],pend=D.rolling.indexOf(i)>=0&&!v,mine=i===V.me&&V.ask&&V.ask.kind==='roll',won=D.win>=0;
+  var h='<div class="dcell'+(won&&D.win===i?' dwin':'')+(D.tie.length&&D.tie.indexOf(i)<0?' dout':'')+'">';
+  if(pend&&mine)h+='<button class="btn pri" data-act="roll">撳我擲骰</button>';
+  else h+='<span class="dc-d">'+(v?pipEl(v[0])+pipEl(v[1]):pend?pipEl(0,1)+pipEl(0,1):pipEl(0)+pipEl(0))+'</span>'+(v?'<span class="dc-sum">'+(v[0]+v[1])+'</span>':'<span class="dc-wt">等緊…</span>');
+  if(won)h+='<span class="dc-wd">'+WIND[(i-D.win+n)%n]+(D.win===i?' · 莊':'')+'</span>';
+  return h+'</div>';
+}
 function tpool(i,ps){
   var p=V.players[i];
+  if(V.dice)return '<div class="tp ps-'+ps+'"><div class="tpool">'+diceCell(i)+'</div></div>';
   return '<div class="tp ps-'+ps+'"><div class="tpool">'+p.discards.map(function(t,j){
     var k=p.taken&&p.taken[j]||'';
     if(k)return '';   /* 被碰/上/槓走嘅牌直接移走 */
@@ -2546,6 +2561,10 @@ function drawPond(){
   if(!V){els.pond.innerHTML='';els.pond.hidden=true;return;}
   els.pond.hidden=false;
   var rel=function(i){return (i-V.me+V.n)%V.n;};
+  if(V.dice){
+    els.pond.innerHTML='<div class="dcgrid">'+V.players.map(function(p,i){return '<div class="dcp" style="--c:var(--c'+i+')"><span class="dc-nm"><i></i><b>'+esc(p.name)+(i===V.me&&p.name!=='你'?'(你)':'')+'</b></span>'+diceCell(i)+'</div>';}).join('')+'</div>';
+    return;
+  }
   if(U.pondHidden){els.pond.innerHTML='<div class="slim"><span>牌河已收埋 · 已打 <b>'+(V.pond||[]).length+'</b> 張</span>'+(V.last?'<span class="sl">最後打出 '+tileEl(V.last.t)+'</span>':'')+'<button class="tog" data-act="togPond">顯示</button></div>';return;}
   var legend='<div class="plg">'+V.players.map(function(p,i){return '<span class="lg s'+rel(i)+'"><i></i>'+esc(p.name)+'</span>';}).join('')+'<span class="pc">已打 '+(V.pond||[]).length+' 張</span><button class="tog" data-act="togPond">收埋</button></div>';
   var list=V.pond||[];
@@ -2701,22 +2720,6 @@ function pipEl(n,rolling){
   for(var i=0;i<9;i++)h+='<b class="'+(map.indexOf(i)>=0?'p'+(n===1&&i===4?' m':''):'')+'"></b>';
   return '<span class="die'+(n===1?' one':'')+'">'+h+'</span>';
 }
-function diceHTML(){
-  var D=V.dice,n=V.n,pos=SP_POS(n),mine=V.ask&&V.ask.kind==='roll',won=D.win>=0;
-  var h='<div class="ov"><div class="sheet"><h2>擲骰決定莊家</h2><p class="note">每人擲兩粒骰,點數加埋最大嘅做莊(坐東),平手嘅人再擲。自己撳掣擲自己嗰份。</p><div class="dc-table">';
-  for(var s=0;s<n;s++){
-    var r=(s-V.me+n)%n,v=D.vals[s],pend=D.rolling.indexOf(s)>=0&&!v,me=s===V.me;
-    var cls='dc-p '+pos[r]+(won&&D.win===s?' win':'')+(D.tie.indexOf(s)>=0?' tie':'')+(D.tie.length&&D.tie.indexOf(s)<0?' out':'');
-    h+='<div class="'+cls+'" style="--c:var(--c'+s+')"><span class="dc-nm"><i></i><b>'+esc(V.players[s].name)+'</b></span>';
-    if(pend&&me&&mine)h+='<button class="btn pri" data-act="roll">撳我擲骰</button>';
-    else h+='<span class="dc-d">'+(v?pipEl(v[0])+pipEl(v[1]):pend?pipEl(0,1)+pipEl(0,1):pipEl(0)+pipEl(0))+'</span>';
-    h+=(pend&&!(me&&mine)?'<span class="dc-wt">等緊…</span>':'')+'<span class="dc-sum">'+(v?(v[0]+v[1]):'')+'</span>';
-    if(won)h+='<span class="dc-wd">'+WIND[(s-D.win+n)%n]+'</span>';
-    h+='</div>';
-  }
-  h+='</div><div class="dc-res">'+(won?esc(V.players[D.win].name)+' 做莊(東),跟住逆時針 南、西、北':D.tie.length?'平手,打和嘅人再擲':'')+'</div></div></div>';
-  return h;
-}
 function rulesHTML(){
   return '<div class="ov"><div class="sheet rules"><h2>規則</h2>'+
   '<h3>基本</h3><ul><li>144 隻牌:萬、筒、索各 1–9 四隻,東南西北、中發白各四隻,另有 8 隻花牌。</li><li>每人 13 隻,莊家先摸牌。摸到花牌即時補花,由牌尾補一隻。</li><li>糊牌需要 4 組面子(順、刻、槓)加一對將,或者十三么。</li><li>「上」只可以上家(你左手邊)打出的牌;碰、槓任何人都可以。糊牌優先於碰槓,碰槓優先於上。</li><li>牌牆摸晒(冇留牌尾)即流局,莊家連莊。</li></ul>'+
@@ -2821,7 +2824,6 @@ function drawOverlay(){
   else if(U.share&&(U.role==='host'||U.pondOnly))h=shareHTML();
   else if(U.screen==='setup')h=setupHTML();
   else if(U.screen==='lobby')h=lobbyHTML();
-  else if(V&&V.dice)h=diceHTML();
   else if(V&&V.over&&V.result&&!U.modalHidden)h=resultHTML();
   if(els.overlay.getAttribute('data-h')===h&&U.screen!=='x')return;
   els.overlay.setAttribute('data-h',h);
