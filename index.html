@@ -2788,27 +2788,45 @@ function copyDiag(){
   try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){done(true);},function(){done(false);});return;}}catch(e){}
   done(false);
 }
+/* ---------- 備用玩家名單(存喺呢部機) ---------- */
+function nameList(){var a=[];try{a=JSON.parse(localStorage.getItem('mj_names')||'[]');}catch(e){}return Array.isArray(a)?a.filter(function(x){return typeof x==='string'&&x;}).slice(0,20):[];}
+function saveNameList(a){try{localStorage.setItem('mj_names',JSON.stringify(a.slice(0,20)));}catch(e){}}
+function addName(nm){nm=String(nm||'').trim().slice(0,8);if(!nm)return false;var a=nameList();if(a.indexOf(nm)>=0)return false;a.push(nm);saveNameList(a);return true;}
+function nameChips(inputId){
+  var a=nameList();if(!a.length)return '';
+  return '<div class="opts nlchips">'+a.map(function(n,i){return '<button class="chip" data-act="nlPick" data-i="'+i+'" data-t="'+inputId+'">'+esc(n)+'</button>';}).join('')+'</div>';
+}
+function nameListHTML(){
+  var a=nameList(),cur=(U.name||'').trim();
+  return '<div class="ov"><div class="sheet"><h2>備用名單</h2><p class="note">儲低幾個常用名,改名或者入房時一撳就用。改完字會自動儲存(只存喺呢部機)。</p>'+
+    '<div style="display:grid;gap:8px">'+(a.length?a.map(function(n,i){
+      return '<div class="opts"><input class="inp" data-nl="'+i+'" maxlength="8" autocomplete="off" value="'+esc(n)+'" style="flex:1;min-width:0">'+
+        (n===cur?'<span class="note">使用中</span>':'<button class="btn sm" data-act="nlUse" data-i="'+i+'">使用</button>')+'<button class="btn sm" data-act="nlDel" data-i="'+i+'">刪除</button></div>';
+    }).join(''):'<p class="note">暫時冇名,喺下面新增。</p>')+'</div>'+
+    '<div class="opts"><input class="inp" id="nlnew" maxlength="8" autocomplete="off" placeholder="新增一個名" style="flex:1;min-width:0"><button class="btn pri" data-act="nlAdd">新增</button></div>'+
+    '<div class="opts"><button class="btn" data-act="nlBack">返回設定</button></div></div></div>';
+}
 function settingsHTML(){
   var b=function(act,t,extra){return '<button class="btn block" data-act="setItem" data-v="'+act+'" style="justify-content:space-between">'+t+(extra||'')+'</button>';};
   return '<div class="ov"><div class="sheet"><h2>設定</h2><div class="opts" style="display:grid;gap:10px">'+
-    b('rename','改名')+b('tiles','牌面設計')+b('sfx','音效提示')+
+    b('rename','改名')+b('names','備用名單','<span>'+nameList().length+' 個</span>')+b('tiles','牌面設計')+b('sfx','音效提示')+
     (U.role==='client'?'':b('speed','遊戲速度','<span>'+(S.speed===1?'標準':'快')+'</span>'))+
     '</div><div class="opts"><button class="btn pri" data-act="closeSet">完成</button></div></div></div>';
 }
 function gateHTML(){
   return '<div class="ov"><div class="sheet"><h2>加入房間 '+esc(U.roomInput||'')+'</h2><p class="note">請先輸入你嘅名(最多 8 個字),其他玩家會見到。</p>'+
-    '<div class="opts"><input class="inp" id="gname" maxlength="8" autocomplete="off" placeholder="例如:阿強"></div>'+
+    '<div class="opts"><input class="inp" id="gname" maxlength="8" autocomplete="off" placeholder="例如:阿強"></div>'+nameChips('gname')+
     '<div class="opts"><button class="btn pri" data-act="gateOk">加入</button><button class="btn" data-act="gateNo">取消</button></div></div></div>';
 }
 function gateGo(){
   var el=document.getElementById('gname'),nm=el?String(el.value).trim().slice(0,8):'';
   if(!nm){if(el)el.focus();return;}
-  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}
+  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}addName(nm);
   U.joinGate=false;U.rejoin='';joinRoom();
 }
 function renameHTML(){
   return '<div class="ov"><div class="sheet"><h2>改名</h2><p class="note">最多 8 個字,會即時顯示俾其他玩家睇。</p>'+
-    '<div class="opts"><input class="inp" id="newname" maxlength="8" autocomplete="off" placeholder="你嘅名" value="'+esc(U.renameInit||'')+'"></div>'+
+    '<div class="opts"><input class="inp" id="newname" maxlength="8" autocomplete="off" placeholder="你嘅名" value="'+esc(U.renameInit||'')+'"></div>'+nameChips('newname')+
     '<div class="opts"><button class="btn pri" data-act="renameOk">確定</button><button class="btn" data-act="renameCancel">取消</button></div></div></div>';
 }
 function myCurName(){
@@ -2819,7 +2837,7 @@ function myCurName(){
 function applyRename(){
   var nm=String(U.nameDraft==null?U.renameInit:U.nameDraft).trim().slice(0,8);
   if(!nm)return;
-  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}
+  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}addName(nm);
   if(U.role==='client'&&NET.conn)safeSend(NET.conn,{t:'rename',name:nm});
   else if(S.running&&S.players[0]&&(U.role==='host'||U.role==='solo'))S.players[0].name=nm;
   else if(U.role==='host'&&U.screen==='lobby'&&!S.running)sendLobby();
@@ -2834,6 +2852,7 @@ function tilesHTML(){
 function drawOverlay(){
   var h='';
   if(U.joinGate)h=gateHTML();
+  else if(U.settings&&U.nlOpen&&!U.renaming)h=nameListHTML();
   else if(U.settings&&!U.renaming&&!U.tiles&&!U.sfxOpen)h=settingsHTML();
   else if(U.renaming)h=renameHTML();
   else if(U.tiles)h=tilesHTML();
@@ -2958,8 +2977,13 @@ function handleAct(act,b){
   else if(act==='sfxTest'){sfxCtx();sfxPlay('turn');setTimeout(function(){sfxPlay('disc');},500);setTimeout(function(){sfxPlay('call');},900);}
   else if(act==='closeSfx'){U.sfxOpen=false;render();}
   else if(act==='settings'){U.settings=true;render();}
-  else if(act==='closeSet'){U.settings=false;render();}
-  else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else{handleAct(v,b);}}
+  else if(act==='closeSet'){U.settings=false;U.nlOpen=false;render();}
+  else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else if(v==='names'){U.nlOpen=true;render();}else{handleAct(v,b);}}
+  else if(act==='nlBack'){U.nlOpen=false;render();}
+  else if(act==='nlAdd'){var ne=document.getElementById('nlnew');if(ne&&addName(ne.value))ne.value='';render();}
+  else if(act==='nlDel'){var la=nameList();la.splice(+b.getAttribute('data-i'),1);saveNameList(la);render();}
+  else if(act==='nlUse'){var un=nameList()[+b.getAttribute('data-i')];if(un){U.nameDraft=un;U.renameInit=un;applyRename();}render();}
+  else if(act==='nlPick'){var pn=nameList()[+b.getAttribute('data-i')],pe=document.getElementById(b.getAttribute('data-t'));if(pn&&pe){pe.value=pn;if(pe.id==='newname')U.nameDraft=pn;pe.focus();}}
   else if(act==='gateOk')gateGo();
   else if(act==='gateNo'){U.joinGate=false;U.roomInput='';render();}
   else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
@@ -3057,6 +3081,13 @@ function onClick(e){
     answer({a:'discard',t:t});
   }
 }
+document.addEventListener('change',function(e){
+  var t=e.target,i=t&&t.getAttribute&&t.getAttribute('data-nl');
+  if(i==null)return;
+  var a=nameList(),v=String(t.value).trim().slice(0,8);
+  if(!v||a.some(function(x,k){return k!==+i&&x===v;})){t.value=a[+i]||'';return;}
+  a[+i]=v;saveNameList(a);render();
+});
 function onInput(e){
   var id=e.target&&e.target.id;
   if(id==='pname'){U.name=e.target.value;try{localStorage.setItem('mj_name',U.name);}catch(x){}}
