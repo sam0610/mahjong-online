@@ -759,6 +759,12 @@ function planFan(p,c,melds){
   return pl.P+pl.Q>=4?9:0;
 }
 /* 電腦只食「混一色/清一色/對對糊/大番」,雜色平糊唔食 */
+/* 普通:唔刻意做大牌,平糊(夠起糊番數)都食,但 6 番或以上當睇漏、唔食 */
+function winOK(p,ev){
+  if(p.human)return true;
+  if(p.level===1)return !!ev&&ev.fan<6;
+  return bigOK(ev);
+}
 function bigOK(ev){
   if(!ev)return false;
   if(ev.limit||ev.fan>=7)return true;
@@ -996,8 +1002,8 @@ function chooseDiscard(p){
   if(p.level===3)return chooseDiscard3(p);
   if(p.level===2)return chooseDiscard2(p);
   var c=cnt(p.hand),m=p.melds.length,vis=visible(p),L=lean(p);
-  var plan=planOf(p,c,p.melds);
-  var flushish=L.n>=L.total*0.72;
+  var plan=null;   /* 普通:唔揀一色/對對糊做目標,純粹最快聽牌 */
+  var flushish=false;
   var shs={},minSh=99,t;
   for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=psh(c,m,plan);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
   var bestT=-1,bestCost=Infinity,cands=[];
@@ -1030,6 +1036,8 @@ function chooseDiscard(p){
 function aiPung(p,t,canKong){return p.level===3?aiPung3(p,t,canKong):p.level===2?aiPung2(p,t,canKong):aiPung1(p,t,canKong);}
 function aiChow(p,t,opts){return p.level===3?aiChow3(p,t,opts):p.level===2?aiChow2(p,t,opts):aiChow1(p,t,opts);}
 function aiPung1(p,t,canKong){
+  var val1=t>=31||t===27+S.round||t===27+p.wind;
+  return val1?(canKong?'kong':'pung'):null;   /* 普通:只碰番牌,其餘唔碰 */
   var c=cnt(p.hand),m=p.melds.length;
   var cc=c.slice();cc[t]-=canKong?3:2;
   if(!planOf(p,cc,p.melds.concat([{type:canKong?'kong':'pung',tiles:[t,t,t]}])))return null;
@@ -1047,6 +1055,7 @@ function aiPung1(p,t,canKong){
   return null;
 }
 function aiChow1(p,t,opts){
+  return null;   /* 普通:唔上牌 */
   var c=cnt(p.hand),m=p.melds.length,before=shanten(c,m);
   var L=lean(p);
   var flush=L.n>=L.total*0.72&&suitOf(t)===L.main;
@@ -1060,7 +1069,7 @@ function aiChow1(p,t,opts){
   return null;
 }
 function aiTurn(p,ev,kongs){
-  if(ev&&ev.fan>=S.minFan&&(p.human||bigOK(ev)))return {a:'win'};
+  if(ev&&ev.fan>=S.minFan&&winOK(p,ev))return {a:'win'};
   if(kongs.length&&S.wall.length>4)return {a:'kong',t:kongs[0]};
   return {a:'discard',t:chooseDiscard(p)};
 }
@@ -1218,7 +1227,7 @@ function answerSeat(seat,id,v){
 function autoAnswer(p,a){
   var o=a.opts;
   if(a.kind==='turn'){if(o.claimed)return {a:'discard',t:chooseDiscard(p)};return aiTurn(p,o.ev,o.kongs);}
-  if(o.ev&&o.ev.fan>=S.minFan&&(p.human||bigOK(o.ev)))return {a:'win'};
+  if(o.ev&&o.ev.fan>=S.minFan&&winOK(p,o.ev))return {a:'win'};
   if(o.pung){var d=aiPung(p,o.tile,!!o.kong);if(d==='kong')return {a:'kong'};if(d)return {a:'pung'};}
   if(o.chows&&o.chows.length){var s=aiChow(p,o.tile,o.chows);if(s)return {a:'chow',seq:s};}
   return {a:'pass'};
