@@ -3191,6 +3191,7 @@ function boot2(){
   window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
   document.addEventListener('input',onInput);
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
+  addName(U.name);   /* 現有嘅名自動入備用名單 */
   try{U.pondHidden=localStorage.getItem('mj_pondHide')==='1';}catch(e){}
   try{setTileTheme(localStorage.getItem('mj_tile'));}catch(e){}
   var pm=null;   /* 牌河屏功能已移除 */
