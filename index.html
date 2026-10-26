@@ -2655,13 +2655,13 @@ function drawDock(){
     }
   }
   if(V.proxy){
-    acts='<span class="note autoon">電腦代打緊:幫你摸牌、打牌、食糊同碰上</span><button class="btn pri" data-act="proxy">取消代打,我自己玩'+KB('P')+'</button>';
+    acts='<span class="note autoon">電腦代打緊:幫你摸牌、打牌、食糊同碰上</span><button class="btn pri" data-act="proxy">取消代打,我自己玩'+KB('M')+'</button>';
   }else if(V.auto){
-    acts='<span class="note autoon">自動聽牌中:有牌食就自動胡,摸到唔啱嘅牌自動打出</span><button class="btn" data-act="auto">取消自動'+KB('T')+'</button>'+acts;
+    acts='<span class="note autoon">自動聽牌中:有牌食就自動胡,摸到唔啱嘅牌自動打出</span><button class="btn" data-act="auto">取消自動'+KB('N')+'</button>'+acts;
   }else if(!V.over&&V.autoSh===0){
-    acts+='<button class="btn auto" data-act="auto">自動聽牌 · 欠一隻'+KB('T')+'</button>';
+    acts+='<button class="btn auto" data-act="auto">自動聽牌 · 欠一隻'+KB('N')+'</button>';
   }
-  if(!V.proxy&&!V.over)acts+='<button class="btn sm" data-act="proxy">電腦代打'+KB('P')+'</button>';
+  if(!V.proxy&&!V.over)acts+='<button class="btn sm" data-act="proxy">電腦代打'+KB('M')+'</button>';
   var list=(me.hand||[]).slice(),drawn=null;
   if(me.drawn!==null&&me.drawn!==undefined&&!V.over&&list.length%3===2){removeOne(list,me.drawn);drawn=me.drawn;}
   var on=!!(a&&a.kind==='turn');
@@ -3223,8 +3223,9 @@ function boot2(){
       return;
     }
     if(V.over&&U.modalHidden&&(K==='Enter'||K==='N')){var nb2=els.mid&&els.mid.querySelector('[data-act="next"]');if(nb2){done();handleAct('next',nb2);return;}}
-    if(K==='T'||K==='P'){
-      var ab=els.dock.querySelector('[data-act="'+(K==='T'?'auto':'proxy')+'"]');
+    var kqNow=a&&a.kind==='turn'&&a.opts&&a.opts.kongDrawn!=null&&U.kqDismiss!==a.id;
+    if((K==='N'&&!kqNow)||K==='M'){
+      var ab=els.dock.querySelector('[data-act="'+(K==='N'?'auto':'proxy')+'"]');
       if(ab){done();handleAct(ab.getAttribute('data-act'),ab);}
       return;
     }
