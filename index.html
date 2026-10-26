@@ -2637,7 +2637,7 @@ function drawDock(){
       }
       o.kongs.forEach(function(t){if(o.kongDrawn!=null&&U.kqDismiss!==a.id&&t===o.kongDrawn)return;acts+='<button class="btn" data-act="kong" data-t="'+t+'">槓 '+tname(t)+'</button>';});
       if(COARSE&&U.sel&&U.selT!=null)acts+='<button class="btn pri" data-act="discardsel">打出 '+tname(U.selT)+'</button>';
-      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點選一張牌打出;鍵盤:<kbd>←</kbd><kbd>→</kbd> 揀牌,<kbd>Enter</kbd> 打出')+'</span>';
+      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點選一張牌打出;鍵盤:<kbd>←</kbd><kbd>→</kbd> 揀牌,<kbd>Space</kbd>/<kbd>↑</kbd> 打出')+'</span>';
     }else if(a.kind==='claim'){
       var can=[];if(o.ev)can.push('胡');if(o.kong)can.push('槓');if(o.pung)can.push('碰');if((o.chows||[]).length)can.push('上');
       acts+='<div class="cmerge"><div class="alert"><span class="claimtile">'+tileEl(o.tile)+'</span><span>'+esc(V.players[o.from].name)+' 打出 '+tname(o.tile)+'<small>你可以 '+can.join(' / ')+'</small></span></div><div class="claimrow">';
@@ -3246,15 +3246,12 @@ function boot2(){
     if(kq&&(K==='N'||K==='Escape')){done();handleAct('nokong',null);return;}
     var tiles=[].slice.call(els.dock.querySelectorAll('[data-k]'));if(!tiles.length)return;
     var cur=-1;tiles.forEach(function(x,i){if(x.getAttribute('data-k')===U.sel)cur=i;});
-    var def=tiles.length-1;   /* 預設係最後一隻(摸返嚟嗰隻) */
     function pick(i){i=Math.max(0,Math.min(tiles.length-1,i));U.sel=tiles[i].getAttribute('data-k');U.selT=+tiles[i].getAttribute('data-t');done();draw();}
-    if(K==='ArrowLeft'||K==='A'){pick((cur<0?def:cur)-1);}
-    else if(K==='ArrowRight'||K==='D'){pick((cur<0?def:cur)+1);}
-    else if(K==='Home'){pick(0);}
-    else if(K==='End'){pick(tiles.length-1);}
-    else if(go||K==='ArrowDown'||K==='S'){
-      var el=tiles[cur<0?def:cur];
-      done();answer({a:'discard',t:+el.getAttribute('data-t')});
+    /* 第一下 ← 揀最左第一隻,第一下 → 揀最右第一隻;之後 ← → 逐隻移 */
+    if(K==='ArrowLeft'||K==='A'){pick(cur<0?0:cur-1);}
+    else if(K==='ArrowRight'||K==='D'){pick(cur<0?tiles.length-1:cur+1);}
+    else if((K===' '||K==='ArrowUp')&&cur>=0){
+      done();answer({a:'discard',t:+tiles[cur].getAttribute('data-t')});
     }
   });
   document.addEventListener('keydown',function(e){if(e.key==='Enter'&&U.joinGate&&e.target&&e.target.id==='gname'){e.preventDefault();gateGo();}});
