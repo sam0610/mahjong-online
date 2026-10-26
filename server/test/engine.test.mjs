@@ -21,9 +21,9 @@ log('start by B (should be false)',eng.start(B.conn));
 log('start by A',eng.start(A.conn));
 // both humans go full auto proxy
 A.send({t:'proxy',on:true});B.send({t:'proxy',on:true});
-for(let i=0;i<10;i++){
+for(let i=0;i<24;i++){
   await new Promise(r=>setTimeout(r,500));
-  if(i%3===0)log(i,JSON.stringify(eng.info()),'A seat',A.view&&A.view.me,'cur',A.view&&A.view.cur,'discards',A.view&&A.view.players.map(p=>p.discards.length));
+  if(i%6===0)log(i,JSON.stringify(eng.info()),'A seat',A.view&&A.view.me,'cur',A.view&&A.view.cur,'discards',A.view&&A.view.players.map(p=>p.discards.length));
 }
 // everyone leaves -> pause
 A.conn.remoteClose();B.conn.remoteClose();

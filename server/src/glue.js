@@ -24,7 +24,7 @@ function connected(){return NET.members.filter(function(m){return m.conn&&m.conn
 /* ---- 大廳 ---- */
 HOOKS.lobby=function(){
   var l=lobbyInfo();
-  NET.members.forEach(function(m,i){safeSend(m.conn,{t:'lobby',n:l.n,minFan:l.minFan,code:l.code,players:l.players,owner:i===0});});
+  NET.members.forEach(function(m,i){safeSend(m.conn,{t:'lobby',n:l.n,minFan:l.minFan,code:l.code,players:l.players,seats:l.seats,owner:i===0});});
 };
 function setCfg(c){
   c=c||{};
@@ -34,7 +34,7 @@ function setCfg(c){
 }
 function startServerGame(){
   if(S.running)return false;
-  var n=U.cfg.n,mem=NET.members.filter(function(m){return m.joined&&!m.pond;}).slice(0,n);
+  var n=U.cfg.n,all=NET.members.filter(function(m){return m.joined&&!m.pond;}),mem=seatPlan();
   S.token++;S.asks={};S.ready={};
   S.n=n;S.minFan=U.cfg.minFan;S.level=U.cfg.level;S.players=[];
   AI_NAMES=aiNamesShuffle();var used={},ai=0;
@@ -46,9 +46,9 @@ function startServerGame(){
     if(m){m.seat=i;S.players[i].pid=m.pid||'';}
   }
   NET.members.forEach(function(m){if(mem.indexOf(m)<0)m.seat=-1;});
-  S.dealer=0;S.round=0;S.handNo=1;S.lian=0;S.over=false;S.running=true;
+  S.dealer=0;S.d0=0;S.round=0;S.handNo=1;S.lian=0;S.over=false;S.running=true;
   U.screen='game';paused=false;pending=null;
-  runGame();render();
+  runFirst();render();
   return true;
 }
 
@@ -57,7 +57,7 @@ function restore(o){
   clearGrace();
   S.token++;S.asks={};S.ready={};S.call=null;
   U.cfg.n=o.n;U.cfg.minFan=o.minFan;U.cfg.level=o.level;
-  S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+  S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
   S.wall=o.wall.slice();S.discN=o.discN;S.last=o.last?{seat:o.last.seat,t:o.last.t}:null;S.cur=o.cur;S.pond=(o.pond||[]).slice();
   S.players=o.players.map(function(q,i){
     var base=q.baseName||q.name;

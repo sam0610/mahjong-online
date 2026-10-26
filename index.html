@@ -162,6 +162,47 @@ button{font:inherit;color:inherit}
 .hand .gap{width:calc(var(--hw)*.35);flex:none}
 
 /* overlay */
+/* 房主排位 + 擲骰揀莊 */
+:root{--c0:#0a7f9c;--c1:#d9791a;--c2:#6a4bb0;--c3:#2c9a5b}
+.sp-table{position:relative;aspect-ratio:1.3;max-width:420px;width:100%;margin:0 auto;border-radius:20px;background:#e6f0ee;box-shadow:inset 0 0 0 4px #cfe0dd}
+.sp-mid{position:absolute;inset:36% 33%;border-radius:14px;background:#fff;border:1px solid var(--line-2);display:grid;place-items:center;font:700 12px/1.3 var(--sans);color:var(--muted);text-align:center}
+.sp-seat{position:absolute;width:32%;min-height:24%;border:2px dashed #9fbcbc;border-radius:14px;background:rgba(255,255,255,.7);display:grid;place-items:center;align-content:center;gap:2px;padding:4px;font:700 13px var(--sans);text-align:center;cursor:default;touch-action:manipulation}
+.sp-seat.on{border-style:solid;background:#fff}
+.sp-seat.fixed{background:#f4f9f9}
+.sp-seat .tag{font:500 11px var(--sans);color:var(--muted)}
+.sp-seat .pn{display:flex;align-items:center;gap:5px;max-width:100%}
+.sp-seat .pn i{width:11px;height:11px;border-radius:50%;background:var(--c);flex:none}
+.sp-seat .pn b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-seat.pb{bottom:3%;left:34%}.sp-seat.pt{top:3%;left:34%}.sp-seat.pl{left:3%;top:38%}.sp-seat.pr{right:3%;top:38%}
+.sp-edit .sp-seat.on:not(.fixed){cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.sp-edit .sp-seat:not(.fixed){border-color:#6aa3a8}
+.sp-seat.sel{border-color:var(--ink);box-shadow:0 0 0 3px rgba(22,40,43,.15)}
+.sp-seat.over{border-color:var(--hot);border-style:solid;background:#fff7ea;box-shadow:0 0 0 4px rgba(217,67,45,.25)}
+.sp-seat.dragging{opacity:.4}
+.sp-ghost{position:fixed;z-index:60;pointer-events:none;display:flex;align-items:center;gap:8px;background:#fff;border:2px solid var(--ink);border-radius:14px;padding:8px 14px;font:700 15px var(--sans);box-shadow:0 10px 24px rgba(0,0,0,.25);transform:translate(-50%,-60%)}
+.sp-ghost i{width:12px;height:12px;border-radius:50%;background:var(--c);display:inline-block}
+.dc-table{position:relative;aspect-ratio:1.25;width:100%;max-width:560px;margin:0 auto;border-radius:20px;background:#e6f0ee;box-shadow:inset 0 0 0 4px #cfe0dd}
+.dc-p{position:absolute;display:grid;justify-items:center;gap:5px;width:34%}
+.dc-p.pt{top:4%;left:33%}.dc-p.pb{bottom:4%;left:33%}.dc-p.pl{left:2%;top:34%}.dc-p.pr{right:2%;top:34%}
+.dc-nm{display:flex;align-items:center;gap:5px;font:700 13px var(--sans);background:#fff;border:1px solid var(--line-2);border-radius:999px;padding:3px 10px;max-width:100%;white-space:nowrap}
+.dc-nm i{width:11px;height:11px;border-radius:50%;background:var(--c);flex:none}
+.dc-nm b{overflow:hidden;text-overflow:ellipsis}
+.dc-d{display:flex;gap:5px;min-height:40px}
+.die{width:38px;height:38px;border-radius:9px;background:#fff;box-shadow:inset 0 0 0 2px #c5d3d3,0 3px 0 #b5c6c6;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:5px;gap:1px}
+.die b{border-radius:50%;margin:1px}
+.die b.p{background:#1c1a17}
+.die.one b.p.m{background:var(--hot)}
+.die.rolling{animation:dcshake .12s infinite}
+.die.ph{opacity:.25}
+@keyframes dcshake{0%{transform:rotate(-8deg) translateY(-2px)}50%{transform:rotate(8deg) translateY(2px)}100%{transform:rotate(-8deg) translateY(-2px)}}
+@media(prefers-reduced-motion:reduce){.die.rolling{animation:none;opacity:.6}}
+.dc-sum{font:900 20px/1 var(--sans);min-height:20px}
+.dc-wt{font:500 12px var(--sans);color:var(--muted)}
+.dc-p.win .dc-nm{background:var(--hot);color:#fff;border-color:var(--hot)}
+.dc-p.tie .dc-nm{background:#fff3d6;border-color:#f0b400}
+.dc-p.out{opacity:.5}
+.dc-wd{font:900 13px var(--sans);color:#fff;background:var(--hot);border-radius:6px;padding:1px 8px}
+.dc-res{text-align:center;font:700 15px var(--sans);min-height:22px}
 .ov{position:fixed;inset:0;background:rgba(22,26,34,.55);display:grid;place-items:center;z-index:20;overflow:auto;
   padding-block:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .sheet{width:min(580px,100%);max-height:100%;overflow:auto;background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:20px;display:grid;gap:14px}
@@ -1155,6 +1196,7 @@ function pungRaises(p,t){
 }
 function autoHumanAnswer(p,a){
   var o=a.opts;
+  if(a.kind==='roll')return {a:'roll'};
   if(o.ev&&o.ev.fan>=S.minFan)return {a:'win'};
   if(a.kind==='claim')return {a:'pass'};
   if(o.claimed)return {a:'discard',t:chooseDiscard3(p)};
@@ -1202,13 +1244,14 @@ function ask(seat,kind,opts){
     var p=S.players[seat];
     S.asks[seat]={id:++askSeq,kind:kind,opts:opts,res:res,rej:rej,since:Date.now()};
     scheduleAuto(seat);
-    S.msg=kind==='turn'?'輪到 '+p.name+(opts.claimed?'(碰/上之後打牌)':''):S.players[opts.from].name+' 打出 '+tname(opts.tile);
+    S.msg=kind==='roll'?'擲骰決定邊個做莊':kind==='turn'?'輪到 '+p.name+(opts.claimed?'(碰/上之後打牌)':''):S.players[opts.from].name+' 打出 '+tname(opts.tile);
     render();
   });
 }
 function validAnswer(seat,a,v){
   var o=a.opts,p=S.players[seat];
   if(!v||typeof v.a!=='string')return false;
+  if(a.kind==='roll')return v.a==='roll';
   if(a.kind==='turn'){
     if(v.a==='auto')return !!p.auto;
     if(v.a==='discard')return p.hand.indexOf(v.t)>=0;
@@ -1232,6 +1275,7 @@ function answerSeat(seat,id,v){
 }
 function autoAnswer(p,a){
   var o=a.opts;
+  if(a.kind==='roll')return {a:'roll'};
   if(a.kind==='turn'){if(o.claimed)return {a:'discard',t:chooseDiscard(p)};return aiTurn(p,o.ev,o.kongs);}
   if(o.ev&&o.ev.fan>=S.minFan&&winOK(p,o.ev))return {a:'win'};
   if(o.pung){var d=aiPung(p,o.tile,!!o.kong);if(d==='kong')return {a:'kong'};if(d)return {a:'pung'};}
@@ -1325,7 +1369,7 @@ function lastRoom(){try{var o=JSON.parse(localStorage.getItem(ROOM_KEY)||'null')
 function roomPidIdx(o,pid){var r=-1;if(pid)o.players.forEach(function(p,i){if(p.pid&&p.pid===pid)r=i;});return r;}
 /*@engine:begin snap*/
 function snapObj(phase,turn){
-  var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,
+  var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,
     cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,
     result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner}:S.result?{type:'draw'}:null,
     players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn,pid:p.pid||'',baseName:p.baseName||'',away:!!p.away};})};
@@ -1363,7 +1407,7 @@ function resumeGame(){
   var o=U.saved;if(!validSave(o))return;
   U.role='solo';U.notice='';
   S.token++;S.asks={};S.ready={};S.call=null;
-  S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+  S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
   S.wall=o.wall;S.discN=o.discN;S.last=o.last;S.cur=o.cur;
   S.pond=Array.isArray(o.pond)?o.pond:(function(){var a=[];o.players.forEach(function(p,i){p.discards.forEach(function(){a.push(i);});});return a;})();
   S.players=o.players.map(function(p){return {id:p.id,name:p.name,human:p.human,remote:false,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn};});
@@ -1544,6 +1588,68 @@ async function playHand(resume){
     await T(300);
   }
 }
+function d6(){return 1+Math.floor(Math.random()*6);}
+async function rollOne(s){
+  var p=S.players[s],tok=S.token;
+  if(p.human){
+    var pr=ask(s,'roll',{}),id=S.asks[s]&&S.asks[s].id;
+    setTimeout(function(){var cur=S.asks[s];if(cur&&cur.id===id&&S.token===tok)answerSeat(s,id,{a:'roll'});},25000);   /* 太耐冇撳:幫佢擲 */
+    await pr;
+  }else await T(700+Math.random()*1600);
+  S.dice.vals[s]=[d6(),d6()];render();
+}
+async function rollDealer(){
+  var n=S.n,P=S.players,cand=[],i;
+  for(i=0;i<n;i++){cand.push(i);P[i].wind=i;}
+  S.wall=[];S.pond=[];S.cur=0;S.over=false;S.result=null;S.last=null;S.call=null;S.discN=0;
+  S.dice={vals:{},rolling:[],tie:[],win:-1};
+  for(var guard=0;guard<20;guard++){
+    cand.forEach(function(s){delete S.dice.vals[s];});
+    S.dice.rolling=cand.slice();S.dice.tie=[];S.msg='擲骰決定邊個做莊';render();
+    await Promise.all(cand.map(rollOne));
+    S.dice.rolling=[];
+    var sums=cand.map(function(s){return S.dice.vals[s][0]+S.dice.vals[s][1];}),mx=Math.max.apply(null,sums);
+    var top=cand.filter(function(s,j){return sums[j]===mx;});
+    if(top.length===1){S.dice.win=top[0];break;}
+    if(guard===19){S.dice.win=top[Math.floor(Math.random()*top.length)];break;}
+    S.dice.tie=top;S.msg='平手,打和嘅人再擲';render();await T(1900);cand=top;
+  }
+  S.dealer=S.d0=S.dice.win;
+  P.forEach(function(p,j){p.wind=(j-S.dealer+n)%n;});
+  S.msg=P[S.dealer].name+' 做莊(東)';render();
+  await T(3000);
+  S.dice=null;render();
+}
+function runFirst(){rollDealer().then(function(){return playHand(false);}).catch(function(e){if(e!==CANCEL)console.error(e);});}
+/* ---------- 房主排位 ---------- */
+function guestList(){
+  var a=NET.members.filter(function(m){return m.joined&&!m.pond;});
+  return HOSTSEAT?a:a.slice(1);
+}
+function seatPlan(){   /* 每個座位坐邊個(座位 0 = 房主 → 以 null / 房主本人代表);客人冇揀嘅,順序補 */
+  var n=U.cfg.n,gs=guestList(),plan=[],i;
+  for(i=0;i<n;i++)plan.push(null);
+  gs.forEach(function(g){var k=g.pref;if(k>=1&&k<n&&!plan[k])plan[k]=g;else g.pref=-1;});
+  gs.forEach(function(g){if(g.pref>=1&&plan[g.pref]===g)return;for(var k=1;k<n;k++)if(!plan[k]){plan[k]=g;g.pref=k;return;}g.pref=-1;});
+  if(!HOSTSEAT){var a=NET.members.filter(function(m){return m.joined&&!m.pond;});plan[0]=a[0]||null;}
+  return plan;
+}
+function moveSeat(a,b){
+  var n=U.cfg.n;if(S.running||a===b||a<1||b<1||a>=n||b>=n)return;
+  var plan=seatPlan(),t=plan[a];plan[a]=plan[b];plan[b]=t;
+  plan.forEach(function(g,k){if(g&&k>=1)g.pref=k;});
+  sendLobby();render();
+}
+function shuffleSeats(){
+  var n=U.cfg.n;if(S.running)return;
+  var plan=seatPlan(),ks=[],i;
+  for(i=1;i<n;i++)ks.push(i);
+  for(i=ks.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=ks[i];ks[i]=ks[j];ks[j]=t;}
+  var old=plan.slice();
+  for(i=1;i<n;i++)if(old[i])old[i].pref=ks[i-1];
+  /* 空位唔使理;冇人坐嘅座位自然係電腦 */
+  sendLobby();render();
+}
 function runGame(resume){playHand(resume).catch(function(e){if(e!==CANCEL)console.error(e);});}
 
 function startGame(){
@@ -1553,20 +1659,21 @@ function startGame(){
   S.players=[];
   AI_NAMES=aiNamesShuffle();var used={},ai=0;
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
+  var plan=seatPlan();
   for(var i=0;i<n;i++){
-    var m=i===0?null:mem[i-1];
+    var m=i===0?null:plan[i];
     var human=i===0||!!m;
     var name=i===0?(U.role==='solo'?'你':uniq(myName())):(m?uniq(m.name):uniq(AI_NAMES[ai++]));
     S.players.push({id:i,name:name,human:human,remote:!!m,score:1000,level:S.level,hand:[],melds:[],flowers:[],discards:[],wind:0,drawn:null});
     if(m){m.seat=i;S.players[i].pid=m.pid||'';}
     if(i===0&&U.role==='host')S.players[0].pid=myPid();   /* 房主都要有 pid,先可以斷線後用房號返嚟 */
   }
-  mem.forEach(function(m,j){if(j>=n-1)m.seat=-1;});
-  S.dealer=0;S.round=0;S.handNo=1;S.lian=0;S.over=false;S.running=true;
+  mem.forEach(function(m){if(plan.indexOf(m)<0)m.seat=-1;});
+  S.dealer=0;S.d0=0;S.round=0;S.handNo=1;S.lian=0;S.over=false;S.running=true;
   if(U.role==='solo')dropSave(true);
   if(U.role==='host'&&U.code)rememberRoom(U.code);
   U.screen='game';U.rules=false;U.modalHidden=false;
-  runGame();render();
+  runFirst();render();
 }
 var NEXT_SEC=20;
 function armNext(){
@@ -1584,7 +1691,7 @@ function nextHand(){
   var r=S.result;if(!S.over||!r)return;
   clearTimeout(S.nextT);S.nextAt=0;
   if(r.type==='draw'||r.winner===S.dealer){S.lian++;}
-  else{S.lian=0;S.dealer=(S.dealer+1)%S.n;if(S.dealer===0)S.round=(S.round+1)%4;}
+  else{S.lian=0;S.dealer=(S.dealer+1)%S.n;if(S.dealer===(S.d0||0))S.round=(S.round+1)%4;}
   S.handNo++;S.ready={};U.modalHidden=false;
   runGame();render();
 }
@@ -1610,7 +1717,8 @@ function buildView(seat){
     auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
     result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number),
-    fz:S.frozen?{n:S.frozenName||'',left:S.frozenLeft||0}:null};
+    fz:S.frozen?{n:S.frozenName||'',left:S.frozenLeft||0}:null,
+    dice:S.dice?{vals:S.dice.vals,rolling:S.dice.rolling,tie:S.dice.tie,win:S.dice.win}:null};
 }
 /* 牌河屏用嘅公開資料:冇任何人嘅手牌(局終先公開) */
 function pondView(){
@@ -1627,7 +1735,8 @@ function broadcast(){
   if(NET.ponds.length&&S.running){var pv={t:'pond',v:pondView()};NET.ponds.forEach(function(m){safeSend(m.conn,pv);});}
 }
 function lobbyInfo(){
-  return {t:'lobby',n:U.cfg.n,minFan:U.cfg.minFan,code:U.code,players:(HOSTSEAT?[myName()]:[]).concat(NET.members.map(function(m){return m.name;}))};
+  var plan=seatPlan(),seats=plan.map(function(g,k){return k===0&&HOSTSEAT?myName():g?g.name:null;});
+  return {t:'lobby',n:U.cfg.n,minFan:U.cfg.minFan,code:U.code,players:(HOSTSEAT?[myName()]:[]).concat(NET.members.map(function(m){return m.name;})),seats:seats};
 }
 function sendLobby(){if(HOOKS.lobby){HOOKS.lobby();return;}var l=lobbyInfo();NET.members.forEach(function(m){safeSend(m.conn,l);});}
 function randCode(){var L='ABCDEFGHJKLMNPQRSTUVWXYZ',D='23456789',s=L[Math.floor(Math.random()*L.length)];for(var i=0;i<3;i++)s+=D[Math.floor(Math.random()*D.length)];return s;}   /* 一個英文字母 + 3 個數字,例如 K382 */
@@ -2006,7 +2115,7 @@ function startTakeover(code,o,opt){
     var n=o.players.length;
     function rs(i){return (i-k+n)%n;}
     S.token++;S.asks={};S.ready={};S.call=null;
-    S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=rs(o.dealer);S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+    S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=rs(o.dealer);S.d0=rs(o.d0||0);S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
     S.wall=o.wall;S.discN=o.discN;S.last=o.last?{seat:rs(o.last.seat),t:o.last.t}:null;S.cur=rs(o.cur);
     S.pond=(Array.isArray(o.pond)?o.pond:[]).map(rs);
     S.players=[];
@@ -2156,6 +2265,12 @@ function onHostConn(conn){
       }
       if(!m.joined){m.pid=String(d.pid||'').slice(0,24);if(!admit(d))return;if(m.seat>=0)return;}
       m.name=String(d.name||m.name).slice(0,8);sendLobby();render();
+    }
+    else if(d.t==='seat'||d.t==='shuffle'){
+      if(HOSTSEAT||S.running||!m.joined||m.pond)return;
+      var own=NET.members.filter(function(x){return x.joined&&!x.pond;})[0];
+      if(own!==m)return;   /* 淨係房主(第一個入嘅人)可以排位 */
+      if(d.t==='seat')moveSeat(+d.a,+d.b);else shuffleSeats();
     }
     else if(d.t==='rename'){
       if(!m.joined||m.pond)return;
@@ -2450,11 +2565,11 @@ function curMsg(){
 function drawMid(){
   if(!V){els.mid.innerHTML='';els.mid.hidden=true;return;}
   els.mid.hidden=false;
-  var info=WIND[V.round]+'風圈 · 第'+V.handNo+'局 · 莊 '+esc(V.players[V.dealer].name)+(U.debug?' · 除錯':'');
+  var info=V.dice?'擲骰決定莊家':WIND[V.round]+'風圈 · 第'+V.handNo+'局 · 莊 '+esc(V.players[V.dealer].name)+(U.debug?' · 除錯':'');
   var msg;
   if(V.ask){
     var o=V.ask.opts;
-    msg=V.ask.kind==='turn'?(o.claimed?'碰/上之後,請打出一張牌':'輪到你,請打出一張牌'):esc(V.players[o.from].name)+' 打出 '+tname(o.tile);
+    msg=V.ask.kind==='roll'?'擲骰決定莊家':V.ask.kind==='turn'?(o.claimed?'碰/上之後,請打出一張牌':'輪到你,請打出一張牌'):esc(V.players[o.from].name)+' 打出 '+tname(o.tile);
   }else msg=esc(V.msg||'');
   var lastd=V.last?'<span class="lastd">'+tileEl(V.last.t)+'</span>':'';
   var extra='';
@@ -2484,7 +2599,7 @@ function drawDock(){
       o.kongs.forEach(function(t){if(o.kongDrawn!=null&&U.kqDismiss!==a.id&&t===o.kongDrawn)return;acts+='<button class="btn" data-act="kong" data-t="'+t+'">槓 '+tname(t)+'</button>';});
       if(COARSE&&U.sel&&U.selT!=null)acts+='<button class="btn pri" data-act="discardsel">打出 '+tname(U.selT)+'</button>';
       else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點選一張牌打出')+'</span>';
-    }else{
+    }else if(a.kind==='claim'){
       var can=[];if(o.ev)can.push('胡');if(o.kong)can.push('槓');if(o.pung)can.push('碰');if((o.chows||[]).length)can.push('上');
       acts+='<div class="cmerge"><div class="alert"><span class="claimtile">'+tileEl(o.tile)+'</span><span>'+esc(V.players[o.from].name)+' 打出 '+tname(o.tile)+'<small>你可以 '+can.join(' / ')+'</small></span></div><div class="claimrow">';
       if(o.ev)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+'</button>';
@@ -2554,11 +2669,52 @@ function lobbyHTML(){
   }else{
     h+='<p>房號 <b>'+esc(U.code)+'</b>'+(l?'(連接咗)':'(連線中…)')+'</p><p class="note">狀態:'+esc(NET.state||'連線中…')+' · 收到 '+NET.rx+' 個訊息'+(NET.rx>0&&!V?' · 等開房嗰位撳「開始遊戲」':'')+'</p>';
   }
-  if(l){
+  if(l&&l.seats){
+    h+='<h3>座位('+l.players.length+' / '+l.n+' 人,空位由電腦補)</h3>'+seatTableHTML(l,host)+'<p class="note">'+(host?'你固定坐下面。拖其餘玩家去右、上、左(手指或者滑鼠都得),拖去有人嘅座位會對調;唔想拖,可以先撳一位玩家,再撳目標座位。':'房主排緊座位,你見到嘅係即時更新。')+' '+l.n+' 個座位 · '+l.minFan+' 番起糊。入咗牌桌之後,四家擲骰決定邊個做莊。</p>'+
+      (host?'<div class="opts"><button class="btn" data-act="seatShuf">隨機排位</button></div>':'');
+  }else if(l){
     h+='<h3>玩家('+l.players.length+' / '+l.n+')</h3><div class="plist">'+l.players.map(function(nm,i){return '<div>'+esc(nm)+(i===0?'<span class="rel">房主</span>':'')+'</div>';}).join('')+
       new Array(Math.max(0,l.n-l.players.length)+1).join('<div class="empty">電腦補位</div>')+'</div><p class="note">'+l.n+' 個座位 · '+l.minFan+' 番起糊</p>';
   }
   h+='<div class="opts">'+(host?'<button class="btn pri" data-act="startRoom"'+(U.code?'':' disabled')+'>開始遊戲</button>':'')+'<button class="btn" data-act="leave">'+(host0?'關房':'離開')+'</button></div></div></div>';
+  return h;
+}
+var SP_POS=function(n){return n===4?['pb','pr','pt','pl']:n===3?['pb','pr','pl']:['pb','pt'];};
+function seatTableHTML(l,can){
+  var n=l.n,pos=SP_POS(n),h='<div class="sp-table'+(can?' sp-edit':'')+'" id="spT"><div class="sp-mid">牌桌</div>';
+  for(var s=0;s<n;s++){
+    var nm=l.seats[s];
+    h+='<div class="sp-seat '+pos[s]+(nm?' on':'')+(s===0?' fixed':'')+(U.spSel===s?' sel':'')+'" data-s="'+s+'" style="--c:var(--c'+s+')">'+
+      (nm?'<span class="pn"><i></i><b>'+esc(nm)+'</b></span><span class="tag">'+(s===0?'房主 · 固定坐下':'玩家')+'</span>':'<span class="tag">電腦</span>')+'</div>';
+  }
+  return h+'</div>';
+}
+function seatMove(a,b){
+  if(a===b||a<1||b<1)return;
+  if(U.role==='host')moveSeat(a,b);
+  else if(NET.conn)safeSend(NET.conn,{t:'seat',a:a,b:b});
+}
+function pipEl(n,rolling){
+  if(rolling)return '<span class="die rolling"><b></b><b></b><b></b><b></b><b class="p"></b><b></b><b></b><b></b><b></b></span>';
+  if(!n)return '<span class="die ph"></span>';
+  var map={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]}[n]||[],h='';
+  for(var i=0;i<9;i++)h+='<b class="'+(map.indexOf(i)>=0?'p'+(n===1&&i===4?' m':''):'')+'"></b>';
+  return '<span class="die'+(n===1?' one':'')+'">'+h+'</span>';
+}
+function diceHTML(){
+  var D=V.dice,n=V.n,pos=SP_POS(n),mine=V.ask&&V.ask.kind==='roll',won=D.win>=0;
+  var h='<div class="ov"><div class="sheet"><h2>擲骰決定莊家</h2><p class="note">每人擲兩粒骰,點數加埋最大嘅做莊(坐東),平手嘅人再擲。自己撳掣擲自己嗰份。</p><div class="dc-table">';
+  for(var s=0;s<n;s++){
+    var r=(s-V.me+n)%n,v=D.vals[s],pend=D.rolling.indexOf(s)>=0&&!v,me=s===V.me;
+    var cls='dc-p '+pos[r]+(won&&D.win===s?' win':'')+(D.tie.indexOf(s)>=0?' tie':'')+(D.tie.length&&D.tie.indexOf(s)<0?' out':'');
+    h+='<div class="'+cls+'" style="--c:var(--c'+s+')"><span class="dc-nm"><i></i><b>'+esc(V.players[s].name)+'</b></span>';
+    if(pend&&me&&mine)h+='<button class="btn pri" data-act="roll">撳我擲骰</button>';
+    else h+='<span class="dc-d">'+(v?pipEl(v[0])+pipEl(v[1]):pend?pipEl(0,1)+pipEl(0,1):pipEl(0)+pipEl(0))+'</span>';
+    h+=(pend&&!(me&&mine)?'<span class="dc-wt">等緊…</span>':'')+'<span class="dc-sum">'+(v?(v[0]+v[1]):'')+'</span>';
+    if(won)h+='<span class="dc-wd">'+WIND[(s-D.win+n)%n]+'</span>';
+    h+='</div>';
+  }
+  h+='</div><div class="dc-res">'+(won?esc(V.players[D.win].name)+' 做莊(東),跟住逆時針 南、西、北':D.tie.length?'平手,打和嘅人再擲':'')+'</div></div></div>';
   return h;
 }
 function rulesHTML(){
@@ -2665,6 +2821,7 @@ function drawOverlay(){
   else if(U.share&&(U.role==='host'||U.pondOnly))h=shareHTML();
   else if(U.screen==='setup')h=setupHTML();
   else if(U.screen==='lobby')h=lobbyHTML();
+  else if(V&&V.dice)h=diceHTML();
   else if(V&&V.over&&V.result&&!U.modalHidden)h=resultHTML();
   if(els.overlay.getAttribute('data-h')===h&&U.screen!=='x')return;
   els.overlay.setAttribute('data-h',h);
@@ -2806,6 +2963,8 @@ function handleAct(act,b){
     if(U.role==='client'){safeSend(NET.conn,{t:'auto',on:!V.auto});}
     else setAuto(0,!V.auto);
   }
+  else if(act==='roll'){if(V&&V.ask&&V.ask.kind==='roll')answer({a:'roll'});}
+  else if(act==='seatShuf'){if(U.role==='host')shuffleSeats();else if(NET.conn)safeSend(NET.conn,{t:'shuffle'});}
   else if(act==='nokong'){if(!V||!V.ask)return;if(V.auto)answer({a:'auto'});else{U.kqDismiss=V.ask.id;draw();}}
   else if(act==='win')answer({a:'win'});
   else if(act==='kong')answer({a:'kong',t:+b.getAttribute('data-t')});
@@ -2912,6 +3071,51 @@ function boot2(){
     document.querySelectorAll('[data-cd2]').forEach(function(e){e.textContent=Math.ceil(l/1000);});}catch(x){}},250);
   els.opps=document.getElementById('opps');els.mid=document.getElementById('mid');els.pond=document.getElementById('pond');els.tbl=document.getElementById('tbl');
   els.dock=document.getElementById('dock');els.overlay=document.getElementById('overlay');els.speed=document.getElementById('btnSpeed');els.share=document.getElementById('btnShare');
+  /* 房主排位:拖放(Pointer Events,手指/滑鼠)+ 先撳後撳 */
+  (function(){
+    var drag=null;
+    function editable(){return U.screen==='lobby'&&!!document.querySelector('#spT.sp-edit');}
+    document.addEventListener('pointerdown',function(e){
+      if(!editable())return;
+      var el=e.target.closest('#spT .sp-seat.on');if(!el)return;
+      var sv=+el.getAttribute('data-s');if(!(sv>=1))return;
+      drag={s:sv,x:e.clientX,y:e.clientY,on:false,id:e.pointerId,nm:(el.querySelector('b')||{}).textContent||'',c:getComputedStyle(el).getPropertyValue('--c')};
+      try{el.setPointerCapture(e.pointerId);}catch(x){}
+    });
+    document.addEventListener('pointermove',function(e){
+      if(!drag||e.pointerId!==drag.id)return;
+      if(!drag.on){
+        if(Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)<6)return;
+        drag.on=true;U.spSel=null;
+        var g=document.createElement('div');g.className='sp-ghost';g.style.setProperty('--c',drag.c);g.innerHTML='<i></i>'+esc(drag.nm);
+        document.body.appendChild(g);drag.g=g;
+        var src=document.querySelector('#spT .sp-seat[data-s="'+drag.s+'"]');if(src)src.classList.add('dragging');
+      }
+      drag.g.style.left=e.clientX+'px';drag.g.style.top=e.clientY+'px';
+      var t=document.elementFromPoint(e.clientX,e.clientY),st=t&&t.closest('#spT .sp-seat');
+      [].forEach.call(document.querySelectorAll('#spT .sp-seat.over'),function(x){x.classList.remove('over');});
+      if(st&&+st.getAttribute('data-s')>=1)st.classList.add('over');
+    });
+    function end(e,cancel){
+      if(!drag||e.pointerId!==drag.id)return;
+      var d=drag;drag=null;if(d.g)d.g.remove();
+      if(!d.on)return;
+      window.__spDragged=Date.now();
+      var t=document.elementFromPoint(e.clientX,e.clientY),st=t&&t.closest('#spT .sp-seat');
+      if(!cancel&&st&&+st.getAttribute('data-s')>=1)seatMove(d.s,+st.getAttribute('data-s'));
+      draw();
+    }
+    document.addEventListener('pointerup',function(e){end(e,false);});
+    document.addEventListener('pointercancel',function(e){end(e,true);});
+    document.addEventListener('click',function(e){
+      if(Date.now()-(window.__spDragged||0)<350)return;
+      var el=e.target.closest('#spT.sp-edit .sp-seat');if(!el)return;
+      var sv=+el.getAttribute('data-s');if(!(sv>=1))return;
+      if(U.spSel==null){if(el.classList.contains('on')){U.spSel=sv;draw();}}
+      else if(U.spSel===sv){U.spSel=null;draw();}
+      else{var a=U.spSel;U.spSel=null;seatMove(a,sv);draw();}
+    });
+  })();
   document.addEventListener('click',onClick);
   window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
   document.addEventListener('input',onInput);
