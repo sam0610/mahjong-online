@@ -456,6 +456,7 @@ body.pondmode .sheet{color:var(--ink)}
     <span class="sp"></span>
     <button class="btn sm" data-act="rename">改名</button>
     <button class="btn sm" data-act="tiles">牌面</button>
+    <button class="btn sm" data-act="sfx">音效</button>
     <button class="btn sm" data-act="speed" id="btnSpeed">速度:標準</button>
     <button class="btn sm" data-act="setup">新遊戲</button>
   </header>
@@ -2654,6 +2655,7 @@ function drawOverlay(){
   var h='';
   if(U.renaming)h=renameHTML();
   else if(U.tiles)h=tilesHTML();
+  else if(U.sfxOpen)h=sfxHTML();
   else if(U.rules)h=rulesHTML();
   else if(U.share&&(U.role==='host'||U.pondOnly))h=shareHTML();
   else if(U.screen==='setup')h=setupHTML();
@@ -2672,6 +2674,51 @@ function drawFz(){
     e.innerHTML='<div><div class="fzc" style="--p:'+Math.max(0,Math.min(100,l*10))+'"><b>'+l+'</b></div><div class="fzt">'+esc(V.fz.n)+' 離線<br><small>暫停緊,等佢返嚟;時間到由電腦暫代</small></div></div>';
   }else if(!e.hidden){e.hidden=true;e.innerHTML='';}
 }
+/* ---------- 音效(WebAudio 合成,唔使音檔):輪到你(預設開)、打牌聲、碰上槓食糊提示(預設閂) ---------- */
+var SFX={on:{turn:1,disc:0,call:0},ac:null,init:false,ask:null,pond:0,call:'',res:'',hand:-1};
+try{var sx=JSON.parse(localStorage.getItem('mj_sfx')||'null');if(sx){['turn','disc','call'].forEach(function(k){if(k in sx)SFX.on[k]=sx[k]?1:0;});}}catch(e){}
+function sfxSave(){try{localStorage.setItem('mj_sfx',JSON.stringify(SFX.on));}catch(e){}}
+function sfxCtx(){
+  if(!SFX.ac){try{var C=window.AudioContext||window.webkitAudioContext;if(C)SFX.ac=new C();}catch(e){}}
+  if(SFX.ac&&SFX.ac.state==='suspended'){try{SFX.ac.resume();}catch(e){}}
+  return SFX.ac;
+}
+['pointerdown','touchend','keydown'].forEach(function(ev){document.addEventListener(ev,function(){sfxCtx();},{passive:true});});
+function tone(f,t0,dur,type,vol){
+  var ac=SFX.ac;if(!ac||ac.state!=='running')return;
+  var o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime+t0;
+  o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol||0.2,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+dur+0.02);
+}
+function sfxPlay(kind){
+  try{
+    if(!SFX.ac)return;
+    if(kind==='turn'){tone(880,0,0.16,'sine',0.22);tone(1175,0.12,0.22,'sine',0.2);}
+    else if(kind==='ask'){tone(784,0,0.14,'sine',0.22);tone(988,0.1,0.14,'sine',0.22);tone(1319,0.2,0.26,'sine',0.2);}
+    else if(kind==='disc'){tone(180,0,0.07,'square',0.12);tone(120,0.01,0.09,'triangle',0.2);}
+    else if(kind==='call'){tone(660,0,0.12,'triangle',0.2);tone(990,0.1,0.2,'triangle',0.2);}
+    else if(kind==='win'){[523,659,784,1047].forEach(function(f,i){tone(f,i*0.11,0.3,'triangle',0.2);});}
+  }catch(e){}
+}
+function sfxWatch(){
+  if(!V||U.pondMode)return;
+  var ask=V.ask?V.ask.id:null,pn=(V.pond||[]).length,call=V.call?V.call.i+':'+V.call.text:'',res=(V.over&&V.result)?V.handNo+':'+V.result.type:'';
+  if(!SFX.init||V.handNo!==SFX.hand){SFX.init=true;SFX.hand=V.handNo;SFX.ask=ask;SFX.pond=pn;SFX.call=call;SFX.res=res;return;}   /* 第一次/新一局只記基線,唔出聲 */
+  if(ask!=null&&ask!==SFX.ask&&SFX.on.turn)sfxPlay(V.ask.kind==='turn'?'turn':'ask');
+  if(pn>SFX.pond&&SFX.on.disc)sfxPlay('disc');
+  if(call&&call!==SFX.call&&SFX.on.call)sfxPlay('call');
+  if(res&&res!==SFX.res&&SFX.on.call&&V.result.type==='win')sfxPlay('win');
+  SFX.ask=ask;SFX.pond=pn;SFX.call=call;SFX.res=res;
+}
+function sfxHTML(){
+  var rows=[['turn','輪到你出牌 / 可以碰上食糊','提示音'],['disc','打牌聲','牌落枱'],['call','碰、上、槓、食糊','提示音']];
+  return '<div class="ov"><div class="sheet"><h2>音效</h2><div class="opts" style="display:grid;gap:10px;margin:8px 0 14px">'+rows.map(function(r){
+    var on=SFX.on[r[0]];
+    return '<button class="btn block" data-act="sfxTog" data-v="'+r[0]+'" aria-pressed="'+(on?'true':'false')+'" style="display:flex;justify-content:space-between;align-items:center;text-align:left"><span>'+r[1]+'<small style="display:block;color:var(--muted);font-weight:400">'+r[2]+'</small></span><b style="color:'+(on?'var(--accent)':'var(--muted)')+'">'+(on?'開':'閂')+'</b></button>';}).join('')+'</div>'+
+    '<p class="note">iPad 要撳過一下畫面先會出聲;聲音係瀏覽器合成,唔使額外載入。</p>'+
+    '<div class="opts"><button class="btn" data-act="sfxTest">試聽</button><button class="btn pri" data-act="closeSfx">完成</button></div></div></div>';
+}
 function draw(){
   if(U.pondMode){drawPondScreen();return;}
   if(!els.opps)return;
@@ -2679,7 +2726,7 @@ function draw(){
     /* 記低最後一隻出牌/自己摸嘅牌:房間伺服器(舊引擎)嘅結果冇 tile,贏牌時靠呢個推出食糊牌 */
     if(V.last&&V.last.t!=null)U.tkLast=V.last.t;
     var mp=V.players&&V.players[V.me];if(mp&&mp.drawn!=null)U.tkDrawn=mp.drawn;}
-  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();
+  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
   els.speed.textContent='速度:'+(S.speed===1?'標準':'快');
@@ -2726,6 +2773,10 @@ function handleAct(act,b){
   else if(act==='rules'){U.rules=true;render();}
   else if(act==='closeRules'){U.rules=false;render();}
   else if(act==='tiles'){U.tiles=true;render();}
+  else if(act==='sfx'){sfxCtx();U.sfxOpen=true;render();}
+  else if(act==='sfxTog'){SFX.on[v]=SFX.on[v]?0:1;sfxSave();sfxCtx();if(SFX.on[v])sfxPlay(v==='turn'?'turn':v==='disc'?'disc':'call');render();}
+  else if(act==='sfxTest'){sfxCtx();sfxPlay('turn');setTimeout(function(){sfxPlay('disc');},500);setTimeout(function(){sfxPlay('call');},900);}
+  else if(act==='closeSfx'){U.sfxOpen=false;render();}
   else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
   else if(act==='renameOk'){applyRename();render();}
   else if(act==='renameCancel'){U.renaming=false;U.nameDraft=null;render();}
