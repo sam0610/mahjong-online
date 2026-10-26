@@ -2791,6 +2791,17 @@ function copyDiag(){
   try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){done(true);},function(){done(false);});return;}}catch(e){}
   done(false);
 }
+function gateHTML(){
+  return '<div class="ov"><div class="sheet"><h2>加入房間 '+esc(U.roomInput||'')+'</h2><p class="note">請先輸入你嘅名(最多 8 個字),其他玩家會見到。</p>'+
+    '<div class="opts"><input class="inp" id="gname" maxlength="8" autocomplete="off" placeholder="例如:阿強"></div>'+
+    '<div class="opts"><button class="btn pri" data-act="gateOk">加入</button><button class="btn" data-act="gateNo">取消</button></div></div></div>';
+}
+function gateGo(){
+  var el=document.getElementById('gname'),nm=el?String(el.value).trim().slice(0,8):'';
+  if(!nm){if(el)el.focus();return;}
+  U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}
+  U.joinGate=false;U.rejoin='';joinRoom();
+}
 function renameHTML(){
   return '<div class="ov"><div class="sheet"><h2>改名</h2><p class="note">最多 8 個字,會即時顯示俾其他玩家睇。</p>'+
     '<div class="opts"><input class="inp" id="newname" maxlength="8" autocomplete="off" placeholder="你嘅名" value="'+esc(U.renameInit||'')+'"></div>'+
@@ -2818,7 +2829,8 @@ function tilesHTML(){
 }
 function drawOverlay(){
   var h='';
-  if(U.renaming)h=renameHTML();
+  if(U.joinGate)h=gateHTML();
+  else if(U.renaming)h=renameHTML();
   else if(U.tiles)h=tilesHTML();
   else if(U.sfxOpen)h=sfxHTML();
   else if(U.rules)h=rulesHTML();
@@ -2942,6 +2954,8 @@ function handleAct(act,b){
   else if(act==='sfxTog'){SFX.on[v]=SFX.on[v]?0:1;sfxSave();sfxCtx();if(SFX.on[v])sfxPlay(v==='turn'?'turn':v==='disc'?'disc':'call');render();}
   else if(act==='sfxTest'){sfxCtx();sfxPlay('turn');setTimeout(function(){sfxPlay('disc');},500);setTimeout(function(){sfxPlay('call');},900);}
   else if(act==='closeSfx'){U.sfxOpen=false;render();}
+  else if(act==='gateOk')gateGo();
+  else if(act==='gateNo'){U.joinGate=false;U.roomInput='';render();}
   else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
   else if(act==='renameOk'){applyRename();render();}
   else if(act==='renameCancel'){U.renaming=false;U.nameDraft=null;render();}
@@ -3119,6 +3133,7 @@ function boot2(){
       else{var a=U.spSel;U.spSel=null;seatMove(a,sv);draw();}
     });
   })();
+  document.addEventListener('keydown',function(e){if(e.key==='Enter'&&U.joinGate&&e.target&&e.target.id==='gname'){e.preventDefault();gateGo();}});
   document.addEventListener('click',onClick);
   window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
   document.addEventListener('input',onInput);
@@ -3133,7 +3148,7 @@ function boot2(){
     keepAwake();draw();joinRoom();return;
   }
   var m=/[?&#]room=([A-Za-z0-9]+)/.exec((location.search||'')+(location.hash||''));
-  if(m){U.roomInput=m[1].toUpperCase();if(netOK()){U.rejoin='';joinRoom();}}   /* 分享連結:直接入房,唔經主頁 */
+  if(m){U.roomInput=m[1].toUpperCase();if(netOK()){U.rejoin='';if(!(U.name||'').trim()){U.joinGate=true;}else joinRoom();}}   /* 分享連結:直接入房,唔經主頁 */
   setInterval(function(){
     var pr=NET.peer;if(pr&&pr.disconnected&&!pr.destroyed&&(U.role==='host'||U.pondOnly)){try{pr.reconnect();}catch(e){}}
     if(U.role==='host'&&!S.running&&NET.members.length)sendLobby();
