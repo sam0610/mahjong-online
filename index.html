@@ -2695,7 +2695,7 @@ function lobbyHTML(){
     h+='<h3>玩家('+l.players.length+' / '+l.n+')</h3><div class="plist">'+l.players.map(function(nm,i){return '<div>'+esc(nm)+(i===0?'<span class="rel">房主</span>':'')+'</div>';}).join('')+
       new Array(Math.max(0,l.n-l.players.length)+1).join('<div class="empty">電腦補位</div>')+'</div><p class="note">'+l.n+' 個座位 · '+l.minFan+' 番起糊</p>';
   }
-  h+='<div class="opts">'+(host?'<button class="btn pri" data-act="startRoom"'+(U.code?'':' disabled')+'>開始遊戲</button>':'')+'<button class="btn" data-act="leave">'+(host0?'關房':'離開')+'</button></div></div></div>';
+  h+='<div class="opts">'+(host?'<button class="btn pri" data-act="startRoom"'+(U.code?'':' disabled')+'>開始遊戲</button>':'')+'<button class="btn" data-act="rename">改名</button><button class="btn" data-act="leave">'+(host0?'關房':'離開')+'</button></div></div></div>';
   return h;
 }
 var SP_POS=function(n){return n===4?['pb','pr','pt','pl']:n===3?['pb','pr','pl']:['pb','pt'];};
@@ -2807,6 +2807,7 @@ function applyRename(){
   U.name=nm;try{localStorage.setItem('mj_name',nm);}catch(e){}
   if(U.role==='client'&&NET.conn)safeSend(NET.conn,{t:'rename',name:nm});
   else if(S.running&&S.players[0]&&(U.role==='host'||U.role==='solo'))S.players[0].name=nm;
+  else if(U.role==='host'&&U.screen==='lobby'&&!S.running)sendLobby();
   U.renaming=false;U.nameDraft=null;
 }
 function tilesHTML(){
