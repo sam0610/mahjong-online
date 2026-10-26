@@ -1200,6 +1200,7 @@ function pungRaises(p,t){
 function autoHumanAnswer(p,a){
   var o=a.opts;
   if(a.kind==='roll')return {a:'roll'};
+  if(a.kind==='dok')return {a:'ok'};
   if(o.ev&&o.ev.fan>=S.minFan)return {a:'win'};
   if(a.kind==='claim')return {a:'pass'};
   if(o.claimed)return {a:'discard',t:chooseDiscard3(p)};
@@ -1247,7 +1248,7 @@ function ask(seat,kind,opts){
     var p=S.players[seat];
     S.asks[seat]={id:++askSeq,kind:kind,opts:opts,res:res,rej:rej,since:Date.now()};
     scheduleAuto(seat);
-    S.msg=kind==='roll'?'擲骰決定邊個做莊':kind==='turn'?'輪到 '+p.name+(opts.claimed?'(碰/上之後打牌)':''):S.players[opts.from].name+' 打出 '+tname(opts.tile);
+    S.msg=kind==='roll'?'擲骰決定邊個做莊':kind==='dok'?'確認開始':kind==='turn'?'輪到 '+p.name+(opts.claimed?'(碰/上之後打牌)':''):S.players[opts.from].name+' 打出 '+tname(opts.tile);
     render();
   });
 }
@@ -1255,6 +1256,7 @@ function validAnswer(seat,a,v){
   var o=a.opts,p=S.players[seat];
   if(!v||typeof v.a!=='string')return false;
   if(a.kind==='roll')return v.a==='roll';
+  if(a.kind==='dok')return v.a==='ok';
   if(a.kind==='turn'){
     if(v.a==='auto')return !!p.auto;
     if(v.a==='discard')return p.hand.indexOf(v.t)>=0;
@@ -1279,6 +1281,7 @@ function answerSeat(seat,id,v){
 function autoAnswer(p,a){
   var o=a.opts;
   if(a.kind==='roll')return {a:'roll'};
+  if(a.kind==='dok')return {a:'ok'};
   if(a.kind==='turn'){if(o.claimed)return {a:'discard',t:chooseDiscard(p)};return aiTurn(p,o.ev,o.kongs);}
   if(o.ev&&o.ev.fan>=S.minFan&&winOK(p,o.ev))return {a:'win'};
   if(o.pung){var d=aiPung(p,o.tile,!!o.kong);if(d==='kong')return {a:'kong'};if(d)return {a:'pung'};}
@@ -1619,8 +1622,16 @@ async function rollDealer(){
   }
   S.dealer=S.d0=S.dice.win;
   P.forEach(function(p,j){p.wind=(j-S.dealer+n)%n;});
-  S.msg=P[S.dealer].name+' 做莊(東)';render();
-  await T(3000);
+  S.msg=P[S.dealer].name+' 做莊(東)';S.dice.left=10;render();
+  var tok=S.token;
+  P.forEach(function(p,j){if(p.human)ask(j,'dok',{});});
+  S.msg=P[S.dealer].name+' 做莊(東)';
+  for(var left=10;left>0;left--){
+    S.dice.left=left;render();
+    if(!Object.keys(S.asks).length)break;
+    await T(1000);
+  }
+  Object.keys(S.asks).forEach(function(k){var a=S.asks[k];if(a&&a.kind==='dok'){delete S.asks[k];a.res({a:'ok'});}});
   S.dice=null;render();
 }
 function runFirst(){rollDealer().then(function(){return playHand(false);}).catch(function(e){if(e!==CANCEL)console.error(e);});}
@@ -1721,7 +1732,7 @@ function buildView(seat){
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
     result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number),
     fz:S.frozen?{n:S.frozenName||'',left:S.frozenLeft||0}:null,
-    dice:S.dice?{vals:S.dice.vals,rolling:S.dice.rolling,tie:S.dice.tie,win:S.dice.win}:null};
+    dice:S.dice?{vals:S.dice.vals,rolling:S.dice.rolling,tie:S.dice.tie,win:S.dice.win,left:S.dice.left||0}:null};
 }
 /* 牌河屏用嘅公開資料:冇任何人嘅手牌(局終先公開) */
 function pondView(){
@@ -2504,6 +2515,10 @@ function diceCell(i){
   if(pend&&mine)h+='<button class="btn pri" data-act="roll">撳我擲骰</button>';
   else h+='<span class="dc-d">'+(v?pipEl(v[0])+pipEl(v[1]):pend?pipEl(0,1)+pipEl(0,1):pipEl(0)+pipEl(0))+'</span>'+(v?'<span class="dc-sum">'+(v[0]+v[1])+'</span>':'<span class="dc-wt">等緊…</span>');
   if(won)h+='<span class="dc-wd">'+WIND[(i-D.win+n)%n]+(D.win===i?' · 莊':'')+'</span>';
+  if(won&&i===V.me){
+    if(V.ask&&V.ask.kind==='dok')h+='<button class="btn pri" data-act="dok">OK · '+D.left+'</button>';
+    else h+='<span class="dc-wt">等其他人 · '+D.left+'</span>';
+  }
   return h+'</div>';
 }
 function tpool(i,ps){
@@ -2585,7 +2600,7 @@ function drawMid(){
   var msg;
   if(V.ask){
     var o=V.ask.opts;
-    msg=V.ask.kind==='roll'?'擲骰決定莊家':V.ask.kind==='turn'?(o.claimed?'碰/上之後,請打出一張牌':'輪到你,請打出一張牌'):esc(V.players[o.from].name)+' 打出 '+tname(o.tile);
+    msg=V.ask.kind==='roll'?'擲骰決定莊家':V.ask.kind==='dok'?esc(V.msg||''):V.ask.kind==='turn'?(o.claimed?'碰/上之後,請打出一張牌':'輪到你,請打出一張牌'):esc(V.players[o.from].name)+' 打出 '+tname(o.tile);
   }else msg=esc(V.msg||'');
   var lastd=V.last?'<span class="lastd">'+tileEl(V.last.t)+'</span>':'';
   var extra='';
@@ -3010,6 +3025,7 @@ function handleAct(act,b){
     if(U.role==='client'){safeSend(NET.conn,{t:'auto',on:!V.auto});}
     else setAuto(0,!V.auto);
   }
+  else if(act==='dok'){if(V&&V.ask&&V.ask.kind==='dok')answer({a:'ok'});}
   else if(act==='roll'){if(V&&V.ask&&V.ask.kind==='roll')answer({a:'roll'});}
   else if(act==='seatShuf'){if(U.role==='host')shuffleSeats();else if(NET.conn)safeSend(NET.conn,{t:'shuffle'});}
   else if(act==='nokong'){if(!V||!V.ask)return;if(V.auto)answer({a:'auto'});else{U.kqDismiss=V.ask.id;draw();}}
