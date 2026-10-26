@@ -202,6 +202,9 @@ button{font:inherit;color:inherit}
 .dc-p.tie .dc-nm{background:#fff3d6;border-color:#f0b400}
 .dc-p.out{opacity:.5}
 .dc-wd{font:900 13px var(--sans);color:#fff;background:var(--hot);border-radius:6px;padding:1px 8px}
+.kbsel{outline:3px solid #f0b400;outline-offset:3px}
+.kbh{display:block;color:var(--muted);font:500 12px var(--sans);margin-top:4px;text-align:center;white-space:nowrap}
+.kbh kbd{font:700 11px/1 var(--mono);background:rgba(0,0,0,.1);border-radius:4px;padding:2px 5px;margin:0 2px}
 .btn kbd,.note kbd{font:700 11px/1 var(--mono);background:rgba(0,0,0,.14);border-radius:4px;padding:2px 5px;margin-left:6px;color:inherit}
 .btn.pri kbd,.btn.big kbd,.btn.win kbd{background:rgba(255,255,255,.28)}
 .dcgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px}
@@ -2440,7 +2443,7 @@ function leaveAll(silent){
 }
 function answer(v){
   var a=V&&V.ask;if(!a)return;
-  U.sel=null;
+  U.sel=null;U.cq=null;
   if(U.role==='client'){safeSend(NET.conn,{t:'ans',id:a.id,v:v});V.ask=null;draw();}
   else answerSeat(0,a.id,v);
 }
@@ -2638,14 +2641,14 @@ function drawDock(){
     }else if(a.kind==='claim'){
       var can=[];if(o.ev)can.push('胡');if(o.kong)can.push('槓');if(o.pung)can.push('碰');if((o.chows||[]).length)can.push('上');
       acts+='<div class="cmerge"><div class="alert"><span class="claimtile">'+tileEl(o.tile)+'</span><span>'+esc(V.players[o.from].name)+' 打出 '+tname(o.tile)+'<small>你可以 '+can.join(' / ')+'</small></span></div><div class="claimrow">';
-      if(o.ev)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+KB('H')+'</button>';
-      if(o.kong)acts+='<button class="btn big o" data-act="claimkong"><span class="lb k2">槓</span>'+KB('G')+'<span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
-      if(o.pung)acts+='<button class="btn big o" data-act="pung"><span class="lb k1">碰</span>'+KB('P')+'<span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
+      if(o.ev)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+'</button>';
+      if(o.kong)acts+='<button class="btn big o" data-act="claimkong"><span class="lb k2">槓</span><span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
+      if(o.pung)acts+='<button class="btn big o" data-act="pung"><span class="lb k1">碰</span><span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
       (o.chows||[]).forEach(function(s,ci){
         var ts=[s[0],s[1],o.tile].sort(function(x,y){return x-y;});
-        acts+='<button class="btn big" data-act="chow" data-seq="'+s[0]+','+s[1]+'"><span class="lb k3">上</span>'+KB((o.chows.length>1?'C'+(ci+1):'C'))+'<span class="bt">'+ts.map(function(x){return tileEl(x,x===o.tile?'hit':'');}).join('')+'</span></button>';
+        acts+='<button class="btn big" data-act="chow" data-seq="'+s[0]+','+s[1]+'"><span class="lb k3">上</span><span class="bt">'+ts.map(function(x){return tileEl(x,x===o.tile?'hit':'');}).join('')+'</span></button>';
       });
-      acts+='<button class="btn big passb" data-act="pass">PASS'+KB('Space')+'</button></div></div>';
+      acts+='<button class="btn big passb" data-act="pass">PASS</button></div>'+(COARSE?'':'<small class="kbh"><kbd>C</kbd> 揀 · <kbd>↑</kbd><kbd>↓</kbd> 移動 · <kbd>Space</kbd> 確認</small>')+'</div>';
       if(U.vibId!==a.id){U.vibId=a.id;try{if(navigator.vibrate&&COARSE)navigator.vibrate([90,60,90]);}catch(e){}}
     }
   }
@@ -2668,6 +2671,9 @@ function drawDock(){
   var mep=((V.call&&V.call.i===V.me)?'<span class="call">'+esc(V.call.text)+'</span>':'')+'<span class="mep'+(mturn?' on':'')+'"><span class="wchip">'+WIND[mp.wind]+'</span>'+(mp.name!=='你'?'<span class="nm">'+esc(mp.name)+'</span>':'')+(V.me===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+mp.score.toLocaleString()+'</span></span>';
   var dmsg=curMsg();
   els.dock.innerHTML='<div class="actions">'+mep+(dmsg?'<span class="dmsg">'+dmsg+'</span>':'')+acts+'</div><div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
+  if(a&&a.kind==='claim'&&U.cq&&U.cq.id===a.id){
+    var cb=els.dock.querySelectorAll('.claimrow .btn');if(cb[U.cq.idx])cb[U.cq.idx].classList.add('kbsel');
+  }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
@@ -3219,15 +3225,12 @@ function boot2(){
     if(a.kind==='roll'){if(go){done();answer({a:'roll'});}return;}
     if(a.kind==='dok'){if(go){done();answer({a:'ok'});}return;}
     if(a.kind==='claim'){
-      if(K==='H'&&o.ev&&o.ev.fan>=V.minFan){done();answer({a:'win'});}
-      else if(K==='G'&&o.kong){done();answer({a:'kong'});}
-      else if(K==='P'&&o.pung){done();answer({a:'pung'});}
-      else if(K==='C'||/^[1-4]$/.test(k)){
-        var ch=o.chows||[];if(!ch.length)return;
-        var ix=/^[1-4]$/.test(k)?+k-1:0;if(ix>=ch.length)return;
-        done();answer({a:'chow',seq:ch[ix]});
-      }
-      else if(go||K==='Escape'||K==='X'||K==='N'){done();answer({a:'pass'});}
+      var cbs=[].slice.call(els.dock.querySelectorAll('.claimrow .btn')),act=U.cq&&U.cq.id===a.id;
+      if(K==='C'){done();U.cq={id:a.id,idx:0};draw();}
+      else if(act&&(K==='ArrowDown'||K==='ArrowRight')){done();U.cq.idx=(U.cq.idx+1)%cbs.length;draw();}
+      else if(act&&(K==='ArrowUp'||K==='ArrowLeft')){done();U.cq.idx=(U.cq.idx-1+cbs.length)%cbs.length;draw();}
+      else if(act&&go){var cbt=cbs[U.cq.idx];if(cbt){done();U.cq=null;handleAct(cbt.getAttribute('data-act'),cbt);}}
+      else if(go||K==='Escape'){done();U.cq=null;answer({a:'pass'});}
       return;
     }
     if(a.kind!=='turn')return;
