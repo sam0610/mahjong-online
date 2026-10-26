@@ -202,6 +202,8 @@ button{font:inherit;color:inherit}
 .dc-p.tie .dc-nm{background:#fff3d6;border-color:#f0b400}
 .dc-p.out{opacity:.5}
 .dc-wd{font:900 13px var(--sans);color:#fff;background:var(--hot);border-radius:6px;padding:1px 8px}
+.btn kbd,.note kbd{font:700 11px/1 var(--mono);background:rgba(0,0,0,.14);border-radius:4px;padding:2px 5px;margin-left:6px;color:inherit}
+.btn.pri kbd,.btn.big kbd,.btn.win kbd{background:rgba(255,255,255,.28)}
 .dcgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:4px}
 .dcp{display:grid;justify-items:center;gap:6px;background:var(--surface-2);border-radius:12px;padding:8px 4px}
 .dcell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;padding:2px 0}
@@ -2615,6 +2617,7 @@ function drawMid(){
   }
   els.mid.innerHTML='<span class="mi">'+info+'</span><span class="msg">'+msg+'</span>'+lastd+'<span class="mw">牌牆 <b>'+V.live+'</b></span>'+extra;
 }
+function KB(k){return COARSE?'':'<kbd>'+k+'</kbd>';}
 function drawDock(){
   if(!V){els.dock.innerHTML='';els.dock.hidden=true;return;}
   els.dock.hidden=false;
@@ -2623,26 +2626,26 @@ function drawDock(){
     o=a.opts;
     if(a.kind==='turn'){
       if(o.ev){
-        if(o.ev.fan>=V.minFan)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+'</button>';
+        if(o.ev.fan>=V.minFan)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+KB('H')+'</button>';
         else acts+='<span class="note">已經可以糊,但只有 '+o.ev.fan+' 番(起糊 '+V.minFan+' 番)</span>';
       }
       if(o.kongDrawn!=null&&U.kqDismiss!==a.id){
-        acts+='<span class="note kq">摸到 '+tname(o.kongDrawn)+',可以槓,槓唔槓?</span><button class="btn pri" data-act="kong" data-t="'+o.kongDrawn+'">槓 '+tname(o.kongDrawn)+'</button><button class="btn" data-act="nokong">唔槓</button>';
+        acts+='<span class="note kq">摸到 '+tname(o.kongDrawn)+',可以槓,槓唔槓?</span><button class="btn pri" data-act="kong" data-t="'+o.kongDrawn+'">槓 '+tname(o.kongDrawn)+KB('G')+'</button><button class="btn" data-act="nokong">唔槓'+KB('N')+'</button>';
       }
       o.kongs.forEach(function(t){if(o.kongDrawn!=null&&U.kqDismiss!==a.id&&t===o.kongDrawn)return;acts+='<button class="btn" data-act="kong" data-t="'+t+'">槓 '+tname(t)+'</button>';});
       if(COARSE&&U.sel&&U.selT!=null)acts+='<button class="btn pri" data-act="discardsel">打出 '+tname(U.selT)+'</button>';
-      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點選一張牌打出')+'</span>';
+      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點選一張牌打出;鍵盤:<kbd>←</kbd><kbd>→</kbd> 揀牌,<kbd>Enter</kbd> 打出')+'</span>';
     }else if(a.kind==='claim'){
       var can=[];if(o.ev)can.push('胡');if(o.kong)can.push('槓');if(o.pung)can.push('碰');if((o.chows||[]).length)can.push('上');
       acts+='<div class="cmerge"><div class="alert"><span class="claimtile">'+tileEl(o.tile)+'</span><span>'+esc(V.players[o.from].name)+' 打出 '+tname(o.tile)+'<small>你可以 '+can.join(' / ')+'</small></span></div><div class="claimrow">';
-      if(o.ev)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+'</button>';
-      if(o.kong)acts+='<button class="btn big o" data-act="claimkong"><span class="lb k2">槓</span><span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
-      if(o.pung)acts+='<button class="btn big o" data-act="pung"><span class="lb k1">碰</span><span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
-      (o.chows||[]).forEach(function(s){
+      if(o.ev)acts+='<button class="btn win" data-act="win">胡 · '+fanLabel(o.ev)+KB('H')+'</button>';
+      if(o.kong)acts+='<button class="btn big o" data-act="claimkong"><span class="lb k2">槓</span>'+KB('G')+'<span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
+      if(o.pung)acts+='<button class="btn big o" data-act="pung"><span class="lb k1">碰</span>'+KB('P')+'<span class="bt">'+tileEl(o.tile,'hit')+tileEl(o.tile)+tileEl(o.tile)+'</span></button>';
+      (o.chows||[]).forEach(function(s,ci){
         var ts=[s[0],s[1],o.tile].sort(function(x,y){return x-y;});
-        acts+='<button class="btn big" data-act="chow" data-seq="'+s[0]+','+s[1]+'"><span class="lb k3">上</span><span class="bt">'+ts.map(function(x){return tileEl(x,x===o.tile?'hit':'');}).join('')+'</span></button>';
+        acts+='<button class="btn big" data-act="chow" data-seq="'+s[0]+','+s[1]+'"><span class="lb k3">上</span>'+KB((o.chows.length>1?'C'+(ci+1):'C'))+'<span class="bt">'+ts.map(function(x){return tileEl(x,x===o.tile?'hit':'');}).join('')+'</span></button>';
       });
-      acts+='<button class="btn big passb" data-act="pass">PASS</button></div></div>';
+      acts+='<button class="btn big passb" data-act="pass">PASS'+KB('Space')+'</button></div></div>';
       if(U.vibId!==a.id){U.vibId=a.id;try{if(navigator.vibrate&&COARSE)navigator.vibrate([90,60,90]);}catch(e){}}
     }
   }
@@ -3195,6 +3198,62 @@ function boot2(){
       else{var a=U.spSel;U.spSel=null;seatMove(a,sv);draw();}
     });
   })();
+  /* 鍵盤打牌:← → 揀牌、Enter/↓ 打出、H 胡、G 槓、P 碰、C 上、Space/Esc 過 */
+  var kbHandled=false;
+  document.addEventListener('keyup',function(e){if(kbHandled&&(e.key===' '||e.key==='Enter')){e.preventDefault();kbHandled=false;}});
+  document.addEventListener('keydown',function(e){
+    if(e.ctrlKey||e.metaKey||e.altKey||e.isComposing)return;
+    var tg=e.target&&e.target.tagName;if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT')return;
+    if(!V||U.pondMode)return;
+    var k=e.key,K=k.length===1?k.toUpperCase():k,a=V.ask,go=(K==='Enter'||K===' ');
+    function done(){e.preventDefault();kbHandled=true;}
+    var ovHtml=els.overlay&&els.overlay.innerHTML.trim();
+    if(ovHtml){
+      var nb=els.overlay.querySelector('[data-act="next"]');
+      if(nb&&(K==='Enter'||K==='N'||K===' ')){done();handleAct('next',nb);}
+      return;
+    }
+    if(V.over&&U.modalHidden&&(K==='Enter'||K==='N')){var nb2=els.mid&&els.mid.querySelector('[data-act="next"]');if(nb2){done();handleAct('next',nb2);return;}}
+    if(!a)return;
+    var o=a.opts||{};
+    if(a.kind==='roll'){if(go){done();answer({a:'roll'});}return;}
+    if(a.kind==='dok'){if(go){done();answer({a:'ok'});}return;}
+    if(a.kind==='claim'){
+      if(K==='H'&&o.ev&&o.ev.fan>=V.minFan){done();answer({a:'win'});}
+      else if(K==='G'&&o.kong){done();answer({a:'kong'});}
+      else if(K==='P'&&o.pung){done();answer({a:'pung'});}
+      else if(K==='C'||/^[1-4]$/.test(k)){
+        var ch=o.chows||[];if(!ch.length)return;
+        var ix=/^[1-4]$/.test(k)?+k-1:0;if(ix>=ch.length)return;
+        done();answer({a:'chow',seq:ch[ix]});
+      }
+      else if(go||K==='Escape'||K==='X'||K==='N'){done();answer({a:'pass'});}
+      return;
+    }
+    if(a.kind!=='turn')return;
+    var kq=o.kongDrawn!=null&&U.kqDismiss!==a.id;
+    if(K==='H'&&o.ev&&o.ev.fan>=V.minFan){done();answer({a:'win'});return;}
+    if(K==='G'){
+      var kt=null;
+      if(kq)kt=o.kongDrawn;
+      else if(o.kongs&&o.kongs.length){kt=U.selT!=null&&o.kongs.indexOf(U.selT)>=0?U.selT:o.kongs[0];}
+      if(kt!=null){done();answer({a:'kong',t:kt});}
+      return;
+    }
+    if(kq&&(K==='N'||K==='Escape')){done();handleAct('nokong',null);return;}
+    var tiles=[].slice.call(els.dock.querySelectorAll('[data-k]'));if(!tiles.length)return;
+    var cur=-1;tiles.forEach(function(x,i){if(x.getAttribute('data-k')===U.sel)cur=i;});
+    var def=tiles.length-1;   /* 預設係最後一隻(摸返嚟嗰隻) */
+    function pick(i){i=Math.max(0,Math.min(tiles.length-1,i));U.sel=tiles[i].getAttribute('data-k');U.selT=+tiles[i].getAttribute('data-t');done();draw();}
+    if(K==='ArrowLeft'||K==='A'){pick((cur<0?def:cur)-1);}
+    else if(K==='ArrowRight'||K==='D'){pick((cur<0?def:cur)+1);}
+    else if(K==='Home'){pick(0);}
+    else if(K==='End'){pick(tiles.length-1);}
+    else if(go||K==='ArrowDown'||K==='S'){
+      var el=tiles[cur<0?def:cur];
+      done();answer({a:'discard',t:+el.getAttribute('data-t')});
+    }
+  });
   document.addEventListener('keydown',function(e){if(e.key==='Enter'&&U.joinGate&&e.target&&e.target.id==='gname'){e.preventDefault();gateGo();}});
   document.addEventListener('click',onClick);
   window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
