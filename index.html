@@ -202,7 +202,7 @@ button{font:inherit;color:inherit}
 .dc-p.tie .dc-nm{background:#fff3d6;border-color:#f0b400}
 .dc-p.out{opacity:.5}
 .dc-wd{font:900 13px var(--sans);color:#fff;background:var(--hot);border-radius:6px;padding:1px 8px}
-.kbsel{outline:3px solid #f0b400;outline-offset:3px}
+.kbsel{outline:3px solid #f0b400;outline-offset:3px;transform:scale(1.3);transform-origin:right center;z-index:5;position:relative}
 .kbh{display:block;color:var(--muted);font:500 12px var(--sans);margin-top:4px;text-align:center;white-space:nowrap}
 .kbh kbd{font:700 11px/1 var(--mono);background:rgba(0,0,0,.1);border-radius:4px;padding:2px 5px;margin:0 2px}
 .btn kbd,.note kbd{font:700 11px/1 var(--mono);background:rgba(0,0,0,.14);border-radius:4px;padding:2px 5px;margin-left:6px;color:inherit}
@@ -452,7 +452,7 @@ body.pondmode .sheet{color:var(--ink)}
 @keyframes ring{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:.65}}
 .tpool .t.last,.pool .t.last{outline:none}
 .tpool .t.last::before,.pool .t.last::before{content:'';position:absolute;inset:-7px -9px;border:3px solid #f0b400;border-radius:50%;pointer-events:none;animation:ring 1.3s ease-in-out infinite;z-index:3}
-.hand .t.sel{transform:translateY(-20px) scale(1.14);z-index:4;box-shadow:0 10px 18px rgba(20,30,40,.3)}
+.hand .t.sel{transform:translateY(-20px) scale(1.3);z-index:4;box-shadow:0 10px 18px rgba(20,30,40,.3)}
 .call{background:#2b2e34!important;color:#ffe9b0!important;border:2px solid #e8d6a8;border-radius:14px!important}
 @keyframes bub{0%{opacity:0;transform:translateY(-50%) scale(.6)}12%{opacity:1;transform:translateY(-50%) scale(1.06)}20%{transform:translateY(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-50%) scale(.96)}}
 .dbub{position:absolute;top:50%;z-index:8;display:inline-flex;--tw:30px;padding:8px 10px;border-radius:14px;background:#2b2e34;border:2px solid #e8d6a8;animation:bub 1.9s ease-out var(--fd,0ms) both;pointer-events:none}
@@ -2637,7 +2637,7 @@ function drawDock(){
       }
       o.kongs.forEach(function(t){if(o.kongDrawn!=null&&U.kqDismiss!==a.id&&t===o.kongDrawn)return;acts+='<button class="btn" data-act="kong" data-t="'+t+'">槓 '+tname(t)+'</button>';});
       if(COARSE&&U.sel&&U.selT!=null)acts+='<button class="btn pri" data-act="discardsel">打出 '+tname(U.selT)+'</button>';
-      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點選一張牌打出;鍵盤:<kbd>←</kbd><kbd>→</kbd> 揀牌,<kbd>Space</kbd>/<kbd>↑</kbd> 打出')+'</span>';
+      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點一下揀牌(放大),再點(連按兩下)打出;鍵盤:<kbd>←</kbd><kbd>→</kbd> 揀牌,<kbd>Space</kbd>/<kbd>↑</kbd> 打出')+'</span>';
     }else if(a.kind==='claim'){
       var can=[];if(o.ev)can.push('胡');if(o.kong)can.push('槓');if(o.pung)can.push('碰');if((o.chows||[]).length)can.push('上');
       acts+='<div class="cmerge"><div class="alert"><span class="claimtile">'+tileEl(o.tile)+'</span><span>'+esc(V.players[o.from].name)+' 打出 '+tname(o.tile)+'<small>你可以 '+can.join(' / ')+'</small></span></div><div class="claimrow">';
@@ -3112,7 +3112,7 @@ function onClick(e){
   var k=e.target.closest('[data-k]');
   if(k&&V&&V.ask&&V.ask.kind==='turn'){
     var key=k.getAttribute('data-k'),t=+k.getAttribute('data-t');
-    if(COARSE&&U.sel!==key){U.sel=key;U.selT=t;draw();return;}
+    if(U.sel!==key){U.sel=key;U.selT=t;draw();return;}   /* 撳一下揀(放大),再撳一下(連續兩下)打出 */
     answer({a:'discard',t:t});
   }
 }
