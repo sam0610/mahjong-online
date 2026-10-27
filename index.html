@@ -818,10 +818,10 @@ function planFan(p,c,melds){
   return pl.P+pl.Q>=4?9:0;
 }
 /* 電腦只食「混一色/清一色/對對糊/大番」,雜色平糊唔食 */
-/* 普通:唔刻意做大牌,平糊(夠起糊番數)都食,但 6 番或以上當睇漏、唔食 */
+/* 普通:起碼要混一色(或清一色、7 番或以上大牌)先食,自摸同出銃一律;平糊、對對糊都唔食 */
 function winOK(p,ev){
   if(p.human)return true;
-  if(p.level===1)return !!ev&&ev.fan<6;
+  if(p.level===1)return !!ev&&(!!ev.limit||ev.fan>=7||ev.items.some(function(x){return /混一色|清一色/.test(x[0]);}));
   return bigOK(ev);
 }
 function bigOK(ev){
@@ -1505,6 +1505,7 @@ async function resolveClaims(d,t){
     var ev=evalWith(p,t,{self:false,round:S.round,last:last});
     if(!ev||ev.fan<S.minFan)continue;
     if(p.human){a=await ask(s,'claim',{tile:t,from:d,ev:ev});if(a.a==='win')return {type:'win',seat:s,ev:ev,tile:t};}
+    else if(p.level===1&&!winOK(p,ev))continue;   /* 普通:出銃都要混一色以上先食 */
     else return {type:'win',seat:s,ev:ev,tile:t};
   }
   var asked={};
