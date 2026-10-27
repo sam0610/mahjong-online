@@ -1061,8 +1061,8 @@ function chooseDiscard(p){
   if(p.level===3)return chooseDiscard3(p);
   if(p.level===2)return chooseDiscard2(p);
   var c=cnt(p.hand),m=p.melds.length,vis=visible(p),L=lean(p);
-  var plan=null;   /* 普通:唔揀一色/對對糊做目標,純粹最快聽牌 */
-  var flushish=false;
+  var plan=planOf(p,c,p.melds);   /* 普通:偏向做對對糊/混一色(因為只食大牌型),但仲係冇防守、約 35% 會打錯 */
+  var flushish=L.n>=L.total*0.72;
   var shs={},minSh=99,t;
   for(t=0;t<34;t++){if(!c[t])continue;c[t]--;var s=psh(c,m,plan);c[t]++;shs[t]=s;if(s<minSh)minSh=s;}
   var bestT=-1,bestCost=Infinity,cands=[];
