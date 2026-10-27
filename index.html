@@ -1505,7 +1505,7 @@ async function resolveClaims(d,t){
     var ev=evalWith(p,t,{self:false,round:S.round,last:last});
     if(!ev||ev.fan<S.minFan)continue;
     if(p.human){a=await ask(s,'claim',{tile:t,from:d,ev:ev});if(a.a==='win')return {type:'win',seat:s,ev:ev,tile:t};}
-    else if(p.level===1&&!winOK(p,ev))continue;   /* 普通:出銃都要混一色以上先食 */
+    else if(!winOK(p,ev))continue;   /* 食糊限制(只食大牌型):自摸同出銃一律,三個難度都一樣 */
     else return {type:'win',seat:s,ev:ev,tile:t};
   }
   var asked={};
