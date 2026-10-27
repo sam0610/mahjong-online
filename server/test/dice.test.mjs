@@ -38,7 +38,7 @@ await sleep(100);
 assert(B.view.ask,'invalid ignored');
 B.send({t:'ans',id:B.view.ask.id,v:{a:'roll'}});
 C.send({t:'ans',id:C.view.ask.id,v:{a:'roll'}});
-for(let i=0;i<40&&!(S.dice&&S.dice.win>=0);i++)await sleep(300);
+for(let i=0;i<80&&!(S.dice&&S.dice.win>=0);i++){await sleep(300);for(const x of [A,B,C])if(x.view&&x.view.ask&&x.view.ask.kind==='roll')x.send({t:'ans',id:x.view.ask.id,v:{a:'roll'}});}   // 平手會再擲,要再答
 assert(S.dice&&S.dice.win>=0,'winner shown');
 assert.strictEqual(A.view.ask&&A.view.ask.kind,'dok');
 const t0=Date.now();
