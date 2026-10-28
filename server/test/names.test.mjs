@@ -18,4 +18,9 @@ assert.strictEqual(r.s,200);r=await call({op:'add',name:'y'},'9.9.9.9');assert.s
 // 刪到最少 10
 const m=new Names({storage:{get:async k=>k==='names'?Array.from({length:10},(_,i)=>'n'+i):undefined,put:async()=>{}}});
 const rr=await m.fetch(new Request('https://x/names',{method:'POST',body:JSON.stringify({op:'del',name:'n1'})}));assert.strictEqual(rr.status,400);
+// 使用次數
+r=await call();assert.deepStrictEqual(r.j.uses,{});
+r=await call({op:'use',names:['雀神','雀神','唔存在']},'2.2.2.2');assert.strictEqual(r.j.uses['雀神'],2);assert(!('唔存在' in r.j.uses));
+r=await call({op:'rename',from:'雀神',to:'雀聖'});assert.strictEqual(r.j.uses['雀聖'],2);assert(!('雀神' in r.j.uses));
+r=await call({op:'del',name:'雀聖'});assert(!('雀聖' in r.j.uses));
 console.log('names OK');

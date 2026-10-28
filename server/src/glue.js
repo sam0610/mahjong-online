@@ -37,11 +37,12 @@ function startServerGame(){
   var n=U.cfg.n,all=NET.members.filter(function(m){return m.joined&&!m.pond;}),mem=seatPlan();
   S.token++;S.asks={};S.ready={};
   S.n=n;S.minFan=U.cfg.minFan;S.level=U.cfg.level;S.players=[];
-  AI_NAMES=aiNamesShuffle();var used={},ai=0;
+  AI_NAMES=aiNamesShuffle();var used={},ai=0;AI_USED=[];
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
   for(var i=0;i<n;i++){
     var m=mem[i],human=!!m;
-    var name=m?uniq(m.name):uniq(AI_NAMES[ai++]);
+    var name=m?uniq(m.name):uniq(AI_NAMES[ai]);
+    if(!m){AI_USED.push(AI_NAMES[ai]);ai++;}
     S.players.push({id:i,name:name,human:human,remote:human,score:1000,level:S.level,hand:[],melds:[],flowers:[],discards:[],wind:0,drawn:null});
     if(m){m.seat=i;S.players[i].pid=m.pid||'';}
   }
@@ -146,7 +147,9 @@ return {
   onPersist:function(f){persistCb=f;},
   makeConn:makeConn,
   accept:function(conn){onHostConn(conn);},
-  start:function(conn,names){
+  usedAi:function(){return AI_USED.slice();},
+  start:function(conn,names,uses){
+    if(uses&&typeof uses==='object')AI_USES=uses;
     if(Array.isArray(names))AI_CUSTOM=names.filter(function(x){return typeof x==='string'&&x.trim();}).map(function(x){return x.trim().slice(0,8);}).slice(0,60);
     var i=NET.members.findIndex(function(m){return m.conn===conn;});
     if(i!==0)return false;    // 淨係房主(第一個入嘅人)可以開始

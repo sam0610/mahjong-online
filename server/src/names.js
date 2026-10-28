@@ -19,9 +19,17 @@ export class Names{
   async fetch(req){
     const ip=req.headers.get('CF-Connecting-IP')||'';
     let names=await this.load();
-    if(req.method==='GET')return J({names,canUndo:((await this.state.storage.get('log'))||[]).length>0});
+    let uses=(await this.state.storage.get('uses'))||{};
+    if(req.method==='GET')return J({names,uses,canUndo:((await this.state.storage.get('log'))||[]).length>0});
     let d;try{d=await req.json();}catch(e){return J({err:'格式錯'},400);}
     const op=d&&d.op;
+    if(op==='use'){   /* 記錄電腦名用咗一次(每局開波報一次),唔入撤銷記錄 */
+      if(ip&&this.limited(ip,'use',20))return J({err:'太密,等一陣'},429);
+      const list=Array.isArray(d.names)?d.names.slice(0,4):[];
+      list.forEach(n=>{if(names.includes(n))uses[n]=(uses[n]||0)+1;});
+      await this.state.storage.put('uses',uses);
+      return J({names,uses,canUndo:((await this.state.storage.get('log'))||[]).length>0});
+    }
     if(op==='undo'||op==='reset'){
       if(this.limited(ip,'pw',6))return J({err:'試太多次,等一分鐘'},429);
       if(await sha(d.pw)!==PW_HASH)return J({err:'密碼錯'},403);
@@ -34,18 +42,18 @@ export class Names{
       if(!n)err='名要 1–8 個字';else if(names.includes(n))err='已經有呢個名';else if(names.length>=MAX)err='名單滿咗(最多 '+MAX+' 個)';else names.push(n);
     }else if(op==='rename'){
       const i=names.indexOf(d.from),n=clean(d.to);
-      if(i<0)err='搵唔到原本個名';else if(!n)err='名要 1–8 個字';else if(n!==d.from&&names.includes(n))err='已經有呢個名';else names[i]=n;
+      if(i<0)err='搵唔到原本個名';else if(!n)err='名要 1–8 個字';else if(n!==d.from&&names.includes(n))err='已經有呢個名';else{names[i]=n;if(n!==d.from&&uses[d.from]!=null){uses[n]=uses[d.from];delete uses[d.from];}}
     }else if(op==='del'){
       const i=names.indexOf(d.name);
-      if(i<0)err='搵唔到個名';else if(names.length<=MIN)err='名單最少要保留 '+MIN+' 個';else names.splice(i,1);
+      if(i<0)err='搵唔到個名';else if(names.length<=MIN)err='名單最少要保留 '+MIN+' 個';else{names.splice(i,1);delete uses[d.name];}
     }else if(op==='undo'){
-      const e=log.pop();if(!e)err='冇可以撤銷嘅改動';else{names=e.before;await this.state.storage.put('log',log);await this.state.storage.put('names',names);return J({names,canUndo:log.length>0});}
+      const e=log.pop();if(!e)err='冇可以撤銷嘅改動';else{names=e.before;await this.state.storage.put('log',log);await this.state.storage.put('names',names);return J({names,uses,canUndo:log.length>0});}
     }else if(op==='reset'){names=DEFAULTS.slice();}
     else err='未支援';
     if(err)return J({err,names:before},400);
     log.push({t:Date.now(),op,name:d.name||d.from||'',to:d.to||'',before});
     if(log.length>KEEP)log=log.slice(-KEEP);
-    await this.state.storage.put('names',names);await this.state.storage.put('log',log);
-    return J({names,canUndo:true});
+    await this.state.storage.put('names',names);await this.state.storage.put('log',log);await this.state.storage.put('uses',uses);
+    return J({names,uses,canUndo:true});
   }
 }

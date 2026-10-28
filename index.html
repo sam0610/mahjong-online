@@ -545,7 +545,14 @@ var AI_POOL=['食糊黃','鄧俄林壯','戴對對','詐糊查','街市阿岑','
 var AI_NAMES=AI_POOL.slice(0,3);
 var AI_CUSTOM=null;   /* 玩家自訂嘅電腦名單(冇設就用 AI_POOL) */
 function shuf(a){a=a.slice();var i,j,t;for(i=a.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];a[j]=t;}return a;}
-function aiNamesShuffle(){var c=(AI_CUSTOM||[]).filter(function(x){return typeof x==='string'&&x;}),rest=AI_POOL.filter(function(x){return c.indexOf(x)<0;});return shuf(c).concat(shuf(rest));}
+var AI_USES={},AI_USED=[];   /* AI_USES:每個電腦名用過幾多次(全站記錄);AI_USED:最近一局用咗邊啲 */
+/* 揀名:用得最少嘅先揀,次數一樣就隨機,所以盡量唔會重覆 */
+function aiNamesShuffle(){
+  var c=(AI_CUSTOM||[]).filter(function(x){return typeof x==='string'&&x;}),rest=AI_POOL.filter(function(x){return c.indexOf(x)<0;});
+  var tag=shuf(c).map(function(n){return {n:n,u:AI_USES[n]||0};});
+  tag.sort(function(a,b){return a.u-b.u;});   /* 穩定排序:同次數嘅保持洗牌後次序 */
+  return tag.map(function(x){return x.n;}).concat(shuf(rest));
+}
 var COARSE=(typeof matchMedia!=='undefined')&&matchMedia('(pointer: coarse)').matches;
 
 function tname(t){return t<27?NUM[t%9]+SUIT[(t/9)|0]:t<31?WIND[t-27]:t<34?DRAG[t-31]:FLOW[t-34];}
@@ -1681,13 +1688,14 @@ function startGame(){
   var n=U.cfg.n,mem=U.role==='host'?NET.members:[];
   S.n=n;S.minFan=U.cfg.minFan;S.level=U.cfg.level;
   S.players=[];
-  AI_NAMES=aiNamesShuffle();var used={},ai=0;
+  AI_NAMES=aiNamesShuffle();var used={},ai=0;AI_USED=[];
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
   var plan=seatPlan();
   for(var i=0;i<n;i++){
     var m=i===0?null:plan[i];
     var human=i===0||!!m;
-    var name=i===0?(U.role==='solo'?'你':uniq(myName())):(m?uniq(m.name):uniq(AI_NAMES[ai++]));
+    var name=i===0?(U.role==='solo'?'你':uniq(myName())):(m?uniq(m.name):uniq(AI_NAMES[ai]));
+    if(i>0&&!m){AI_USED.push(AI_NAMES[ai]);ai++;}
     S.players.push({id:i,name:name,human:human,remote:!!m,score:1000,level:S.level,hand:[],melds:[],flowers:[],discards:[],wind:0,drawn:null});
     if(m){m.seat=i;S.players[i].pid=m.pid||'';}
     if(i===0&&U.role==='host')S.players[0].pid=myPid();   /* 房主都要有 pid,先可以斷線後用房號返嚟 */
@@ -1697,6 +1705,7 @@ function startGame(){
   if(U.role==='solo')dropSave(true);
   if(U.role==='host'&&U.code)rememberRoom(U.code);
   U.screen='game';U.rules=false;U.modalHidden=false;
+  reportAiUsed(AI_USED);
   runFirst();render();
 }
 var NEXT_SEC=20;
@@ -2821,11 +2830,19 @@ function copyDiag(){
 /* ---------- 電腦玩家名單(全站共用,存喺 Cloudflare 伺服器;瀏覽器存一份快取) ---------- */
 function aiList(){var a=null;try{a=JSON.parse(localStorage.getItem('mj_ainames')||'null');}catch(e){}return Array.isArray(a)&&a.length?a.filter(function(x){return typeof x==='string'&&x;}):AI_POOL.slice();}
 function setAiList(a){try{localStorage.setItem('mj_ainames',JSON.stringify(a));}catch(e){}AI_CUSTOM=a.slice();}
+function setAiUses(u){if(!u||typeof u!=='object')return;AI_USES=u;try{localStorage.setItem('mj_aiuse',JSON.stringify(u));}catch(e){}}
+/* 單人 / 房主喺自己部機開局:報低今局用咗邊啲電腦名,伺服器累積次數 */
+function reportAiUsed(list){
+  var url=namesUrl();if(!url||!list||!list.length)return;
+  list.forEach(function(n){AI_USES[n]=(AI_USES[n]||0)+1;});setAiUses(AI_USES);
+  try{fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({op:'use',names:list})}).then(function(r){return r.json();}).then(function(j){if(j&&j.uses)setAiUses(j.uses);}).catch(function(){});}catch(e){}
+}
 function namesUrl(){var u=serverUrl();return u?u.replace(/^ws/,'http').replace(/\/+$/,'')+'/names':'';}
 function aiCall(body,done){
   var url=namesUrl();if(!url){U.nlMsg='連唔到伺服器。';render();return;}
   fetch(url,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:{}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(function(x){
     if(x.j&&Array.isArray(x.j.names))setAiList(x.j.names);
+    if(x.j&&x.j.uses)setAiUses(x.j.uses);
     if(x.j&&x.j.canUndo!=null)U.nlUndo=!!x.j.canUndo;
     U.nlMsg=x.ok?(done||''):((x.j&&x.j.err)||'失敗');
     render();
@@ -2834,11 +2851,11 @@ function aiCall(body,done){
 function fetchAiNames(){aiCall(null,'');}
 function nameListHTML(){
   var a=aiList();
-  return '<div class="ov"><div class="sheet"><h2>電腦玩家名單('+a.length+')</h2><p class="note">所有玩家共用同一份名單,電腦玩家會喺入面隨機攞名。你改嘅,其他人都會見到,發揮創意啦!每個名最多 8 個字,最少保留 10 個,最多 100 個。</p>'+
+  return '<div class="ov"><div class="sheet"><h2>電腦玩家名單('+a.length+')</h2><p class="note">所有玩家共用同一份名單,電腦玩家會喺入面攞名,用得最少嘅優先,所以盡量唔會重覆(×N 係已出場次數)。你改嘅,其他人都會見到,發揮創意啦!每個名最多 8 個字,最少保留 10 個,最多 100 個。</p>'+
     (U.nlMsg?'<p class="note" style="color:var(--hot)">'+esc(U.nlMsg)+'</p>':'')+
     '<div class="opts"><input class="inp" id="nlnew" maxlength="8" autocomplete="off" placeholder="新增一個電腦名" style="flex:1;min-width:0"><button class="btn pri" data-act="nlAdd">新增</button></div>'+
     '<div style="display:grid;gap:8px">'+a.map(function(n,i){
-      return '<div class="opts"><input class="inp" data-nl="'+i+'" data-old="'+esc(n)+'" maxlength="8" autocomplete="off" value="'+esc(n)+'" style="flex:1;min-width:0"><button class="btn sm" data-act="nlDel" data-i="'+i+'">刪除</button></div>';
+      return '<div class="opts"><input class="inp" data-nl="'+i+'" data-old="'+esc(n)+'" maxlength="8" autocomplete="off" value="'+esc(n)+'" style="flex:1;min-width:0"><span class="note" style="white-space:nowrap;margin:0" title="已出場次數">×'+(AI_USES[n]||0)+'</span><button class="btn sm" data-act="nlDel" data-i="'+i+'">刪除</button></div>';
     }).join('')+'</div>'+
     '<h3>管理(要密碼)</h3><div class="opts"><input class="inp" id="nlpw" type="password" inputmode="numeric" autocomplete="off" placeholder="密碼" style="flex:1;min-width:0"></div>'+
     '<div class="opts"><button class="btn" data-act="nlUndo">撤銷上一次改動</button><button class="btn" data-act="nlReset">還原預設名單</button></div>'+
@@ -3277,6 +3294,7 @@ function boot2(){
   document.addEventListener('input',onInput);
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
   try{if(localStorage.getItem('mj_ainames'))AI_CUSTOM=aiList();}catch(e){}
+  try{var _u=JSON.parse(localStorage.getItem('mj_aiuse')||'null');if(_u&&typeof _u==='object')AI_USES=_u;}catch(e){}
   fetchAiNames();
   try{U.pondHidden=localStorage.getItem('mj_pondHide')==='1';}catch(e){}
   try{setTileTheme(localStorage.getItem('mj_tile'));}catch(e){}
