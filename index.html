@@ -1658,6 +1658,7 @@ function startGame(){
     if(i===0&&U.role==='host')S.players[0].pid=myPid();   /* 房主都要有 pid,先可以斷線後用房號返嚟 */
   }
   mem.forEach(function(m){if(plan.indexOf(m)<0)m.seat=-1;});
+  if(U.cheat&&U.role!=='client'&&S.players[0])S.players[0].cheat=true;   /* 金手指開咗,新一場都保持 */
   S.dealer=0;S.d0=0;S.round=0;S.handNo=1;S.lian=0;S.over=false;S.running=true;
   if(U.role==='solo')dropSave(true);
   if(U.role==='host'&&U.code)rememberRoom(U.code);
@@ -1703,8 +1704,8 @@ function buildView(seat){
   return {me:seat,n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
     players:S.players.map(function(p,i){return {name:p.name+(p.offline?'(離線'+(p.offLeft?' '+p.offLeft+' 秒':'')+')':''),score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},n:p.hand.length,
-      hand:(i===seat||S.over)?p.hand:(U.debug&&seat===0&&!p.human&&U.role!=='client')?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
-    auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
+      hand:(i===seat||S.over)?p.hand:(S.players[seat].cheat||(U.debug&&seat===0&&!p.human&&U.role!=='client'))?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
+    cheat:!!S.players[seat].cheat,auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
     result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number),
     fz:S.frozen?{n:S.frozenName||'',left:S.frozenLeft||0}:null,
@@ -2290,11 +2291,13 @@ function onClientData(d){
     else{U.creating=false;U.rejoin='';forgetRoom();leaveAll();U.notice='房號已經有人用,請再試一次。';render();}
   }
   else if(d.t==='none'){U.creating=false;U.rejoin='';forgetRoom();leaveAll();U.notice='搵唔到呢個房號(房間可能已經過期)。';render();}
-  else if(d.t==='view'){V=d.v;if(V)V.dl=V.cd!=null?Date.now()+V.cd:0;U.screen='game';U.rejoinN=0;if(U.code)rememberRoom(U.code);render();}
+  else if(d.t==='cheat'){U.cheat=!!d.on;if(d.on){U.cheatAsk=false;U.cheatMsg='';}else if(d.err){U.cheatMsg=d.err;U.cheatPw='';}render();}
+  else if(d.t==='view'){V=d.v;if(U.cheat&&U.cheatPw&&V&&!V.cheat&&Date.now()-(U.cheatTry||0)>5000){U.cheatTry=Date.now();safeSend(NET.conn,{t:'cheat',on:true,pw:U.cheatPw});}   /* 斷線返嚟,伺服器唔記得:自動再開 */if(V)V.dl=V.cd!=null?Date.now()+V.cd:0;U.screen='game';U.rejoinN=0;if(U.code)rememberRoom(U.code);render();}
   else if(d.t==='full'){var m=d.msg;U.rejoin='';leaveAll();U.notice=m;render();}
   else if(d.t==='closed'){U.rejoin='';forgetRoom();leaveAll();U.notice='房主已經關咗房。';render();}
 }
 function leaveAll(silent){
+  if(!silent){U.cheat=false;U.cheatPw='';U.cheatAsk=false;}
   var hostCode=(U.role==='host'&&S.running)?U.code:'';
   var keepRoom=!!(hostCode&&!silent&&NET.members.length);  /* 仲有其他玩家喺度:房主走咗,房間照留,等人接手 */
   if(hostCode&&!silent&&!keepRoom){roomDel(hostCode);forgetRoom();}
@@ -2423,7 +2426,7 @@ function drawTable(){
   var lo='';
   if(V.last){var lps=V.last.seat===V.me?'b':map[(V.last.seat-V.me+n)%n];
     /* 試玩版:移除中間放大咗嘅最後打出牌 */}
-  var plate='<div class="plate"><small>'+WIND[V.round]+'風圈</small><b>'+V.live+'</b><small>牌牆</small>'+wds+lo+'</div>';
+  var plate='<div class="plate" data-act="cheatTap"><small>'+WIND[V.round]+'風圈</small><b>'+V.live+'</b><small>牌牆</small>'+wds+lo+'</div>';
   els.tbl.innerHTML=seats.t+seats.l+'<div class="tboard">'+pools.t+pools.l+plate+pools.r+pools.b+'</div>'+seats.r;
   fitSide();
 }
@@ -2747,6 +2750,35 @@ function myCurName(){
   try{if(V&&V.players&&V.players[V.me])n=String(V.players[V.me].name).replace(/\(離線[^)]*\)$/,'').replace(/\(電腦\)$/,'');}catch(e){}
   return n||U.name||'';
 }
+/* ---------- 金手指:喺遊戲畫面撳三下中間「東風圈 / 牌牆」嗰格,輸入密碼,先睇到所有人手牌;再撳三下就收埋 ---------- */
+function cheatHTML(){
+  return '<div class="ov"><div class="sheet"><h2>密碼</h2>'+(U.cheatMsg?'<p class="note" style="color:var(--hot)">'+esc(U.cheatMsg)+'</p>':'')+
+    '<div class="opts"><input class="inp" id="cheatpw" type="password" inputmode="numeric" autocomplete="off" placeholder="密碼" style="flex:1;min-width:0"></div>'+
+    '<div class="opts"><button class="btn pri" data-act="cheatOk">確定</button><button class="btn" data-act="cheatNo">取消</button></div></div></div>';
+}
+function cheatTap(){
+  var now=Date.now();U.ct=(U.ct||[]).filter(function(t){return now-t<1200;});U.ct.push(now);
+  if(U.ct.length<3)return;
+  U.ct=[];
+  if(U.cheat)cheatSet(false,'');
+  else{U.cheatAsk=true;U.cheatMsg='';render();setTimeout(function(){var e=document.getElementById('cheatpw');if(e)e.focus();},50);}
+}
+function cheatSet(on,pw){
+  if(U.role==='client'&&NET.conn){
+    if(!on){U.cheat=false;U.cheatPw='';}
+    else U.cheatPw=pw;
+    safeSend(NET.conn,{t:'cheat',on:!!on,pw:pw});   /* 結果由 onClientData 處理 */
+    render();return;
+  }
+  if(!on){U.cheat=false;if(S.players[0])S.players[0].cheat=false;render();return;}
+  var url=namesUrl();if(!url){U.cheatMsg='連唔到伺服器。';render();return;}
+  U.cheatMsg='驗證緊…';render();
+  fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({op:'cheat',pw:pw})}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(function(x){
+    if(x.ok&&x.j&&x.j.ok){U.cheat=true;U.cheatAsk=false;U.cheatMsg='';if(S.players[0])S.players[0].cheat=true;}
+    else U.cheatMsg=(x.j&&x.j.err)||'失敗';
+    render();
+  }).catch(function(){U.cheatMsg='連唔到伺服器。';render();});
+}
 function applyRename(){
   var nm=String(U.nameDraft==null?U.renameInit:U.nameDraft).trim().slice(0,8);
   if(!nm)return;
@@ -2767,6 +2799,7 @@ function drawOverlay(){
   if(U.joinGate)h=gateHTML();
   else if(U.settings&&U.nlOpen&&!U.renaming)h=nameListHTML();
   else if(U.settings&&!U.renaming&&!U.tiles&&!U.sfxOpen)h=settingsHTML();
+  else if(U.cheatAsk)h=cheatHTML();
   else if(U.renaming)h=renameHTML();
   else if(U.tiles)h=tilesHTML();
   else if(U.sfxOpen)h=sfxHTML();
@@ -2898,6 +2931,9 @@ function handleAct(act,b){
   else if(act==='gateOk')gateGo();
   else if(act==='gateNo'){U.joinGate=false;U.roomInput='';render();}
   else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
+  else if(act==='cheatTap')cheatTap();
+  else if(act==='cheatOk'){var ce=document.getElementById('cheatpw');cheatSet(true,ce?ce.value:'');}
+  else if(act==='cheatNo'){U.cheatAsk=false;U.cheatMsg='';render();}
   else if(act==='renameOk'){applyRename();render();}
   else if(act==='renameCancel'){U.renaming=false;U.nameDraft=null;render();}
   else if(act==='closeTiles'){U.tiles=false;U.diagShow='';render();}
@@ -3144,7 +3180,7 @@ function boot2(){
       else{done();U.tarm=false;answer({a:'discard',t:+tiles[cur].getAttribute('data-t')});}
     }
   });
-  document.addEventListener('keydown',function(e){if(e.key==='Enter'&&U.joinGate&&e.target&&e.target.id==='gname'){e.preventDefault();gateGo();}});
+  document.addEventListener('keydown',function(e){if(e.key==='Enter'&&U.joinGate&&e.target&&e.target.id==='gname'){e.preventDefault();gateGo();}else if(e.key==='Enter'&&U.cheatAsk&&e.target&&e.target.id==='cheatpw'){e.preventDefault();cheatSet(true,e.target.value);}});
   document.addEventListener('click',onClick);
   window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
   document.addEventListener('input',onInput);

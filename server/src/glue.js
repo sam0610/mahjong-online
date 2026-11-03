@@ -148,6 +148,13 @@ return {
   makeConn:makeConn,
   accept:function(conn){onHostConn(conn);},
   usedAi:function(){return AI_USED.slice();},
+  setCheat:function(conn,on){
+    var m=NET.members.filter(function(x){return x.conn===conn;})[0];
+    if(!m||m.seat<0||!S.players[m.seat])return false;
+    S.players[m.seat].cheat=!!on;
+    if(on)conn.on('close',function(){if(S.players[m.seat])S.players[m.seat].cheat=false;});
+    render();return true;
+  },
   start:function(conn,names,uses){
     if(uses&&typeof uses==='object')AI_USES=uses;
     if(Array.isArray(names))AI_CUSTOM=names.filter(function(x){return typeof x==='string'&&x.trim();}).map(function(x){return x.trim().slice(0,8);}).slice(0,60);

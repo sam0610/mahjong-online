@@ -1,0 +1,25 @@
+import {createEngine} from '../src/engine.gen.js';
+import assert from 'node:assert';
+const eng=createEngine();eng.setCode('CHT1');
+function mk(name,pid){const c={view:null};c.conn=eng.makeConn(d=>{if(d.t==='view')c.view=d.v;},()=>{});eng.accept(c.conn);c.send=d=>c.conn.emit('data',d);c.send({t:'hello',name,pid});return c;}
+eng.create({n:3,minFan:1,level:2});
+const A=mk('甲','pa'),B=mk('乙','pb');
+await new Promise(r=>setTimeout(r,100));
+eng.start(A.conn);
+A.send({t:'proxy',on:true});B.send({t:'proxy',on:true});
+for(let i=0;i<60&&!(A.view&&A.view.players[A.view.me].hand&&A.view.players[A.view.me].hand.length>=13);i++)await new Promise(r=>setTimeout(r,200));
+A.send({t:'proxy',on:false});B.send({t:'proxy',on:false});
+const others=v=>v.players.filter((p,i)=>i!==v.me);
+assert(others(A.view).every(p=>p.hand==null||Array.isArray(p.hand)&&A.view.over),'冇金手指:睇唔到別人手牌');
+assert.strictEqual(A.view.cheat,false);
+assert.strictEqual(eng.setCheat(A.conn,true),true);
+await new Promise(r=>setTimeout(r,300));
+assert.strictEqual(A.view.cheat,true);
+assert(others(A.view).every(p=>Array.isArray(p.hand)&&p.hand.length>=13),'甲開咗金手指:睇到全部');
+assert(others(B.view).every(p=>p.hand==null||B.view.over),'乙冇開:仍然睇唔到');
+assert.strictEqual(B.view.cheat,false);
+eng.setCheat(A.conn,false);
+await new Promise(r=>setTimeout(r,300));
+assert(others(A.view).every(p=>p.hand==null||A.view.over),'關咗金手指');
+console.log('cheat OK');
+process.exit(0);

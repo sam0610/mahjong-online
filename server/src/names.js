@@ -7,7 +7,7 @@ function clean(x){x=String(x==null?'':x).replace(/[\u0000-\u001f<>]/g,'').trim()
 
 /* 全站共用嘅電腦玩家名單(單一個 Durable Object) */
 export class Names{
-  constructor(state){this.state=state;this.rate=new Map();}
+  constructor(state,env){this.state=state;this.env=env||{};this.rate=new Map();}
   async load(){let n=await this.state.storage.get('names');if(!n){n=DEFAULTS.slice();await this.state.storage.put('names',n);}return n;}
   limited(ip,key,max){
     const now=Date.now(),k=ip+key,a=(this.rate.get(k)||[]).filter(t=>now-t<60000);
@@ -23,6 +23,11 @@ export class Names{
     if(req.method==='GET')return J({names,uses,canUndo:((await this.state.storage.get('log'))||[]).length>0});
     let d;try{d=await req.json();}catch(e){return J({err:'格式錯'},400);}
     const op=d&&d.op;
+    if(op==='cheat'){   /* 金手指密碼:放喺 Worker secret(CHEAT_PW),唔放喺網頁,冇設就等於未啟用 */
+      if(!this.env.CHEAT_PW)return J({err:'未啟用'},403);
+      if(this.limited(ip,'pw',6))return J({err:'試太多次,等一分鐘'},429);
+      return String(d.pw||'')===String(this.env.CHEAT_PW)?J({ok:true}):J({err:'密碼錯'},403);
+    }
     if(op==='use'){   /* 記錄電腦名用咗一次(每局開波報一次),唔入撤銷記錄 */
       if(ip&&this.limited(ip,'use',20))return J({err:'太密,等一陣'},429);
       const list=Array.isArray(d.names)?d.names.slice(0,4):[];

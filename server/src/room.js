@@ -48,10 +48,10 @@ export class Room{
     const pair=new WebSocketPair();
     const client=pair[0],server=pair[1];
     server.accept();
-    this.attach(server);
+    this.attach(server,req.headers.get('CF-Connecting-IP')||'');
     return new Response(null,{status:101,webSocket:client});
   }
-  attach(ws){
+  attach(ws,ip){
     const eng=this.eng;
     const sendRaw=d=>{try{ws.send(JSON.stringify(d));}catch(e){}};
     const conn=eng.makeConn(sendRaw,()=>{try{ws.close(1000,'bye');}catch(e){}});
@@ -78,6 +78,16 @@ export class Room{
             const used=ok?eng.usedAi():[];
             if(ns&&used.length)ns.get(ns.idFromName('global')).fetch('https://names/names',{method:'POST',body:JSON.stringify({op:'use',names:used})}).catch(()=>{});   /* 記低今局用咗邊啲電腦名 */
           });
+        return;
+      }
+      if(d.t==='cheat'){   /* 金手指:密碼經 Names DO 驗證(有次數限制),通過先睇到其他人手牌 */
+        if(!accepted)return;
+        if(!d.on){eng.setCheat(conn,false);sendRaw({t:'cheat',on:false});return;}
+        const ns=this.env.NAMES;
+        if(!ns){sendRaw({t:'cheat',on:false,err:'未啟用'});return;}
+        ns.get(ns.idFromName('global')).fetch('https://names/names',{method:'POST',headers:{'CF-Connecting-IP':ip||''},body:JSON.stringify({op:'cheat',pw:String(d.pw||'').slice(0,40)})})
+          .then(x=>x.json()).then(j=>{const ok=!!(j&&j.ok)&&eng.setCheat(conn,true);sendRaw({t:'cheat',on:ok,err:ok?'':((j&&j.err)||'失敗')});})
+          .catch(()=>sendRaw({t:'cheat',on:false,err:'連唔到伺服器'}));
         return;
       }
       if(d.t==='ping'||d.t==='pong'){return;}

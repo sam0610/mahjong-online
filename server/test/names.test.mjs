@@ -23,4 +23,14 @@ r=await call();assert.deepStrictEqual(r.j.uses,{});
 r=await call({op:'use',names:['雀神','雀神','唔存在']},'2.2.2.2');assert.strictEqual(r.j.uses['雀神'],2);assert(!('唔存在' in r.j.uses));
 r=await call({op:'rename',from:'雀神',to:'雀聖'});assert.strictEqual(r.j.uses['雀聖'],2);assert(!('雀神' in r.j.uses));
 r=await call({op:'del',name:'雀聖'});assert(!('雀聖' in r.j.uses));
+// 金手指密碼(Worker secret)
+{
+  const c0=new Names(state);   // 冇設 secret = 未啟用
+  const q=async(nn,pw,ip='3.3.3.3')=>{const r=await nn.fetch(new Request('https://x/names',{method:'POST',body:JSON.stringify({op:'cheat',pw}),headers:{'CF-Connecting-IP':ip}}));return {s:r.status,j:await r.json()};};
+  assert.strictEqual((await q(c0,'8964')).s,403);
+  const c1=new Names(state,{CHEAT_PW:'8964'});
+  assert.strictEqual((await q(c1,'0000')).s,403);
+  const ok=await q(c1,'8964');assert.strictEqual(ok.s,200);assert.strictEqual(ok.j.ok,true);
+  let last;for(let i=0;i<8;i++)last=await q(c1,'1111','4.4.4.4');assert.strictEqual(last.s,429);   // 試太多次
+}
 console.log('names OK');
