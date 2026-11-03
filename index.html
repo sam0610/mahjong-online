@@ -525,7 +525,6 @@ body.pondmode .sheet{color:var(--ink)}
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -1152,13 +1151,13 @@ var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,level:2},name:'',code:'',roo
 var V=null,callId=0,askSeq=0;
 var HOSTSEAT=1,HOOKS={};   /* HOSTSEAT:房主佔一個座位(自己部機做主機);伺服器版係 0 */
 var PREFIX='hkmj-';
-var NET={peer:null,conn:null,hub:null,sb:null,fb:null,pend:[],members:[],ponds:[],lobby:null,rx:0,state:''};
+var NET={peer:null,conn:null,hub:null,fb:null,pend:[],members:[],ponds:[],lobby:null,rx:0,state:''};
 var PEER_OPTS={config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
   {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}]}};
 
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function myName(){var n=(U.name||'').trim().slice(0,8);return n||(U.role==='host'?'房主':'玩家');}
-function netOK(){return wsMode()||(typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function')||sbOK()||fbOK());}
+function netOK(){return wsMode()||(typeof window!=='undefined')&&((typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined')||(window.mqtt&&typeof window.mqtt.connect==='function')||fbOK());}
 function T(ms){var tok=S.token;return new Promise(function(res,rej){setTimeout(function chk(){if(tok!==S.token){rej(CANCEL);return;}if(S.frozen){setTimeout(chk,200);return;}res();},ms*S.speed);});}   /* S.frozen:有人斷線倒數緊,全場暫停 */
 
 /* ---------- 自動聽牌: when exactly 1 tile from winning (tenpai), the game waits for the winning tile and discards the rest ---------- */
@@ -1315,40 +1314,9 @@ function takeover(seat){
 
 /*@engine:end*/
 /* ---------- saving progress ----------
-   Always saved in this browser (localStorage). If CLOUD.url / CLOUD.key are filled in (Supabase), the same
-   snapshot is also stored on the server under a private save code, so it survives cleared browsers and works on another device. */
+   Room games are saved through Firebase / the Cloudflare room server; nothing is stored in a cloud account any more. */
 var FB_CONFIG={apiKey:'AIzaSyDnY1uRvkMvuPbcgEBuAOCadppylg51Aps',authDomain:'game-online-aa5d2.firebaseapp.com',databaseURL:'https://game-online-aa5d2-default-rtdb.asia-southeast1.firebasedatabase.app',projectId:'game-online-aa5d2',storageBucket:'game-online-aa5d2.firebasestorage.app',messagingSenderId:'401530397913',appId:'1:401530397913:web:fe0d1475e4cf10233b4ac8'};
-var CLOUD={url:'https://xzuunzyxrackszianule.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6dXVuenl4cmFja3N6aWFudWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxMTIxOTEsImV4cCI6MjEwNzY4ODE5MX0.4LT0h02s9SIVTZu7Ebc-llPgRCO2sD5fbyeWZ3J-3ns'};
-var SAVE_KEY='mj_save_v1',CODE_KEY='mj_code_v1';
-function cloudOn(){return !!(CLOUD.url&&CLOUD.key);}
-function normCode(c){return String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
-function fmtCode(c){return c.replace(/(.{4})(?=.)/g,'$1-');}
-function saveCode(){
-  var c='';
-  try{c=localStorage.getItem(CODE_KEY)||'';}catch(e){}
-  if(c.length<16){
-    var cs='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';c='';
-    var buf=new Uint8Array(16);
-    try{crypto.getRandomValues(buf);}catch(e){for(var j=0;j<16;j++)buf[j]=Math.floor(Math.random()*256);}
-    for(var i=0;i<16;i++)c+=cs[buf[i]%32];
-    try{localStorage.setItem(CODE_KEY,c);}catch(e){}
-  }
-  return c;
-}
-function cloudCall(fn,body){
-  return fetch(CLOUD.url.replace(/\/$/,'')+'/rest/v1/rpc/'+fn,{method:'POST',keepalive:true,
-    headers:{'apikey':CLOUD.key,'Authorization':'Bearer '+CLOUD.key,'Content-Type':'application/json'},body:JSON.stringify(body)})
-    .then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.text();})
-    .then(function(t){try{return t?JSON.parse(t):null;}catch(e){return null;}});
-}
-var cloudBusy=false,cloudPending=null;
-function cloudPut(obj){
-  if(!cloudOn())return;
-  if(cloudBusy){cloudPending=obj;return;}
-  cloudBusy=true;
-  cloudCall('save_game',{p_code:saveCode(),p_state:obj}).then(function(){U.cloudErr='';},function(e){U.cloudErr=String(e&&e.message||e);})
-    .then(function(){cloudBusy=false;if(cloudPending){var o=cloudPending;cloudPending=null;cloudPut(o);}});
-}
+var SAVE_KEY='mj_save_v1';
 /* ---------- 房間牌局存雲端:房主斷線,其他玩家可以接手做主機,或者隨時用房號入翻去 ---------- */
 var ROOM_KEY='mj_room_v1',ROOM_TTL=43200000;
 function roomKey(code){return ('MJRMRMKS'+String(code||'').toUpperCase()+'RMKSRMKS').slice(0,16);}
@@ -1368,13 +1336,12 @@ function roomPut(o){
   if(roomBusy){roomPend=o;return;}
   roomBusy=true;
   var ps=[fbStatePut(o.room.code,o)];
-  if(cloudOn())ps.push(cloudCall('save_game',{p_code:roomKey(o.room.code),p_state:o}).then(function(){},function(){}));
   Promise.all(ps).then(function(){roomBusy=false;if(roomPend){var x=roomPend;roomPend=null;roomPut(x);}});
 }
 function roomLoad(code){
   function tmo(p){return Promise.race([p,new Promise(function(r){setTimeout(function(){r(null);},7000);})]);}
-  var a=tmo(fbStateGet(code)),b=cloudOn()?tmo(cloudCall('load_game',{p_code:roomKey(code)}).catch(function(){return null;})):Promise.resolve(null);
-  return Promise.all([a,b]).then(function(r){
+  var a=tmo(fbStateGet(code));
+  return Promise.all([a]).then(function(r){
     var best=null;
     r.forEach(function(o){if(validSave(o)&&o.room&&o.room.code===code&&Date.now()-o.ts<ROOM_TTL&&(!best||o.ts>best.ts))best=o;});
     return best;
@@ -1382,7 +1349,6 @@ function roomLoad(code){
 }
 function roomDel(code){
   roomPend=null;if(!code)return;
-  if(cloudOn())cloudCall('delete_game',{p_code:roomKey(code)}).catch(function(){});
   try{if(fbOK())fbUser().then(function(){return fbInit().db.ref('rooms/mj'+code+'/state').remove();}).catch(function(){});}catch(e){}
 }
 function rememberRoom(code){try{localStorage.setItem(ROOM_KEY,JSON.stringify({c:code,t:Date.now()}));}catch(e){}}
@@ -1407,7 +1373,6 @@ function snapshot(phase,turn){
   var str;try{str=JSON.stringify(o);}catch(e){return;}
   if(hostSave){roomPut(JSON.parse(str));return;}
   try{localStorage.setItem(SAVE_KEY,str);}catch(e){}
-  cloudPut(JSON.parse(str));
 }
 function validSave(o){
   return !!(o&&o.v===1&&Array.isArray(o.players)&&o.players.length>=2&&o.players.length<=4&&Array.isArray(o.wall)&&(o.phase==='turn'||o.phase==='over'));
@@ -1416,14 +1381,6 @@ function readLocalSave(){try{var o=JSON.parse(localStorage.getItem(SAVE_KEY)||'n
 function dropSave(skipCloud){
   U.saved=null;
   try{localStorage.removeItem(SAVE_KEY);}catch(e){}
-  if(cloudOn()&&!skipCloud){cloudPending=null;cloudCall('delete_game',{p_code:saveCode()}).catch(function(){});}
-}
-function loadCloudSave(code,manual){
-  if(!cloudOn())return;
-  cloudCall('load_game',{p_code:normCode(code)}).then(function(o){
-    if(validSave(o)&&(!U.saved||o.ts>U.saved.ts)){U.saved=o;if(manual){try{localStorage.setItem(CODE_KEY,normCode(code));}catch(e){}try{localStorage.setItem(SAVE_KEY,JSON.stringify(o));}catch(e){}}U.notice='';render();}
-    else if(manual){U.notice='搵唔到呢個存檔碼嘅牌局。';render();}
-  },function(){if(manual){U.notice='連唔到伺服器,請稍後再試。';render();}});
 }
 function resumeGame(){
   var o=U.saved;if(!validSave(o))return;
@@ -1778,7 +1735,7 @@ function randCode(){var L='ABCDEFGHJKLMNPQRSTUVWXYZ',D='23456789',s=L[Math.floor
 /* ---- MQTT fallback transport (works when WebRTC is blocked): speaks the same conn API as PeerJS ---- */
 var BROKERS=['wss://broker.hivemq.com:8884/mqtt','wss://broker.emqx.io:8084/mqtt'];
 var MQ_NS='hkmj1/';
-/* 房間連線只用 Firebase(fbOK 時),其他線路(WebRTC/MQTT/Supabase Realtime)只喺 Firebase 用唔到先備用 */
+/* 房間連線只用 Firebase(fbOK 時),其他線路(WebRTC/MQTT)只喺 Firebase 用唔到先備用 */
 function fbFirst(){return wsMode()||typeof window!=='undefined'&&!!window.firebase&&!!window.firebase.database&&!!window.firebase.auth&&!!FB_CONFIG.apiKey;}
 function mqOK(){return !fbFirst()&&typeof window!=='undefined'&&window.mqtt&&typeof window.mqtt.connect==='function';}
 function rtcOK(){return !fbFirst()&&typeof window!=='undefined'&&typeof window.Peer==='function'&&typeof window.RTCPeerConnection!=='undefined';}
@@ -1883,95 +1840,6 @@ function mqGuest(code){
 }
 
 /* ---------- host: open room over PeerJS (WebRTC) and MQTT at the same time ---------- */
-
-/* ---- Supabase Realtime (Broadcast) transport:主線路。每個玩家一條專屬頻道,加入訊息用 REST 發去房間頻道,其他人聽唔到 ---- */
-function sbOK(){return !fbFirst()&&typeof window!=='undefined'&&window.supabase&&typeof window.supabase.createClient==='function'&&cloudOn();}
-var SBC=null;
-function sbClient(){
-  if(!SBC)SBC=window.supabase.createClient(CLOUD.url,CLOUD.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},realtime:{params:{eventsPerSecond:100}}});
-  return SBC;
-}
-function sbChan(name){return sbClient().channel(name,{config:{broadcast:{self:false,ack:false}}});}
-function sbDrop(ch){try{sbClient().removeChannel(ch);}catch(e){}}
-function sbHost(code,onConn,onReady,onFail){
-  var hub={conns:{},closed:false,ready:false,lobby:null,iv:null};
-  var lobby=sbChan('hk-'+code);hub.lobby=lobby;
-  function accept(cid){
-    var old=hub.conns[cid];
-    if(old){if(old.open)old.sendRaw({t:'ack'});return;}
-    var ch=sbChan('hk-'+code+'-'+cid);
-    var conn=mqConn(function(o){try{ch.send({type:'broadcast',event:'h2g',payload:o});}catch(e){}});
-    conn.sendRaw=function(o){try{ch.send({type:'broadcast',event:'h2g',payload:o});}catch(e){}};
-    conn.ch=ch;conn.seen=Date.now();hub.conns[cid]=conn;
-    ch.on('broadcast',{event:'g2h'},function(msg){
-      var m=msg&&msg.payload;if(!m||hub.closed)return;
-      conn.seen=Date.now();
-      if(m.t==='data')conn.emit('data',m.d);
-      else if(m.t==='bye'){conn.remoteClose();sbDrop(ch);delete hub.conns[cid];}
-    });
-    ch.subscribe(function(status){
-      if(hub.closed)return;
-      if(status==='SUBSCRIBED'&&!conn.open){onConn(conn);conn.open=true;conn.emit('open');conn.sendRaw({t:'ack'});}
-      else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!conn.open){sbDrop(ch);delete hub.conns[cid];}
-    });
-  }
-  lobby.on('broadcast',{event:'join'},function(msg){var m=msg&&msg.payload;if(m&&m.c&&!hub.closed)accept(String(m.c));});
-  lobby.subscribe(function(status){
-    if(hub.closed)return;
-    if(status==='SUBSCRIBED'){if(!hub.ready){hub.ready=true;onReady();}}
-    else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!hub.ready){onFail();}
-  });
-  hub.iv=setInterval(function(){
-    Object.keys(hub.conns).forEach(function(cid){
-      var cn=hub.conns[cid];if(!cn.open)return;
-      if(Date.now()-cn.seen>20000){cn.remoteClose();sbDrop(cn.ch);delete hub.conns[cid];}
-      else cn.sendRaw({t:'ping'});
-    });
-  },3000);
-  hub.close=function(){
-    hub.closed=true;clearInterval(hub.iv);
-    Object.keys(hub.conns).forEach(function(k){try{hub.conns[k].close();}catch(e){}});
-    setTimeout(function(){sbDrop(lobby);Object.keys(hub.conns).forEach(function(k){sbDrop(hub.conns[k].ch);});},300);
-  };
-  return hub;
-}
-function sbGuest(code){
-  var cid=Math.random().toString(36).slice(2,12),ch=sbChan('hk-'+code+'-'+cid),lobby=sbChan('hk-'+code),subbed=false,closed=false,tries=0,jiv=null,kiv=null;
-  var conn=mqConn(function(o){if(subbed){try{ch.send({type:'broadcast',event:'g2h',payload:o});}catch(e){}}});
-  function cleanup(){closed=true;clearInterval(jiv);clearInterval(kiv);setTimeout(function(){sbDrop(ch);sbDrop(lobby);},300);}
-  var origClose=conn.close;conn.close=function(){origClose();cleanup();};
-  var origRemote=conn.remoteClose;conn.remoteClose=function(){origRemote();cleanup();};
-  function sendJoin(){
-    /* 專屬頻道已經訂閱咗,用未訂閱嘅房間頻道發 REST 廣播,其他玩家唔會見到你嘅頻道名 */
-    var p=null;try{p=lobby.send({type:'broadcast',event:'join',payload:{c:cid}});}catch(e){}
-    if(p&&p.then)p.then(function(r){if(r&&r!=='ok'&&!conn.open&&!closed){/* 失敗就等下一次重試 */}},function(){});
-  }
-  ch.on('broadcast',{event:'h2g'},function(msg){
-    var m=msg&&msg.payload;if(!m)return;
-    conn.seen=Date.now();
-    if(m.t==='ack'){if(!conn.open&&!closed){conn.open=true;clearInterval(jiv);conn.emit('open');}}
-    else if(m.t==='data'&&conn.open)conn.emit('data',m.d);
-    else if(m.t==='bye')conn.remoteClose();
-  });
-  ch.subscribe(function(status){
-    if(closed)return;
-    if(status==='SUBSCRIBED'&&!subbed){
-      subbed=true;
-      function join(){
-        if(conn.open||closed)return;
-        if(++tries>8){conn.emit('error',{type:'peer-unavailable'});return;}
-        sendJoin();
-      }
-      join();jiv=setInterval(join,1500);
-      kiv=setInterval(function(){
-        if(!conn.open)return;
-        try{ch.send({type:'broadcast',event:'g2h',payload:{t:'ping'}});}catch(e){}
-        if(Date.now()-conn.seen>20000){dlog('PING-TIMEOUT');conn.remoteClose();}
-      },3000);
-    }else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT')&&!conn.open&&!subbed){conn.emit('error',{type:'broker'});}
-  });
-  return conn;
-}
 
 /* ---- 房間伺服器(Cloudflare Durable Object):設咗 SERVER_URL 就全部走 WebSocket,房主唔再重要 ---- */
 var SERVER_URL='wss://mahjong-room.sam0610.workers.dev';   /* 例:'wss://mahjong-room.<你嘅子網域>.workers.dev' ;網址加 ?net=fb 可以強制用舊嘅 Firebase 版 */
@@ -2132,7 +2000,7 @@ function fbGuest(code){
 }
 function hostOpen(){
   if(wsMode()){U.creating=true;U.createTry=(U.createTry||0)+1;U.roomInput=randCode();U.rejoin='';joinRoom();return;}
-  if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()&&!wsMode()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  if(!rtcOK()&&!mqOK()&&!fbOK()&&!wsMode()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role='host';U.screen='lobby';U.notice='';U.code='';NET.members=[];
   openRoom(0);render();
 }
@@ -2193,26 +2061,24 @@ function tryTakeoverOnce(code){
 }
 function openRoom(attempt,opts){
   opts=opts||{};
-  var code=opts.code||randCode(),upDone=false,peer=null,hub=null,sbh=null,fbh=null,peerErr=!rtcOK(),mqErr=!mqOK(),sbErr=!sbOK(),fbErr=!fbOK();
-  function setCode(){if((U.role==='host'||U.pondOnly)&&(NET.peer===peer||NET.hub===hub||NET.sb===sbh||NET.fb===fbh)&&U.code!==code){U.code=code;render();}}
+  var code=opts.code||randCode(),upDone=false,peer=null,hub=null,fbh=null,peerErr=!rtcOK(),mqErr=!mqOK(),fbErr=!fbOK();
+  function setCode(){if((U.role==='host'||U.pondOnly)&&(NET.peer===peer||NET.hub===hub||NET.fb===fbh)&&U.code!==code){U.code=code;render();}}
   function up(){if(upDone)return;upDone=true;if(opts.onUp)opts.onUp();}
   function readyPing(isFb){setCode();if(!opts.onUp)return;if(fbOK()?isFb:true)up();}
   function retryFixed(){
     if(attempt>=20){if(opts.onGiveUp)opts.onGiveUp();return;}
     try{if(peer)peer.destroy();}catch(x){}
     if(hub){hub.close();NET.hub=null;}
-    if(sbh){sbh.close();NET.sb=null;}
     if(fbh){fbh.close();NET.fb=null;}
     setTimeout(function(){if(U.role==='host'&&!upDone&&U.resuming===code)openRoom(attempt+1,opts);},3000);
   }
   function check(){
-    if(!(peerErr&&mqErr&&sbErr&&fbErr))return;
+    if(!(peerErr&&mqErr&&fbErr))return;
     if(U.role==='host'){if(opts.onGiveUp&&!upDone){opts.onGiveUp();return;}leaveAll();U.notice='連線失敗,請稍後再試。';render();}
     else if(U.pondOnly){
-      var pr=NET.peer,hb=NET.hub,sh=NET.sb,fh=NET.fb;NET.peer=null;NET.hub=null;NET.sb=null;NET.fb=null;
+      var pr=NET.peer,hb=NET.hub,fh=NET.fb;NET.peer=null;NET.hub=null;NET.fb=null;
       try{if(pr)pr.destroy();}catch(x){}
       try{if(hb)hb.close();}catch(x){}
-      try{if(sh)sh.close();}catch(x){}
       try{if(fh)fh.close();}catch(x){}
       U.pondFail=true;render();
     }
@@ -2228,7 +2094,6 @@ function openRoom(attempt,opts){
       if(e&&e.type==='unavailable-id'&&attempt<5){
         try{peer.destroy();}catch(x){}
         if(hub){hub.close();NET.hub=null;}
-        if(sbh){sbh.close();NET.sb=null;}
         if(fbh){fbh.close();NET.fb=null;}
         U.code='';openRoom(attempt+1);return;
       }
@@ -2239,18 +2104,13 @@ function openRoom(attempt,opts){
     hub=mqHost(code,function(conn){if(NET.hub===hub)onHostConn(conn);},function(){readyPing(false);},function(){mqErr=true;check();});
     NET.hub=hub;
   }
-  if(sbOK()){
-    sbh=sbHost(code,function(conn){if(NET.sb===sbh)onHostConn(conn);},function(){readyPing(false);},function(){sbErr=true;check();});
-    NET.sb=sbh;
-  }
   if(fbOK()){
-    fbh=fbHost(code,function(conn){if(NET.fb===fbh)onHostConn(conn);},function(){readyPing(true);},function(){fbErr=true;if(opts.onUp&&!upDone&&(NET.peer||NET.hub||NET.sb))up();check();},function(){
+    fbh=fbHost(code,function(conn){if(NET.fb===fbh)onHostConn(conn);},function(){readyPing(true);},function(){fbErr=true;if(opts.onUp&&!upDone&&(NET.peer||NET.hub))up();check();},function(){
       if(NET.fb!==fbh)return;
       if(opts.code){if(opts.onGiveUp&&!upDone)opts.onGiveUp();else retryFixed();return;}   /* 租約已經喺別人手:唔爭,改為以玩家身份加入新房主 */
       if(attempt<5){
         try{if(peer)peer.destroy();}catch(x){}
         if(hub){hub.close();NET.hub=null;}
-        if(sbh){sbh.close();NET.sb=null;}
         fbh.close();NET.fb=null;U.code='';openRoom(attempt+1);
       }else{fbErr=true;check();}
     });
@@ -2346,7 +2206,7 @@ function pondRetry(msg){
 function joinRoom(){
   var code=(U.roomInput||'').trim().toUpperCase();
   if(!code){U.notice='請輸入房號。';render();return;}
-  if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK()&&!wsMode()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
+  if(!rtcOK()&&!mqOK()&&!fbOK()&&!wsMode()){U.notice='呢個環境用唔到多人對戰(要用 GitHub Pages 版)。';render();return;}
   U.role=U.pondMode?'pond':'client';U.screen='lobby';U.code=code;U.notice='';NET.lobby=null;V=null;NET.rx=0;NET.state='連線中…';NET.pend=[];
   var peer=null,chosen=null,dead=false,gen=U.joinGen=(U.joinGen||0)+1;
   function fail(msg){if(dead||U.joinGen!==gen||U.resuming)return;dlog('FAIL',msg);dead=true;var wasIn=!U.pondMode&&U.role==='client'&&!!V;
@@ -2401,10 +2261,9 @@ function joinRoom(){
     if(dead||NET.peer!==peer&&peer){clearInterval(helloIv);return;}
     if(NET.conn&&NET.conn.open&&!NET.lobby)safeSend(NET.conn,helloMsg());
   },2000);
-  var tFallback=(rtcOK()||sbOK()||fbOK())?setTimeout(startMq,6000):null;
+  var tFallback=(rtcOK()||fbOK())?setTimeout(startMq,6000):null;
   if(wsMode())attach(wsGuest(code),'伺服器');
   else if(fbOK())attach(fbGuest(code),'Firebase');
-  if(sbOK())attach(sbGuest(code),'Supabase');
   var tAll=setTimeout(function(){if(!chosen)fail('連唔到房間 '+code+',請確認房號,或者再試一次。');},22000);
   if(rtcOK()){
     peer=new window.Peer(undefined,PEER_OPTS);NET.peer=peer;
@@ -2413,7 +2272,7 @@ function joinRoom(){
       attach(peer.connect(PREFIX+code,{reliable:true,serialization:'json'}),'直連');
     });
     peer.on('error',function(){if(NET.peer===peer&&!chosen){NET.state='直連唔到,轉用備用線路…';startMq();}});
-  }else if(!sbOK()&&!fbOK()&&!wsMode())startMq();
+  }else if(!fbOK()&&!wsMode())startMq();
   render();
 }
 function onClientData(d){
@@ -2448,7 +2307,6 @@ function leaveAll(silent){
   if(conn){try{conn.close();}catch(e){}}
   var pend=NET.pend||[];NET.pend=[];pend.forEach(function(c){try{c.close();}catch(e){}});
   var hub=NET.hub;NET.hub=null;if(hub)setTimeout(function(){hub.close();},250);
-  var sbh2=NET.sb;NET.sb=null;if(sbh2)setTimeout(function(){sbh2.close();},250);
   var fbh2=NET.fb;NET.fb=null;if(fbh2)setTimeout(function(){fbh2.close();},250);
   if(peer){setTimeout(function(){try{peer.destroy();}catch(e){}},300);}
   U.role='solo';U.screen='setup';U.code='';V=null;U.modalHidden=false;U.rules=false;U.saved=null;
@@ -3001,7 +2859,6 @@ function handleAct(act,b){
   else if(act==='solo'){needPw(function(){U.role='solo';U.notice='';startGame();});}
   else if(act==='resume')resumeGame();
   else if(act==='dropsave'){dropSave();render();}
-  else if(act==='loadcode'){loadCloudSave(U.codeInput||'',true);}
   else if(act==='host')needPw(hostOpen);
   else if(act==='join')joinRoom();
   else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();else if(U.role==='client'&&NET.conn){safeSend(NET.conn,{t:'start'});}}
@@ -3015,7 +2872,7 @@ function handleAct(act,b){
     U.share=true;U.copiedPond=false;
     if(U.role==='solo'&&!U.pondOnly){
       U.pondOnly=true;U.pondFail=false;U.code='';NET.members=[];
-      if(!rtcOK()&&!mqOK()&&!sbOK()&&!fbOK())U.pondFail=true;else openRoom(0);
+      if(!rtcOK()&&!mqOK()&&!fbOK())U.pondFail=true;else openRoom(0);
     }
     render();
   }
@@ -3148,7 +3005,6 @@ function onInput(e){
   if(id==='pname'){U.name=e.target.value;try{localStorage.setItem('mj_name',U.name);}catch(x){}}
   else if(id==='newname'){U.nameDraft=e.target.value;}
   else if(id==='roomcode'){U.roomInput=e.target.value.toUpperCase();}
-  else if(id==='savecode'){U.codeInput=e.target.value.toUpperCase();}
 }
 /* ---------- password gate (front-end only: keeps casual visitors out) ---------- */
 var PW_HASH="0dfa047a71b96ddf9541cc38cc38db4aa25a87080c4104cec5bab7f06822a102";
@@ -3314,7 +3170,7 @@ function boot2(){
   },3000);
   render();
 }
-window.__mj={roomLoad:roomLoad,diagText:diagText,dlog:dlog,planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,loadCloudSave:loadCloudSave,readLocalSave:readLocalSave,saveCode:saveCode,CLOUD:CLOUD,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover,startTakeover:startTakeover,roomPut:roomPut,roomKey:roomKey,validSave:validSave,roomPidIdx:roomPidIdx};
+window.__mj={roomLoad:roomLoad,diagText:diagText,dlog:dlog,planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,readLocalSave:readLocalSave,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover,startTakeover:startTakeover,roomPut:roomPut,roomKey:roomKey,validSave:validSave,roomPidIdx:roomPidIdx};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>

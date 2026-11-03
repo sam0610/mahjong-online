@@ -12,7 +12,7 @@
 - 一人撳「開房同朋友打」,會得到房號同連結,傳俾朋友。
 - 朋友開同一個網頁,輸入房號(或直接開連結)加入。夠唔夠人都可以開始,空位由電腦補。
 - 房主嘅瀏覽器負責行牌局,要保持網頁開住。有人斷線會由電腦代打。
-- 連線同時並行試 Firebase Realtime Database(匿名登入,要喺 Firebase 開 Anonymous 登入,房間路徑 rooms/mj房號/…,配合現有規則 rooms/$code/meta + inbox/$peer)、Supabase Realtime(Broadcast)同 PeerJS(WebRTC 直連);6 秒內都未連到就加開公共 MQTT(HiveMQ / EMQX)備用。邊條線先通就用邊條。MQTT 嘅訊息經公共伺服器,房號唔好公開。
+- 連線同時並行試 Firebase Realtime Database(匿名登入,要喺 Firebase 開 Anonymous 登入,房間路徑 rooms/mj房號/…,配合現有規則 rooms/$code/meta + inbox/$peer)同 PeerJS(WebRTC 直連);6 秒內都未連到就加開公共 MQTT(HiveMQ / EMQX)備用。邊條線先通就用邊條。MQTT 嘅訊息經公共伺服器,房號唔好公開。
 - 房主嘅程式持有所有手牌(信任房主);開始後唔可以中途加入。
 
 ## 規則
@@ -21,14 +21,6 @@
 ## 存檔(牌局進度)
 - 單人對電腦時,每次輪到你、同每局完結,都會自動存檔。重新整理、關咗網頁、隔幾日再開,設定畫面都會見到「繼續牌局」。
 - 預設存喺瀏覽器(localStorage);清除瀏覽資料或者換機就冇。
-- 想存喺伺服器(換機都繼續得):
-  1. 去 https://supabase.com 開一個免費專案。
-  2. SQL Editor 貼上 `supabase.sql` 全部內容,撳 Run。
-  3. Project Settings → API,抄低 **Project URL** 同 **anon public key**。
-  4. 喺 `index.html` 搵 `var CLOUD={url:'',key:''};`,填入兩個值,commit。
-  5. 之後設定畫面會顯示你嘅「存檔碼」,換機輸入就可以繼續。
-- 安全:表格唔開放直接讀寫,只可以經函數用 16 位私人存檔碼存取;anon key 本身係公開設計,放喺網頁冇問題。存檔碼等於密碼,唔好公開。
-- 多人房間(開房同朋友打)暫時唔存檔。
 
 ## 自動聽牌
 - 手牌只欠一隻牌就可以食糊(聽牌),而且食糊嗰隻牌夠起糊番數時,畫面會出現「自動聽牌 · 欠一隻」掣。番數唔夠(食唔到糊)就唔會出現。
@@ -91,7 +83,7 @@
 }
 ```
 
-冇改規則都用得:`state` 寫唔到就會靠 Supabase 存檔頂住;但 `meta` 規則如果唔准「過期租約被搶」,房主死機(冇乾淨斷線)時要等 Firebase 自己清走(約 1 分鐘)先接手到。
+冇改規則都用得:`state` 寫唔到就冇房間存檔;但 `meta` 規則如果唔准「過期租約被搶」,房主死機(冇乾淨斷線)時要等 Firebase 自己清走(約 1 分鐘)先接手到。
 
 ## 房間伺服器(Cloudflare Durable Objects)
 
