@@ -1680,7 +1680,7 @@ function cdText(){var l=cdLeft();return l==null?'':Math.ceil(l/1000)+' 秒後自
 function nextHand(){
   var r=S.result;if(!S.over||!r)return;
   clearTimeout(S.nextT);S.nextAt=0;
-  if(r.type==='draw'||r.winner===S.dealer){S.lian++;}
+  if(r.type==='win'&&r.winner===S.dealer){S.lian++;}   /* 淨係莊家糊先連莊;流局(無人糊)過庄 */
   else{S.lian=0;S.dealer=(S.dealer+1)%S.n;if(S.dealer===(S.d0||0))S.round=(S.round+1)%4;}
   S.handNo++;S.ready={};U.modalHidden=false;
   runGame();render();
@@ -2617,7 +2617,7 @@ function pipEl(n,rolling){
 function rulesHTML(){
   return '<div class="ov"><div class="sheet rules"><h2>規則</h2>'+
   '<h3>基本</h3><ul><li>144 隻牌:萬、筒、索各 1–9 四隻,東南西北、中發白各四隻,另有 8 隻花牌。</li><li>每人 13 隻,莊家先摸牌。摸到花牌即時補花,由牌尾補一隻。</li><li>糊牌需要 4 組面子(順、刻、槓)加一對將,或者十三么。</li><li>「上」只可以上家(你左手邊)打出的牌;碰、槓任何人都可以。糊牌優先於碰槓,碰槓優先於上。</li><li>牌牆摸晒(冇留牌尾)即流局,莊家連莊。</li></ul>'+
-  '<h3>起糊與計分</h3><ul><li>要夠起糊番數(預設 3 番)先可以糊牌,否則唔可以糊。</li><li>食糊:出銃者全付。自摸:其餘每家各付自摸價(見下面番數對照)。封頂 8 番。兩個人玩時自摸都係全付(同出銃一樣)。</li><li>莊家糊牌或流局連莊,否則輪莊;輪完一圈,風圈由東轉南。</li></ul>'+
+  '<h3>起糊與計分</h3><ul><li>要夠起糊番數(預設 3 番)先可以糊牌,否則唔可以糊。</li><li>食糊:出銃者全付。自摸:其餘每家各付自摸價(見下面番數對照)。封頂 8 番。兩個人玩時自摸都係全付(同出銃一樣)。</li><li>淨係莊家糊牌先連莊;流局(無人糊)或者閒家糊牌,都輪到下家做莊;輪完一圈,風圈由東轉南。</li></ul>'+
   '<h3>番種</h3><dl class="ft">'+
   '<dt>1 番</dt><dd>無花、正花(每隻)、自摸、門前清、平糊、圈風、門風、三元牌(每副)、槓上開花、海底撈月、河底撈魚</dd>'+
   '<dt>2 番</dt><dd>一台花(春夏秋冬或梅蘭菊竹齊四隻,額外計)</dd>'+
@@ -2638,7 +2638,7 @@ function winTileOf(r){
 function resultHTML(pond){
   var r=V.result,P=V.players,wt=r.type==='win'?winTileOf(r):null,h='<div class="ov"><div class="sheet">';
   if(r.type==='draw'){
-    h+='<h2>流局</h2><p>牌牆已摸完,莊家連莊。</p>';
+    h+='<h2>流局</h2><p>牌牆已摸完,無人糊牌,過庄(輪到下家做莊)。</p>';
   }else{
     var w=P[r.winner];
     h+='<span class="stamp">'+(r.self?'自摸':'食糊')+'</span>';
