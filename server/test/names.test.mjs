@@ -33,4 +33,14 @@ r=await call({op:'del',name:'雀聖'});assert(!('雀聖' in r.j.uses));
   const ok=await q(c1,'8964');assert.strictEqual(ok.s,200);assert.strictEqual(ok.j.ok,true);
   let last;for(let i=0;i<8;i++)last=await q(c1,'1111','4.4.4.4');assert.strictEqual(last.s,429);   // 試太多次
 }
+// 開新局密碼(Worker secret GAME_PW)
+{
+  const q=async(nn,pw,ip='5.5.5.5')=>{const r=await nn.fetch(new Request('https://x/names',{method:'POST',body:JSON.stringify({op:'gate',pw}),headers:{'CF-Connecting-IP':ip}}));return {s:r.status,j:await r.json()};};
+  assert.strictEqual((await q(new Names(state),'1234')).s,403);   // 冇設 secret = 全部拒絕
+  const g=new Names(state,{GAME_PW:'1234',DEBUG_PW:'9999'});
+  assert.strictEqual((await q(g,'0000')).s,403);
+  let ok=await q(g,'1234');assert.strictEqual(ok.s,200);assert.strictEqual(ok.j.debug,false);
+  ok=await q(g,' 9999 ');assert.strictEqual(ok.j.debug,true);
+  let last;for(let i=0;i<10;i++)last=await q(g,'1111','6.6.6.6');assert.strictEqual(last.s,429);
+}
 console.log('names OK');

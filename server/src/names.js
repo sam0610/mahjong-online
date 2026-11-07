@@ -28,6 +28,13 @@ export class Names{
       if(this.limited(ip,'pw',6))return J({err:'試太多次,等一分鐘'},429);
       return String(d.pw||'')===String(this.env.CHEAT_PW)?J({ok:true}):J({err:'密碼錯'},403);
     }
+    if(op==='gate'){   /* 開新局密碼:放喺 Worker secret(GAME_PW),冇設就拒絕所有人;DEBUG_PW(可選)通過會開除錯模式 */
+      if(!this.env.GAME_PW)return J({err:'未設定密碼'},403);
+      if(this.limited(ip,'gate',8))return J({err:'試太多次,等一分鐘'},429);
+      const pw=String(d.pw||'').trim();
+      if(this.env.DEBUG_PW&&pw===String(this.env.DEBUG_PW).trim())return J({ok:true,debug:true});
+      return pw===String(this.env.GAME_PW).trim()?J({ok:true,debug:false}):J({err:'密碼唔啱'},403);
+    }
     if(op==='use'){   /* 記錄電腦名用咗一次(每局開波報一次),唔入撤銷記錄 */
       if(ip&&this.limited(ip,'use',20))return J({err:'太密,等一陣'},429);
       const list=Array.isArray(d.names)?d.names.slice(0,4):[];

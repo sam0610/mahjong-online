@@ -3042,8 +3042,7 @@ function onInput(e){
   else if(id==='newname'){U.nameDraft=e.target.value;}
   else if(id==='roomcode'){U.roomInput=e.target.value.toUpperCase();}
 }
-/* ---------- password gate (front-end only: keeps casual visitors out) ---------- */
-var PW_HASH="0dfa047a71b96ddf9541cc38cc38db4aa25a87080c4104cec5bab7f06822a102";
+/* ---------- password gate (verified by the Worker against secret GAME_PW) ---------- */
 function sha256hex(str){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(str)).then(function(b){return Array.prototype.map.call(new Uint8Array(b),function(x){return ('0'+x.toString(16)).slice(-2);}).join('');});}
 var DBG_HASH="bd78a174b6ea08ced4eddd4893335f0df0e7947493ad31fedefb74dc484425dc";
 function pwOK(){return false;}   /* 唔記住密碼:每次開新局都要輸 */
@@ -3057,12 +3056,26 @@ function needPw(fn){
   var f=d.querySelector('form'),inp=d.querySelector('input'),er=d.querySelector('.pwe');
   setTimeout(function(){inp.focus();},50);
   d.querySelector('.pwx').addEventListener('click',function(){d.remove();});
+  var busy=false;
+  function pass(dbg){U.debug=!!dbg;try{localStorage.removeItem('mj_ok');}catch(e){}d.remove();fn();}
   f.addEventListener('submit',function(e){
     e.preventDefault();
-    sha256hex('mj-hk:'+inp.value.trim()).then(function(h){
-      if(h===PW_HASH||h===DBG_HASH){U.debug=(h===DBG_HASH);try{localStorage.removeItem('mj_ok');}catch(e){}d.remove();fn();}
-      else{er.textContent='密碼唔啱';inp.value='';inp.focus();}
-    }).catch(function(){er.textContent='呢個瀏覽器唔支援,請用 https 開';});
+    if(busy)return;
+    var pw=inp.value.trim(),url=namesUrl();
+    function bad(m){busy=false;er.textContent=m;inp.value='';inp.focus();}
+    if(!url){er.textContent='連唔到伺服器。';return;}
+    busy=true;er.textContent='驗證緊…';
+    /* 密碼放喺 Cloudflare Worker secret(GAME_PW),由伺服器驗證;改密碼只需改 secret,唔使改代碼 */
+    fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({op:'gate',pw:pw})})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(x){
+        if(x.ok&&x.j&&x.j.ok){busy=false;pass(x.j.debug);}
+        else bad((x.j&&x.j.err)||'密碼唔啱');
+      })
+      .catch(function(){
+        /* 連唔到伺服器:只容許舊嘅除錯密碼 */
+        sha256hex('mj-hk:'+pw).then(function(h){if(h===DBG_HASH){busy=false;pass(true);}else bad('連唔到伺服器,請稍後再試。');}).catch(function(){bad('連唔到伺服器,請稍後再試。');});
+      });
   });
 }
 function boot(){boot2();}
