@@ -2751,7 +2751,7 @@ function tpHTML(t){
   }
   var r=tp[t];
   var w=r.w.slice().sort(function(a,b){return Math.max(b[2],b[3])-Math.max(a[2],a[3]);});
-  return '<div class="tpbar" id="tpbar"><span>打 <b>'+tname(t)+'</b> 聽 <b>'+w.length+'</b> 款,最多 <b>'+(r.max>=CAP?'滿貫':r.max+'番')+'</b>'+(r.ok?'':'<b style="color:#c0392b">(未夠起糊 '+V.minFan+' 番)</b>')+':</span>'+
+  return '<div class="tpbar" id="tpbar">(r.ok?'':'<b style="color:#c0392b">未夠起糊 '+V.minFan+' 番</b>')+
     w.map(function(x){var f=Math.max(x[2],x[3]);return '<span class="tw'+(f<V.minFan?' lo':'')+'">'+tileEl(x[0])+'<small>餘'+x[1]+' · 出銃'+(x[2]>=CAP?'滿':x[2])+' / 自摸'+(x[3]>=CAP?'滿':x[3])+'番</small></span>';}).join('')+'</div>';
 }
 function drawDock(){
