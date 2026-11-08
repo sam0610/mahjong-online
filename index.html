@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>港式麻雀</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14613f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;700&display=swap">
 <style>
@@ -26,6 +30,7 @@ button{font:inherit;color:inherit}
 .app{max-width:1040px;margin:0 auto;display:grid;gap:10px}
 .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .top h1{margin:0 8px 0 0;font:900 20px/1 var(--sans);letter-spacing:.22em}
+.top h1 .logo{vertical-align:-5px;margin-right:8px;letter-spacing:0}
 .top .sp{flex:1}
 .btn{font:500 14px var(--sans);color:var(--ink);background:var(--surface);border:1px solid var(--line-2);border-radius:10px;padding:0 16px;height:40px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
 .btn:hover{border-color:var(--accent)}
@@ -156,6 +161,11 @@ button{font:inherit;color:inherit}
 .chatp .sw.on{background:var(--accent)}
 .chatp .sw.on::after{left:18px}
 .chatp .xb{width:32px;height:32px;border:0;border-radius:8px;background:var(--surface-2);cursor:pointer}
+#chatlog{position:fixed;z-index:13;display:flex;flex-direction:column;align-items:flex-start;gap:3px;max-width:min(340px,70vw)}
+#chatlog .lgb{width:34px;height:34px;border:1px solid var(--line-2,#c5ccd8);border-radius:10px;background:var(--surface,#fff);color:var(--muted,#5d6678);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;margin-bottom:3px;box-shadow:0 2px 6px rgba(30,40,60,.12)}
+#chatlog .lgb.on{border-color:var(--accent,#0a7f9c);color:var(--accent,#0a7f9c)}
+#chatlog .lgr{display:flex;align-items:baseline;gap:8px;font-size:14px;line-height:1.35;padding:3px 10px;border-radius:8px;background:rgba(255,255,255,.9);max-width:100%;word-break:break-all;animation:cbin .18s ease-out;pointer-events:none}
+#chatlog .lgr b{font-weight:800;flex:none}
 #chatl{position:fixed;inset:0;pointer-events:none;z-index:14}
 .cb{position:fixed;max-width:min(360px,80vw);background:var(--cc,#7a4fd0);color:#fff;border-radius:20px;padding:8px 22px 10px;box-shadow:0 10px 26px rgba(30,40,60,.35);word-break:break-all;animation:cbin .18s ease-out}
 .cb small{display:block;font:700 12px/1.3 var(--sans);opacity:.88;margin-bottom:2px}
@@ -581,7 +591,7 @@ body.pondmode .sheet{color:var(--ink)}
 
 <div class="app">
   <header class="top">
-    <h1>港式麻雀</h1>
+    <h1><svg class="logo" width="26" height="26" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#14613f"/><g transform="rotate(-6 50 50)"><rect x="24" y="12" width="52" height="76" rx="9" fill="#fbfaf4"/><path d="M24 76H76V79a9 9 0 0 1-9 9H33a9 9 0 0 1-9-9Z" fill="#2f8f55"/><rect x="36" y="33" width="28" height="22" rx="2" fill="none" stroke="#c4432a" stroke-width="5.5"/><path d="M50 24V64" stroke="#c4432a" stroke-width="5.5" stroke-linecap="round"/></g></svg>港式麻雀</h1>
     <span class="roomtag" id="roomTag" hidden></span>
     <span class="sp"></span>
     <button class="btn sm" data-act="settings">設定</button>
@@ -3060,7 +3070,7 @@ function tilesHTML(){
     '<div class="opts"><button class="btn pri" data-act="closeTiles">完成</button></div></div></div>';
 }
 /* ---------- 房內聊天(快捷語 + 表情 + 打字):面板、氣泡、設定頁嘅共用名單 ---------- */
-var PH_DEF=['快啲啦!','等我諗諗','好牌!','嘩,咁都食得','唔該曬','又係你','手風順喎','玩得開心'],CH={bubbles:[],sentAt:0};
+var PH_DEF=['快啲啦!','等我諗諗','好牌!','嘩,咁都食得','唔該曬','又係你','手風順喎','玩得開心'],CH={bubbles:[],sentAt:0,log:[],logUntil:0};
 try{U.chatMute=localStorage.getItem('mj_chatmute')==='1';}catch(e){}
 function chatPhrases(){var a=null;try{a=JSON.parse(localStorage.getItem('mj_phrases')||'null');}catch(e){}return Array.isArray(a)&&a.length===8?a:PH_DEF.slice();}
 function setPhrases(a){if(!Array.isArray(a)||a.length!==8)return;try{localStorage.setItem('mj_phrases',JSON.stringify(a));}catch(e){}}
@@ -3081,6 +3091,8 @@ function chatShow(m){
   if(!mine&&U.chatMute)return;
   if(!mine&&!U.chatOpen){U.chatUnread=(U.chatUnread||0)+1;draw();}
   var b={s:m.s,k:m.k,v:String(m.v||'')};
+  CH.log.push({s:m.s,v:b.v});if(CH.log.length>5)CH.log.shift();
+  CH.logUntil=Date.now()+8000;setTimeout(chatLog,8100);
   CH.bubbles=CH.bubbles.filter(function(x){return x.s!==m.s;});CH.bubbles.push(b);
   setTimeout(function(){CH.bubbles=CH.bubbles.filter(function(x){return x!==b;});chatLayer();},4000);
   chatLayer();
@@ -3090,6 +3102,26 @@ function chatAnchor(sd){   /* 闊屏用 #tbl .tchip,窄屏用 #opps .sh:攞到�
   var q=['#tbl .tchip[data-seat="'+sd+'"]','#opps [data-seat="'+sd+'"] .sh'],i,el,r;
   for(i=0;i<q.length;i++){el=document.querySelector(q[i]);if(el){r=el.getBoundingClientRect();if(r.width||r.height)return el;}}
   return null;
+}
+/* 訊息記錄:左上角淡出串(最近 5 句),新訊息出現 8 秒,撳「記錄」掣可以再顯示 */
+function chatLog(){
+  var e=document.getElementById('chatlog');
+  if(!e){e=document.createElement('div');e.id='chatlog';document.body.appendChild(e);}
+  if(!chatOK()){if(e.innerHTML)e.innerHTML='';return;}
+  var tb=document.querySelector('#tbl'),op=document.getElementById('opps'),r=null;
+  if(tb){r=tb.getBoundingClientRect();if(!r.width&&!r.height)r=null;}
+  var left=r?r.left+12:8,top=r?r.top+10:(op?Math.max(8,op.getBoundingClientRect().bottom+6):60);
+  var on=Date.now()<CH.logUntil,CC=['#2b2e34','#e07a1f','#d6336c','#7a4fd0'],h='';
+  e.style.left=Math.round(left)+'px';e.style.top=Math.round(top)+'px';
+  h+='<button class="lgb'+(on?' on':'')+'" data-act="chatLog" aria-label="訊息記錄" aria-pressed="'+(on?'true':'false')+'" title="訊息記錄"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 4.5A1.5 1.5 0 014.5 3h9A1.5 1.5 0 0115 4.5v6A1.5 1.5 0 0113.5 12H8l-3.5 3v-3h0A1.5 1.5 0 013 10.5z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg></button>';
+  if(on){
+    if(!CH.log.length)h+='<div class="lgr" style="opacity:1"><span>暫時冇訊息</span></div>';
+    CH.log.forEach(function(x,i){
+      var pn=V.players[x.s],n=x.s===V.me?'你':(pn?pn.name.replace(/\(.*$/,''):'?'),op2=(0.4+0.6*(i+1)/CH.log.length).toFixed(2);
+      h+='<div class="lgr" style="opacity:'+op2+'"><b style="color:'+CC[(x.s-V.me+V.n)%V.n%CC.length]+'">'+esc(n)+'</b><span>'+esc(x.v)+'</span></div>';
+    });
+  }
+  if(e.getAttribute('data-h')!==h){e.setAttribute('data-h',h);e.innerHTML=h;}
 }
 function chatLayer(){
   var e=document.getElementById('chatl');
@@ -3338,7 +3370,7 @@ function draw(){
     /* 記低最後一隻出牌/自己摸嘅牌:房間伺服器(舊引擎)嘅結果冇 tile,贏牌時靠呢個推出食糊牌 */
     if(V.last&&V.last.t!=null)U.tkLast=V.last.t;
     var mp=V.players&&V.players[V.me];if(mp&&mp.drawn!=null)U.tkDrawn=mp.drawn;}
-  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();chatDraw();apqDraw();chatLayer();
+  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();chatDraw();apqDraw();chatLayer();chatLog();
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
   if(els.share)els.share.hidden=!((U.role==='host'&&U.code)||(U.role==='solo'&&V));
@@ -3380,6 +3412,7 @@ function handleAct(act,b){
   }
   else if(act==='togPond'){U.pondHidden=!U.pondHidden;try{localStorage.setItem('mj_pondHide',U.pondHidden?'1':'0');}catch(e){}draw();}
   else if(act==='chat'){U.chatOpen=!U.chatOpen;U.chatEdit=false;if(U.chatOpen){U.chatUnread=0;fetchPhrases();}draw();}
+  else if(act==='chatLog'){CH.logUntil=Date.now()<CH.logUntil?0:Date.now()+10000;setTimeout(chatLog,10100);chatLog();}
   else if(act==='chatClose'){U.chatOpen=false;U.chatEdit=false;draw();}
   else if(act==='chatMute'){U.chatMute=!U.chatMute;try{localStorage.setItem('mj_chatmute',U.chatMute?'1':'0');}catch(e){}if(U.chatMute)CH.bubbles=CH.bubbles.filter(function(x){return V&&x.s===V.me;});draw();}
   else if(act==='chatSay'){chatTx('x',chatPhrases()[+b.getAttribute('data-i')]);}
