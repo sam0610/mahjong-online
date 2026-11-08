@@ -1,14 +1,18 @@
 const DEFAULTS=["食糊黃", "鄧俄林壯", "戴對對", "詐糊查", "街市阿岑", "放槍大王", "麻雀龔", "偷雞盧", "牌神EASON", "十三IU", "三番市", "四筒發達", "大牌檔", "拆牌專家", "SMALL黃", "一索得藍", "青衣色", "字魔是我", "大山園", "山缺一哥", "食葫蘆", "最愛碰碰車", "洗白白", "一世書家", "營家之主", "雀神", "麻雀公爵", "雞鴨湖", "門前青草地", "親一色", "亂打一TONE", "三番都唔夠", "無PIE用", "運財童子", "九萬李", "清一色雞糊", "紅鍾", "成地雀仔"];
+const DEFAULT_PH=['快啲啦!','等我諗諗','好牌!','嘩,咁都食得','唔該曬','又係你','手風順喎','玩得開心'];
+const PH_N=8,PH_LEN=12;
 const PW_HASH='3dae35a974004d9515fef8861fab0acb4d8774bfdf5b1fa29e9f0e27c0ed4b23';   // 還原用密碼嘅 SHA-256
 const MAX=100,MIN=10,KEEP=100;
 const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{'content-type':'application/json'}});
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(s)));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+function cleanPh(x){x=String(x==null?'':x).replace(/[\u0000-\u001f<>]/g,'').trim();return [...x].length>=1&&[...x].length<=PH_LEN?x:'';}
 function clean(x){x=String(x==null?'':x).replace(/[\u0000-\u001f<>]/g,'').trim();return [...x].length>=1&&[...x].length<=8?x:'';}
 
 /* 全站共用嘅電腦玩家名單(單一個 Durable Object) */
 export class Names{
   constructor(state,env){this.state=state;this.env=env||{};this.rate=new Map();}
   async load(){let n=await this.state.storage.get('names');if(!n){n=DEFAULTS.slice();await this.state.storage.put('names',n);}return n;}
+  async phrases(){let p=await this.state.storage.get('phrases');if(!Array.isArray(p)||p.length!==PH_N){p=DEFAULT_PH.slice();}return p;}
   limited(ip,key,max){
     const now=Date.now(),k=ip+key,a=(this.rate.get(k)||[]).filter(t=>now-t<60000);
     if(a.length>=max){this.rate.set(k,a);return true;}
@@ -20,7 +24,7 @@ export class Names{
     const ip=req.headers.get('CF-Connecting-IP')||'';
     let names=await this.load();
     let uses=(await this.state.storage.get('uses'))||{};
-    if(req.method==='GET')return J({names,uses,canUndo:((await this.state.storage.get('log'))||[]).length>0});
+    if(req.method==='GET')return J({names,uses,phrases:await this.phrases(),canUndo:((await this.state.storage.get('log'))||[]).length>0});
     let d;try{d=await req.json();}catch(e){return J({err:'格式錯'},400);}
     const op=d&&d.op;
     if(op==='cheat'){   /* 金手指密碼:放喺 Worker secret(CHEAT_PW),唔放喺網頁,冇設就等於未啟用 */
@@ -41,6 +45,19 @@ export class Names{
       list.forEach(n=>{if(names.includes(n))uses[n]=(uses[n]||0)+1;});
       await this.state.storage.put('uses',uses);
       return J({names,uses,canUndo:((await this.state.storage.get('log'))||[]).length>0});
+    }
+    if(op==='phSet'){   /* 共用快捷語:一定 8 句,每句 1–12 字 */
+      if(this.limited(ip,'ph',20))return J({err:'改得太密,等一陣'},429);
+      const list=Array.isArray(d.list)?d.list.map(cleanPh):[];
+      if(list.length!==PH_N||list.some(x=>!x))return J({err:'要剛好 8 句,每句 1–'+PH_LEN+' 個字',phrases:await this.phrases()},400);
+      await this.state.storage.put('phrases',list);
+      return J({phrases:list});
+    }
+    if(op==='phReset'){
+      if(this.limited(ip,'pw',6))return J({err:'試太多次,等一分鐘'},429);
+      if(await sha(d.pw)!==PW_HASH)return J({err:'密碼錯'},403);
+      await this.state.storage.delete('phrases');
+      return J({phrases:DEFAULT_PH.slice()});
     }
     if(op==='undo'||op==='reset'){
       if(this.limited(ip,'pw',6))return J({err:'試太多次,等一分鐘'},429);

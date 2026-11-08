@@ -96,6 +96,32 @@ button{font:inherit;color:inherit}
 .rack.me .meld,.rack.me .fl{--tw:calc(var(--hw)*.8)}
 .reveal{flex-wrap:wrap}
 .river{display:flex;flex-wrap:wrap;gap:4px 2px;--tw:var(--rw);min-height:calc(var(--rw)*1.36 + 6px);align-content:flex-start;padding-top:8px;border-top:1px solid var(--line)}
+.chatp{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 150px);width:min(380px,calc(100vw - 24px));max-height:calc(100vh - 200px);overflow:auto;background:var(--surface);border:1px solid var(--line-2);border-radius:16px;box-shadow:0 12px 32px rgba(30,40,60,.2);padding:14px 16px;display:grid;gap:10px;z-index:15}
+.chatp[hidden],#chatl[hidden]{display:none}
+.chatp .hd{display:flex;align-items:center;gap:8px}
+.chatp .hd b{font-size:16px;flex:1}
+.chatp .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.chatp .ph{height:40px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface);font:500 14px var(--sans);cursor:pointer;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chatp .ph:hover{border-color:var(--accent)}
+.chatp .ph.my{border:1.5px dashed var(--accent);background:rgba(10,127,156,.06)}
+.chatp .ph.add{border:1.5px dashed var(--line-2);color:var(--muted)}
+.chatp .sub{display:flex;align-items:center;gap:6px;font:700 12px var(--sans);letter-spacing:.08em;color:var(--muted)}
+.chatp .sub small{font-weight:400;letter-spacing:0;color:#8a93a5}
+.chatp .emo{display:flex;justify-content:space-between}
+.chatp .emo button{width:36px;height:40px;border:0;border-radius:10px;background:var(--surface-2);font-size:22px;cursor:pointer}
+.chatp .row{display:flex;gap:8px}
+.chatp .hint{font-size:12px;color:var(--hot);min-height:0}
+.chatp .sw{width:40px;height:24px;border-radius:999px;border:0;background:var(--line-2);position:relative;cursor:pointer;padding:0}
+.chatp .sw::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.chatp .sw.on{background:var(--accent)}
+.chatp .sw.on::after{left:18px}
+.chatp .xb{width:32px;height:32px;border:0;border-radius:8px;background:var(--surface-2);cursor:pointer}
+#chatl{position:fixed;inset:0;pointer-events:none;z-index:14}
+.cb{position:fixed;max-width:min(260px,70vw);background:#fff;border:2px solid var(--accent);border-radius:14px;padding:6px 14px;font:800 16px/1.35 var(--sans);box-shadow:0 6px 16px rgba(30,40,60,.18);word-break:break-all;animation:cbin .18s ease-out}
+.cb.e{font-size:30px;line-height:1.3;padding:2px 12px}
+@keyframes cbin{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.cb{animation:none}}
+.chbadge{min-width:18px;height:18px;border-radius:9px;background:var(--hot);color:#fff;font:700 11px/18px var(--sans);text-align:center;padding:0 5px}
 .call{position:absolute;right:12px;top:-15px;background:var(--hot);color:#fff;font:900 22px/1 var(--sans);padding:8px 14px;border-radius:8px;animation:pop 1.1s ease-out forwards;z-index:2;box-shadow:0 4px 14px rgba(30,40,60,.3)}
 @keyframes pop{0%{transform:scale(.4);opacity:0}18%{transform:scale(1.15);opacity:1}30%{transform:scale(1)}85%{opacity:1}100%{opacity:0}}
 
@@ -2123,6 +2149,21 @@ function openRoom(attempt,opts){
   }
 }
 /*@engine:begin onHostConn*/
+/* ---------- 房內聊天:快捷語 / 表情 / 打字,房主驗證後廣播俾所有座位(每人最少隔 3 秒) ---------- */
+var CHAT_EMO=['😄','😂','😭','😮','👍','🙏','😏','🔥'],CHAT_GAP=3000,CHAT_MAX=30,chatAt={};
+function chatOut(seat,k,v){
+  var msg={t:'chat',s:seat,k:k,v:v};
+  NET.members.forEach(function(m){if(m.seat>=0)safeSend(m.conn,msg);});
+  if(HOOKS.chatLocal)HOOKS.chatLocal(msg);
+}
+function chatIn(seat,d){
+  if(!S.running||seat<0||!S.players[seat]||!S.players[seat].human)return false;
+  var now=Date.now();if(now-(chatAt[seat]||0)<CHAT_GAP)return false;
+  var k=d&&d.k==='e'?'e':'x',v=String(d&&d.v!=null?d.v:'').replace(/[\u0000-\u001f<>]/g,'').trim();
+  if(k==='e'){if(CHAT_EMO.indexOf(v)<0)return false;}
+  else{v=Array.from(v).slice(0,CHAT_MAX).join('');if(!v)return false;}
+  chatAt[seat]=now;chatOut(seat,k,v);return true;
+}
 function onHostConn(conn){
   var m={conn:conn,name:'玩家',seat:-1,joined:false,pond:false};
   /* 收到 hello 先決定係玩家定係牌河屏;玩家先檢查人數同有冇開咗局 */
@@ -2178,6 +2219,7 @@ function onHostConn(conn){
       render();
     }
     else if(d.t==='ans'){if(m.seat>=0)answerSeat(m.seat,d.id,d.v);}
+    else if(d.t==='chat'){if(m.seat>=0)chatIn(m.seat,d);}
     else if(d.t==='auto'){if(m.seat>=0)setAuto(m.seat,!!d.on);}
     else if(d.t==='proxy'){if(m.seat>=0)setProxy(m.seat,!!d.on);}
     else if(d.t==='ready'){if(m.seat>=0&&S.over){S.ready[m.seat]=1;render();checkReady();}}
@@ -2291,6 +2333,7 @@ function onClientData(d){
     else{U.creating=false;U.rejoin='';forgetRoom();leaveAll();U.notice='房號已經有人用,請再試一次。';render();}
   }
   else if(d.t==='none'){U.creating=false;U.rejoin='';forgetRoom();leaveAll();U.notice='搵唔到呢個房號(房間可能已經過期)。';render();}
+  else if(d.t==='chat'){chatShow(d);}
   else if(d.t==='cheat'){U.cheat=!!d.on;if(d.on){U.cheatAsk=false;U.cheatMsg='';}else if(d.err){U.cheatMsg=d.err;U.cheatPw='';}render();}
   else if(d.t==='view'){V=d.v;if(U.cheat&&U.cheatPw&&V&&!V.cheat&&Date.now()-(U.cheatTry||0)>5000){U.cheatTry=Date.now();safeSend(NET.conn,{t:'cheat',on:true,pw:U.cheatPw});}   /* 斷線返嚟,伺服器唔記得:自動再開 */if(V)V.dl=V.cd!=null?Date.now()+V.cd:0;U.screen='game';U.rejoinN=0;if(U.code)rememberRoom(U.code);render();}
   else if(d.t==='full'){var m=d.msg;U.rejoin='';leaveAll();U.notice=m;render();}
@@ -2364,7 +2407,7 @@ function drawOpps(){
       if(p.hand)body='<span class="reveal">'+faces(p.hand)+'</span>';
       else{var gs=[],rest=p.n;while(rest>0){var g=Math.min(5,rest);gs.push('<span class="grp">'+new Array(g+1).join(BACK)+'</span>');rest-=g;}body='<span class="backs">'+gs.join('')+'</span>';}
       var hasOpen=p.melds.length||p.flowers.length;
-      h+='<article class="'+seatClass(i)+'">'+headHTML(p,i,k)+'<div class="rack'+(hasOpen?'':' bare')+'">'+body+(p.melds.length?'<span class="sep"></span>'+meldsHTML(p,false):'')+flowersHTML(p)+'</div></article>';
+      h+='<article class="'+seatClass(i)+'" data-seat="'+i+'">'+headHTML(p,i,k)+'<div class="rack'+(hasOpen?'':' bare')+'">'+body+(p.melds.length?'<span class="sep"></span>'+meldsHTML(p,false):'')+flowersHTML(p)+'</div></article>';
     }
   }
   els.opps.innerHTML=h;
@@ -2375,7 +2418,7 @@ function tseat(i,k,ps){
   var call=(V.call&&V.call.i===i)?'<span class="call">'+esc(V.call.text)+'</span>':'';
   var bub='';
   if(V.last&&V.last.seat===i&&!V.over){var be=Date.now()-(U.flyAt||0);if(be<1900)bub='<span class="dbub ps-'+ps+'" style="--fd:-'+be+'ms">'+tileEl(V.last.t)+'</span>';}
-  var chip='<div class="tchip'+(cur?' on':'')+'">'+call+bub+'<span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span><span class="rel">'+relLabel(k,V.n)+'</span>'+
+  var chip='<div class="tchip'+(cur?' on':'')+'" data-seat="'+i+'">'+call+bub+'<span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span><span class="rel">'+relLabel(k,V.n)+'</span>'+
     (i===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+p.score.toLocaleString()+'</span>'+
     (!V.over?'<span class="numbadge"><b>'+p.n+'</b>張</span>':'')+'</div>';
   var body;
@@ -2532,6 +2575,7 @@ function drawDock(){
   }else if(!V.over&&V.autoSh===0){
     acts+='<button class="btn auto" data-act="auto">自動聽牌 · 欠一隻'+KB('N')+'</button>';
   }
+  if(chatOK())acts+='<button class="btn sm" data-act="chat" aria-label="聊天">聊天'+(U.chatUnread?' <span class="chbadge">'+U.chatUnread+'</span>':'')+'</button>';
   if(!V.proxy&&!V.over)acts+='<button class="btn sm" data-act="proxy">電腦代打'+KB('M')+'</button>';
   var list=(me.hand||[]).slice(),drawn=null;
   if(me.drawn!==null&&me.drawn!==undefined&&!V.over&&list.length%3===2){removeOne(list,me.drawn);drawn=me.drawn;}
@@ -2703,6 +2747,7 @@ function aiCall(body,done){
   var url=namesUrl();if(!url){U.nlMsg='連唔到伺服器。';render();return;}
   fetch(url,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:{}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(function(x){
     if(x.j&&Array.isArray(x.j.names))setAiList(x.j.names);
+    if(x.ok&&x.j&&Array.isArray(x.j.phrases)){setPhrases(x.j.phrases);if(U.phOpen&&!U.phDirty)U.phDraft=x.j.phrases.slice();}
     if(x.j&&x.j.uses)setAiUses(x.j.uses);
     if(x.j&&x.j.canUndo!=null)U.nlUndo=!!x.j.canUndo;
     U.nlMsg=x.ok?(done||''):((x.j&&x.j.err)||'失敗');
@@ -2725,7 +2770,7 @@ function nameListHTML(){
 function settingsHTML(){
   var b=function(act,t,extra){return '<button class="btn block" data-act="setItem" data-v="'+act+'" style="justify-content:space-between">'+t+(extra||'')+'</button>';};
   return '<div class="ov"><div class="sheet"><h2>設定</h2><div class="opts" style="display:grid;gap:10px">'+
-    b('rename','改名')+b('names','電腦玩家名單','<span>'+aiList().length+' 個</span>')+b('tiles','牌面設計')+b('sfx','音效提示')+
+    b('rename','改名')+b('names','電腦玩家名單','<span>'+aiList().length+' 個</span>')+b('phrases','快捷語名單','<span>8 句</span>')+b('tiles','牌面設計')+b('sfx','音效提示')+
     (U.role==='client'?'':b('speed','遊戲速度','<span>'+(S.speed===1?'標準':'快')+'</span>'))+
     '</div><div class="opts"><button class="btn pri" data-act="closeSet">完成</button></div></div></div>';
 }
@@ -2794,9 +2839,104 @@ function tilesHTML(){
     return '<button class="tp-opt'+((U.tile||0)===i?' on':'')+'" data-act="tileSet" data-v="'+i+'"><span class="tp-n">'+n+'</span><span class="tp-t"'+(i?' data-tile="'+i+'"':'')+'>'+demo.map(function(t){return tileEl(t);}).join('')+'</span></button>';}).join('')+'</div>'+
     '<div class="opts"><button class="btn pri" data-act="closeTiles">完成</button></div></div></div>';
 }
+/* ---------- 房內聊天(快捷語 + 表情 + 打字):面板、氣泡、設定頁嘅共用名單 ---------- */
+var PH_DEF=['快啲啦!','等我諗諗','好牌!','嘩,咁都食得','唔該曬','又係你','手風順喎','玩得開心'],CH={bubbles:[],sentAt:0};
+try{U.chatMute=localStorage.getItem('mj_chatmute')==='1';}catch(e){}
+function chatPhrases(){var a=null;try{a=JSON.parse(localStorage.getItem('mj_phrases')||'null');}catch(e){}return Array.isArray(a)&&a.length===8?a:PH_DEF.slice();}
+function setPhrases(a){if(!Array.isArray(a)||a.length!==8)return;try{localStorage.setItem('mj_phrases',JSON.stringify(a));}catch(e){}}
+function myPhrases(){var a=[];try{a=JSON.parse(localStorage.getItem('mj_myph')||'[]');}catch(e){}a=Array.isArray(a)?a:[];return [String(a[0]||'').slice(0,12),String(a[1]||'').slice(0,12)];}
+function chatOK(){return !!V&&!U.pondMode&&(U.role==='host'||U.role==='client');}
+function chatTx(k,v){
+  if(!chatOK())return;
+  v=String(v==null?'':v).trim();if(!v)return;
+  var now=Date.now();
+  if(now-CH.sentAt<3000){U.chatHint='3 秒之後先可以再講';setTimeout(function(){U.chatHint='';chatDraw();},1600);chatDraw();return;}
+  CH.sentAt=now;
+  if(U.role==='client')safeSend(NET.conn,{t:'chat',k:k,v:v});else chatIn(0,{k:k,v:v});
+  U.chatOpen=false;U.chatEdit=false;chatDraw();
+}
+function chatShow(m){
+  if(!V||!m)return;
+  var mine=m.s===V.me;
+  if(!mine&&U.chatMute)return;
+  if(!mine&&!U.chatOpen){U.chatUnread=(U.chatUnread||0)+1;draw();}
+  var b={s:m.s,k:m.k,v:String(m.v||'')};
+  CH.bubbles=CH.bubbles.filter(function(x){return x.s!==m.s;});CH.bubbles.push(b);
+  setTimeout(function(){CH.bubbles=CH.bubbles.filter(function(x){return x!==b;});chatLayer();},4000);
+  chatLayer();
+}
+HOOKS.chatLocal=chatShow;
+function chatAnchor(sd){   /* 闊屏用 #tbl .tchip,窄屏用 #opps .sh:攞到有尺寸嗰個 */
+  var q=['#tbl .tchip[data-seat="'+sd+'"]','#opps [data-seat="'+sd+'"] .sh'],i,el,r;
+  for(i=0;i<q.length;i++){el=document.querySelector(q[i]);if(el){r=el.getBoundingClientRect();if(r.width||r.height)return el;}}
+  return null;
+}
+function chatLayer(){
+  var e=document.getElementById('chatl');
+  if(!e){e=document.createElement('div');e.id='chatl';document.body.appendChild(e);}
+  if(!V||!CH.bubbles.length){if(e.innerHTML)e.innerHTML='';return;}
+  var h='';
+  CH.bubbles.forEach(function(b){
+    var me=b.s===V.me,el=me?document.querySelector('#dock .mep'):chatAnchor(b.s);
+    if(!el)return;
+    var r=el.getBoundingClientRect(),st;
+    if(!r.width&&!r.height)return;
+    if(me)st='left:'+Math.round(Math.max(8,r.left))+'px;top:'+Math.round(r.top-8)+'px;transform:translateY(-100%)';
+    else if(r.left+r.width/2>window.innerWidth/2)st='right:'+Math.round(Math.max(8,window.innerWidth-r.right))+'px;top:'+Math.round(r.bottom+8)+'px';   /* 右邊座位:氣泡喺名牌下面,靠右對齊 */
+    else st='left:'+Math.round(Math.max(8,r.left))+'px;top:'+Math.round(r.bottom+8)+'px';
+    h+='<div class="cb'+(b.k==='e'?' e':'')+'" style="'+st+'">'+esc(b.v)+'</div>';
+  });
+  e.innerHTML=h;
+}
+function chatHTML(){
+  var ph=chatPhrases(),my=myPhrases(),h='<div class="hd"><b>快捷語</b><span class="note">靜音他人</span><button class="sw'+(U.chatMute?' on':'')+'" role="switch" aria-checked="'+(U.chatMute?'true':'false')+'" aria-label="靜音他人" data-act="chatMute"></button><button class="xb" data-act="chatClose" aria-label="關閉">✕</button></div>';
+  h+='<div class="grid">'+ph.map(function(t,i){return '<button class="ph" data-act="chatSay" data-i="'+i+'">'+esc(t)+'</button>';}).join('')+'</div>';
+  h+='<div class="sub">我自己嘅 <small>只存喺呢部機</small><span style="flex:1"></span><button class="xb" data-act="chatEditMy" aria-label="修改自己嘅快捷語" style="width:28px;height:28px">✎</button></div>';
+  if(U.chatEdit){
+    var d=U.myDraft||my;
+    h+='<div class="grid">'+[0,1].map(function(i){return '<input class="inp" id="chatmy'+i+'" maxlength="12" autocomplete="off" placeholder="自訂第 '+(i+1)+' 句" value="'+esc(d[i])+'" style="height:40px">';}).join('')+'</div>'+
+       '<div class="row"><button class="btn sm pri" data-act="chatSaveMy">儲存</button><button class="btn sm" data-act="chatCancelMy">取消</button></div>';
+  }else{
+    h+='<div class="grid">'+[0,1].map(function(i){return my[i]?'<button class="ph my" data-act="chatSayMy" data-i="'+i+'">'+esc(my[i])+'</button>':'<button class="ph add" data-act="chatEditMy">+ 自訂</button>';}).join('')+'</div>';
+  }
+  h+='<div class="emo">'+CHAT_EMO.map(function(x,i){return '<button data-act="chatEmo" data-i="'+i+'" aria-label="表情 '+(i+1)+'">'+x+'</button>';}).join('')+'</div>';
+  h+='<div class="row"><input class="inp" id="chatin" maxlength="'+CHAT_MAX+'" autocomplete="off" placeholder="打字,即時送出…" style="height:44px"><button class="btn pri" data-act="chatSend">送出</button></div>';
+  h+='<div class="hint">'+esc(U.chatHint||'')+'</div>';
+  return h;
+}
+function chatDraw(){
+  var e=document.getElementById('chatp');
+  if(!e){e=document.createElement('div');e.id='chatp';e.className='chatp';e.hidden=true;e.setAttribute('role','dialog');e.setAttribute('aria-label','快捷語');document.body.appendChild(e);}
+  if(!(chatOK()&&U.chatOpen)){if(!e.hidden){e.hidden=true;e.innerHTML='';e.removeAttribute('data-h');}return;}
+  var h=chatHTML();
+  if(e.getAttribute('data-h')===h&&!e.hidden)return;
+  var old=document.getElementById('chatin'),val=old?old.value:'',foc=!!old&&document.activeElement===old;
+  e.setAttribute('data-h',h);e.innerHTML=h;e.hidden=false;
+  var nw=document.getElementById('chatin');if(nw){nw.value=val;if(foc)nw.focus();}
+}
+function fetchPhrases(){if(namesUrl()&&!U.phFetched){U.phFetched=true;aiCall(null,'');}}
+function phCall(body,done){
+  var url=namesUrl();if(!url){U.phMsg='連唔到伺服器。';render();return;}
+  fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(function(x){
+    if(x.ok&&x.j&&Array.isArray(x.j.phrases)){setPhrases(x.j.phrases);U.phDraft=x.j.phrases.slice();}
+    U.phMsg=x.ok?(done||''):((x.j&&x.j.err)||'失敗');
+    render();
+  }).catch(function(){U.phMsg='連唔到伺服器,改動未儲存。';render();});
+}
+function phHTML(){
+  var d=U.phDraft||chatPhrases();
+  return '<div class="ov"><div class="sheet"><h2>快捷語名單</h2><p class="note">所有玩家共用同一份。你改嘅,其他人都會見到,按次序顯示喺快捷語視窗。一定要有 8 句,每句最多 12 隻字。</p>'+
+    (U.phMsg?'<p class="note" style="color:var(--hot)">'+esc(U.phMsg)+'</p>':'')+
+    '<div style="display:grid;gap:8px">'+d.map(function(t,i){
+      return '<div class="opts" style="flex-wrap:nowrap;align-items:center"><span class="note" style="margin:0;width:1.5em">'+(i+1)+'</span><input class="inp" data-ph="'+i+'" maxlength="12" autocomplete="off" value="'+esc(t)+'" style="flex:1;min-width:0"><button class="btn sm" data-act="phUp" data-i="'+i+'" aria-label="上移"'+(i?'':' disabled')+'>↑</button><button class="btn sm" data-act="phDn" data-i="'+i+'" aria-label="下移"'+(i<7?'':' disabled')+'>↓</button></div>';
+    }).join('')+'</div>'+
+    '<h3>還原預設(要密碼)</h3><div class="opts"><input class="inp" id="phpw" type="password" inputmode="numeric" autocomplete="off" placeholder="密碼" style="flex:1;min-width:0"><button class="btn" data-act="phReset">還原預設</button></div>'+
+    '<div class="opts"><button class="btn pri" data-act="phSave">儲存</button><button class="btn" data-act="phBack">取消</button></div></div></div>';
+}
 function drawOverlay(){
   var h='';
   if(U.joinGate)h=gateHTML();
+  else if(U.settings&&U.phOpen&&!U.renaming)h=phHTML();
   else if(U.settings&&U.nlOpen&&!U.renaming)h=nameListHTML();
   else if(U.settings&&!U.renaming&&!U.tiles&&!U.sfxOpen)h=settingsHTML();
   else if(U.cheatAsk)h=cheatHTML();
@@ -2873,7 +3013,7 @@ function draw(){
     /* 記低最後一隻出牌/自己摸嘅牌:房間伺服器(舊引擎)嘅結果冇 tile,贏牌時靠呢個推出食糊牌 */
     if(V.last&&V.last.t!=null)U.tkLast=V.last.t;
     var mp=V.players&&V.players[V.me];if(mp&&mp.drawn!=null)U.tkDrawn=mp.drawn;}
-  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();
+  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();chatDraw();chatLayer();
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
   if(els.share)els.share.hidden=!((U.role==='host'&&U.code)||(U.role==='solo'&&V));
@@ -2914,6 +3054,27 @@ function handleAct(act,b){
     try{navigator.clipboard.writeText(pondLink()).then(function(){U.copiedPond=true;render();},function(){});}catch(e){}
   }
   else if(act==='togPond'){U.pondHidden=!U.pondHidden;try{localStorage.setItem('mj_pondHide',U.pondHidden?'1':'0');}catch(e){}draw();}
+  else if(act==='chat'){U.chatOpen=!U.chatOpen;U.chatEdit=false;if(U.chatOpen){U.chatUnread=0;fetchPhrases();}draw();}
+  else if(act==='chatClose'){U.chatOpen=false;U.chatEdit=false;draw();}
+  else if(act==='chatMute'){U.chatMute=!U.chatMute;try{localStorage.setItem('mj_chatmute',U.chatMute?'1':'0');}catch(e){}if(U.chatMute)CH.bubbles=CH.bubbles.filter(function(x){return V&&x.s===V.me;});draw();}
+  else if(act==='chatSay'){chatTx('x',chatPhrases()[+b.getAttribute('data-i')]);}
+  else if(act==='chatSayMy'){chatTx('x',myPhrases()[+b.getAttribute('data-i')]);}
+  else if(act==='chatEmo'){chatTx('e',CHAT_EMO[+b.getAttribute('data-i')]);}
+  else if(act==='chatSend'){var ci=document.getElementById('chatin');if(ci&&ci.value.trim()){chatTx('x',ci.value);if(U.chatOpen===false)ci.value='';}}
+  else if(act==='chatEditMy'){U.chatEdit=true;U.myDraft=myPhrases();draw();var m0=document.getElementById('chatmy'+(myPhrases()[0]?1:0));if(m0)m0.focus();}
+  else if(act==='chatCancelMy'){U.chatEdit=false;draw();}
+  else if(act==='chatSaveMy'){var dd=U.myDraft||myPhrases();try{localStorage.setItem('mj_myph',JSON.stringify([String(dd[0]||'').trim().slice(0,12),String(dd[1]||'').trim().slice(0,12)]));}catch(e){}U.chatEdit=false;draw();}
+  else if(act==='phUp'||act==='phDn'){
+    var pi=+b.getAttribute('data-i'),pj=act==='phUp'?pi-1:pi+1,pd=U.phDraft||chatPhrases().slice();
+    if(pj>=0&&pj<pd.length){var tmp=pd[pi];pd[pi]=pd[pj];pd[pj]=tmp;U.phDraft=pd;U.phDirty=true;}render();
+  }
+  else if(act==='phSave'){
+    var pd2=(U.phDraft||chatPhrases()).map(function(x){return String(x).trim();});
+    if(pd2.length!==8||pd2.some(function(x){return !x||Array.from(x).length>12;})){U.phMsg='要剛好 8 句,每句 1–12 個字';render();return;}
+    phCall({op:'phSet',list:pd2},'已儲存');U.phDirty=false;
+  }
+  else if(act==='phReset'){var ppw=document.getElementById('phpw');phCall({op:'phReset',pw:ppw?ppw.value:''},'已還原預設');if(ppw)ppw.value='';}
+  else if(act==='phBack'){U.phOpen=false;U.phDraft=null;U.phDirty=false;U.phMsg='';render();}
   else if(act==='rules'){U.rules=true;render();}
   else if(act==='closeRules'){U.rules=false;render();}
   else if(act==='tiles'){U.tiles=true;render();}
@@ -2922,8 +3083,8 @@ function handleAct(act,b){
   else if(act==='sfxTest'){sfxCtx();sfxPlay('turn');setTimeout(function(){sfxPlay('disc');},500);setTimeout(function(){sfxPlay('call');},900);}
   else if(act==='closeSfx'){U.sfxOpen=false;render();}
   else if(act==='settings'){U.settings=true;render();}
-  else if(act==='closeSet'){U.settings=false;U.nlOpen=false;render();}
-  else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else if(v==='names'){U.nlOpen=true;U.nlMsg='';fetchAiNames();render();}else{handleAct(v,b);}}
+  else if(act==='closeSet'){U.settings=false;U.nlOpen=false;U.phOpen=false;render();}
+  else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else if(v==='names'){U.nlOpen=true;U.nlMsg='';fetchAiNames();render();}else if(v==='phrases'){U.phOpen=true;U.phMsg='';U.phDirty=false;U.phDraft=chatPhrases().slice();U.phFetched=false;fetchPhrases();render();}else{handleAct(v,b);}}
   else if(act==='nlBack'){U.nlOpen=false;render();}
   else if(act==='nlAdd'){var ne=document.getElementById('nlnew'),nv=ne?ne.value:'';if(ne)ne.value='';aiCall({op:'add',name:nv},'');}
   else if(act==='nlDel'){var dn=aiList()[+b.getAttribute('data-i')];if(dn)aiCall({op:'del',name:dn},'');}
@@ -3041,6 +3202,8 @@ function onInput(e){
   if(id==='pname'){U.name=e.target.value;try{localStorage.setItem('mj_name',U.name);}catch(x){}}
   else if(id==='newname'){U.nameDraft=e.target.value;}
   else if(id==='roomcode'){U.roomInput=e.target.value.toUpperCase();}
+  else if(id==='chatmy0'||id==='chatmy1'){var md=U.myDraft||myPhrases();md[+id.slice(-1)]=e.target.value;U.myDraft=md;}
+  else if(e.target&&e.target.getAttribute&&e.target.getAttribute('data-ph')!=null){var pd=U.phDraft||chatPhrases().slice();pd[+e.target.getAttribute('data-ph')]=e.target.value;U.phDraft=pd;U.phDirty=true;}
 }
 /* ---------- password gate (verified by the Worker against secret GAME_PW) ---------- */
 function sha256hex(str){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(str)).then(function(b){return Array.prototype.map.call(new Uint8Array(b),function(x){return ('0'+x.toString(16)).slice(-2);}).join('');});}
@@ -3193,7 +3356,7 @@ function boot2(){
       else{done();U.tarm=false;answer({a:'discard',t:+tiles[cur].getAttribute('data-t')});}
     }
   });
-  document.addEventListener('keydown',function(e){if(e.key==='Enter'&&U.joinGate&&e.target&&e.target.id==='gname'){e.preventDefault();gateGo();}else if(e.key==='Enter'&&U.cheatAsk&&e.target&&e.target.id==='cheatpw'){e.preventDefault();cheatSet(true,e.target.value);}});
+  document.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.target&&e.target.id==='chatin'){e.preventDefault();handleAct('chatSend',null);return;}if(e.key==='Escape'&&U.chatOpen){U.chatOpen=false;U.chatEdit=false;draw();}if(e.key==='Enter'&&U.joinGate&&e.target&&e.target.id==='gname'){e.preventDefault();gateGo();}else if(e.key==='Enter'&&U.cheatAsk&&e.target&&e.target.id==='cheatpw'){e.preventDefault();cheatSet(true,e.target.value);}});
   document.addEventListener('click',onClick);
   window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
   document.addEventListener('input',onInput);
@@ -3219,7 +3382,7 @@ function boot2(){
   },3000);
   render();
 }
-window.__mj={roomLoad:roomLoad,diagText:diagText,dlog:dlog,planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,readLocalSave:readLocalSave,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover,startTakeover:startTakeover,roomPut:roomPut,roomKey:roomKey,validSave:validSave,roomPidIdx:roomPidIdx};
+window.__mj={chatShow:chatShow,chatIn:chatIn,roomLoad:roomLoad,diagText:diagText,dlog:dlog,planOf:planOf,cnt:cnt,chooseDiscard:chooseDiscard,setProxy:setProxy,endDraw:endDraw,tileEl:tileEl,onHostConn:onHostConn,onClientData:onClientData,pondView:pondView,setAuto:setAuto,resumeGame:resumeGame,readLocalSave:readLocalSave,dropSave:dropSave,LV3:LV3,S:S,U:U,NET:NET,get V(){return V;},evalWin:evalWin,cnt:cnt,startGame:startGame,hostOpen:hostOpen,joinRoom:joinRoom,act:handleAct,answer:answer,leaveAll:leaveAll,render:render,tname:tname,CANCEL:CANCEL,PTS:PTS,nextHand:nextHand,takeover:takeover,startTakeover:startTakeover,roomPut:roomPut,roomKey:roomKey,validSave:validSave,roomPidIdx:roomPidIdx};
 if(typeof document!=='undefined'&&document.getElementById)boot();
 })();
 </script>
