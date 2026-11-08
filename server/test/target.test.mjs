@@ -14,9 +14,13 @@ const T=(o)=>g.fixTarget(o,[]);
 const suitOf=t=>t<27?Math.floor(t/9):3;
 // --- tgtLocks / fixTarget
 let L=g.tgtLocks([{type:'chow',tiles:[10,11,12]},{type:'pung',tiles:[32,32,32]}]);
-assert.deepStrictEqual([L.noPairs,L.suit,L.noAny,L.noPure,L.noHalf],[true,1,true,true,false]);
+assert.deepStrictEqual([L.noPairs,L.suit,L.noAny,L.noPure,L.noHalf],[true,1,false,true,false]);
 let f=g.fixTarget({shape:'pairs',color:'any',suit:0},[{type:'chow',tiles:[10,11,12]}]);
-assert.deepStrictEqual([f.shape,f.color,f.suit],['free','half',1],'上過牌:冇對對糊,任色→混一色,跟返筒');
+assert.deepStrictEqual([f.shape,f.color,f.suit],['free','any',1],'上過牌:冇對對糊;任色仍然得');
+f=g.fixTarget({shape:'free',color:'half',suit:0},[{type:'chow',tiles:[10,11,12]}]);
+assert.deepStrictEqual([f.color,f.suit],['half',1],'揀混一色 → 一定跟返已上嘅筒');
+f=g.fixTarget({shape:'pairs',color:'any',suit:0},[{type:'pung',tiles:[19,19,19]}]);
+assert.deepStrictEqual([f.shape,f.color],['pairs','any'],'碰咗索:對對糊 + 任色得');
 f=g.fixTarget({shape:'free',color:'pure',suit:2},[{type:'pung',tiles:[32,32,32]},{type:'pung',tiles:[9,9,9]}]);
 assert.deepStrictEqual([f.color,f.suit],['half',1],'碰過字:清一色→混一色,花色跟返筒');
 f=g.fixTarget({shape:'pairs',color:'pure',suit:2},[{type:'pung',tiles:[1,1,1]},{type:'pung',tiles:[10,10,10]}]);

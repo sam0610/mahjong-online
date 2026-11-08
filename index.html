@@ -157,8 +157,12 @@ button{font:inherit;color:inherit}
 .chatp .sw.on::after{left:18px}
 .chatp .xb{width:32px;height:32px;border:0;border-radius:8px;background:var(--surface-2);cursor:pointer}
 #chatl{position:fixed;inset:0;pointer-events:none;z-index:14}
-.cb{position:fixed;max-width:min(260px,70vw);background:#fff;border:2px solid var(--accent);border-radius:14px;padding:6px 14px;font:800 16px/1.35 var(--sans);box-shadow:0 6px 16px rgba(30,40,60,.18);word-break:break-all;animation:cbin .18s ease-out}
-.cb.e{font-size:30px;line-height:1.3;padding:2px 12px}
+.cb{position:fixed;max-width:min(360px,80vw);background:var(--cc,#7a4fd0);color:#fff;border-radius:20px;padding:8px 22px 10px;box-shadow:0 10px 26px rgba(30,40,60,.35);word-break:break-all;animation:cbin .18s ease-out}
+.cb small{display:block;font:700 12px/1.3 var(--sans);opacity:.88;margin-bottom:2px}
+.cb b{display:block;font:900 26px/1.25 var(--sans)}
+.cb.e{background:#fff;color:inherit;border:5px solid var(--cc,#7a4fd0);padding:6px 20px 4px;text-align:center}
+.cb.e small{color:var(--cc,#7a4fd0);opacity:1}
+.cb.e b{font-size:56px;line-height:1.2}
 @keyframes cbin{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.cb{animation:none}}
 .chbadge{min-width:18px;height:18px;border-radius:9px;background:var(--hot);color:#fff;font:700 11px/18px var(--sans);text-align:center;padding:0 5px}
@@ -1382,7 +1386,7 @@ function tgtLocks(melds){   /* 已經上 / 碰咗啲咩,決定邊啲選項用唔
     if(t>=27)hon=true;else if(!suits[suitOf(t)]){suits[suitOf(t)]=1;ns++;}
   });
   L.noPairs=chow;                                   /* 上過牌 → 唔可以對對糊 */
-  if(ns===1){for(i=0;i<3;i++)if(suits[i])L.suit=i;L.noAny=true;L.noPure=hon;}   /* 已經跟咗某隻色 → 一定跟 */
+  if(ns===1){for(i=0;i<3;i++)if(suits[i])L.suit=i;L.noPure=hon;}   /* 已經跟咗某隻色:揀混一色 / 清一色就一定係呢隻色(任色仍然可以揀) */
   else if(ns>=2){L.noHalf=true;L.noPure=true;}      /* 兩種花色 → 只剩任色 */
   else if(hon)L.noPure=true;                        /* 只碰過字牌 → 清一色做唔到 */
   return L;
@@ -1392,7 +1396,7 @@ function fixTarget(T,melds){
     suit:T&&(T.suit===0||T.suit===1||T.suit===2)?T.suit:1,strict:!T||T.strict!==false,warn:!T||T.warn!==false,adv:cleanAdv(T&&T.adv)};
   var L=tgtLocks(melds);
   if(L.noPairs)o.shape='free';
-  if(L.suit>=0){o.suit=L.suit;if(o.color==='any')o.color='half';}
+  if(L.suit>=0)o.suit=L.suit;
   if(L.noPure&&o.color==='pure')o.color=L.noHalf?'any':'half';
   if(L.noHalf)o.color='any';
   return o;
@@ -2734,7 +2738,7 @@ function drawDock(){
     }
   }
   if(V.proxy){
-    var tl=V.tgt&&tgtOn(V.tgt)?tgtLabel(V.tgt):'';
+    var tl=V.tgt&&tgtOn(V.tgt)?tgtLabel(V.tgt,true):'';
     acts='<span class="note autoon">'+(tl?'代打中 <b>'+esc(tl)+'</b>':'電腦代打緊:幫你摸牌、打牌、食糊同碰上')+'</span>'+(V.tgtOff?'<span class="note warnx">手牌偏離目標,未必做到;想改可以按「調整」</span>':'')+
       '<button class="btn sm" data-act="apQuickTog">切換</button><button class="btn sm" data-act="apOpen">調整</button><button class="btn pri" data-act="proxy">停止代打,我自己玩'+KB('M')+'</button>';
   }else if(V.auto){
@@ -3051,7 +3055,8 @@ function chatLayer(){
     if(me)st='left:'+Math.round(Math.max(8,r.left))+'px;top:'+Math.round(r.top-8)+'px;transform:translateY(-100%)';
     else if(r.left+r.width/2>window.innerWidth/2)st='right:'+Math.round(Math.max(8,window.innerWidth-r.right))+'px;top:'+Math.round(r.bottom+8)+'px';   /* 右邊座位:氣泡喺名牌下面,靠右對齊 */
     else st='left:'+Math.round(Math.max(8,r.left))+'px;top:'+Math.round(r.bottom+8)+'px';
-    h+='<div class="cb'+(b.k==='e'?' e':'')+'" style="'+st+'">'+esc(b.v)+'</div>';
+    var pn=V.players[b.s],rl=b.s===V.me?'你':(pn&&pn.wind!=null?WIND[pn.wind]+'家':''),CC=['#2b2e34','#e07a1f','#d6336c','#7a4fd0'];
+    h+='<div class="cb'+(b.k==='e'?' e':'')+'" style="--cc:'+CC[(b.s-V.me+V.n)%V.n%CC.length]+';'+st+'"><small>'+esc(rl+(pn?' · '+pn.name.replace(/\(.*$/,''):''))+'</small><b>'+esc(b.v)+'</b></div>';
   });
   e.innerHTML=h;
 }
@@ -3104,10 +3109,10 @@ function phHTML(){
 var TGT_PRESETS=[{shape:'free',color:'any',suit:1,strict:true,warn:true},{shape:'pairs',color:'any',suit:1,strict:true,warn:true},{shape:'free',color:'half',suit:1,strict:true,warn:true},{shape:'free',color:'pure',suit:0,strict:true,warn:true}];
 var SUITN=['萬','筒','索'];
 function tgtCopy(c){return JSON.parse(JSON.stringify(c));}
-function tgtLabel(c){
+function tgtLabel(c,full){   /* 預設名唔帶花色;full = 代打中顯示,連主花色 */
   var a=c.shape==='pairs'?'對對糊':'',b=c.color==='half'?'混一色':c.color==='pure'?'清一色':'';
   if(!a&&!b)return '隨便食';
-  var sf=b?'·'+SUITN[c.suit]:'';
+  var sf=b&&full?'·'+SUITN[c.suit]:'';
   return a&&b?a+' + '+b+sf:a||b+sf;
 }
 function tgtStore(){
@@ -3119,8 +3124,19 @@ function tgtStore(){
 }
 function tgtSave(o){try{localStorage.setItem('mj_tgts',JSON.stringify(o));}catch(e){}}
 function myMelds(){return V&&V.players&&V.players[V.me]?V.players[V.me].melds:[];}
+function bestSuit(){   /* 手牌最多嗰隻花色(平手揀筒) */
+  var me=V&&V.players&&V.players[V.me],c=[0,0,0],all,b=1,i;
+  if(!me)return 1;
+  all=(me.hand||[]).slice();me.melds.forEach(function(m){all=all.concat(m.tiles);});
+  all.forEach(function(t){if(t<27)c[(t/9)|0]++;});
+  for(i=0;i<3;i++)if(c[i]>c[b])b=i;
+  return b;
+}
 function apOpen(){
-  var st=tgtStore();U.ap=true;U.apAdv=false;U.apQuick=false;U.apCur=st.cur;U.apDraft=tgtCopy(st.list[st.cur]);U.apMsg='';render();
+  var st=tgtStore(),d=tgtCopy(st.list[st.cur]),L=tgtLocks(myMelds());
+  d.suit=L.suit>=0?L.suit:bestSuit();   /* 主花色:已上碰咗就跟返,否則用手牌最多嗰隻 */
+  if(L.suit>=0&&d.color==='any'&&d.shape!=='pairs')d.color='half';   /* 預設跟返已上碰嘅花色(可以改返任色) */
+  U.ap=true;U.apAdv=false;U.apQuick=false;U.apCur=st.cur;U.apDraft=d;U.apMsg='';render();
 }
 function apSend(tgt){   /* 開 / 轉代打:目標隨訊息送去房主(房主自己就直接設) */
   var fx=fixTarget(tgt,myMelds());
@@ -3141,7 +3157,7 @@ function apHTML(){
   if(me.melds.length){
     var reasons=[];
     if(L.noPairs)reasons.push('你已經上過牌,對對糊做唔到');
-    if(L.suit>=0)reasons.push('已經跟咗'+SUITN[L.suit]+'子,一定要跟:唔可以任色,主花色鎖死');
+    if(L.suit>=0)reasons.push('已經上碰咗'+SUITN[L.suit]+'子:預設跟返'+SUITN[L.suit]+'子,揀混一色 / 清一色就一定係'+SUITN[L.suit]+'子(對對糊或者想任色都得)');
     if(L.noHalf)reasons.push('上碰咗兩種花色,只可以任色');
     else if(L.noPure&&L.suit<0)reasons.push('碰咗字牌,清一色做唔到');
     else if(L.noPure)reasons.push('碰咗字牌,清一色做唔到');
@@ -3149,8 +3165,8 @@ function apHTML(){
   }
   var ch=function(act,v,on,t,dis){return '<button class="chip'+(on?' on':'')+'" data-act="'+act+'" data-v="'+v+'"'+(dis?' disabled':'')+'>'+t+'</button>';};
   h+='<div class="card"><div class="row"><b>牌型</b>'+ch('apShape','free',T.shape==='free','自由')+ch('apShape','pairs',T.shape==='pairs','對對糊',L.noPairs)+'<span class="note">'+(L.noPairs?'<span style="color:var(--hot)">你已經上過牌,對對糊做唔到</span>':'對對糊 = 永遠唔上牌,留住對子同刻子')+'</span></div>'+
-    '<div class="row"><b>花色</b>'+ch('apColor','any',T.color==='any','任色',L.noAny)+ch('apColor','half',T.color==='half','混一色',L.noHalf)+ch('apColor','pure',T.color==='pure','清一色',L.noPure||L.noHalf)+'<span class="note">牌型同花色可以任意配,例如對對糊 + 清一色</span></div>'+
-    '<div class="row"><b>主花色</b>'+[0,1,2].map(function(i){return ch('apSuit',i,T.color!=='any'&&T.suit===i,SUITN[i],T.color==='any'||(L.suit>=0&&L.suit!==i));}).join('')+'<span class="note">'+(T.color==='any'?'揀咗「任色」就唔使揀':L.suit>=0?'跟返你已經上咗嘅'+SUITN[L.suit]+'子,鎖定':'電腦唔會幫你轉')+'</span></div></div>';
+    '<div class="row"><b>花色</b>'+ch('apColor','any',T.color==='any','任色')+ch('apColor','half',T.color==='half','混一色',L.noHalf)+ch('apColor','pure',T.color==='pure','清一色',L.noPure||L.noHalf)+'<span class="note">牌型同花色可以任意配,例如對對糊 + 清一色</span></div>'+
+    '<div class="row"><b>主花色</b>'+[0,1,2].map(function(i){return ch('apSuit',i,T.color!=='any'&&T.suit===i,SUITN[i],T.color==='any'||(L.suit>=0&&L.suit!==i));}).join('')+'<span class="note">'+(T.color==='any'?'揀咗「任色」就唔使揀':L.suit>=0?'跟返你已經上碰咗嘅'+SUITN[L.suit]+'子,鎖定':'電腦唔會幫你轉')+'</span></div></div>';
   var rules=[],sn=SUITN[T.suit];
   if(T.color==='half')rules.push('只留'+sn+'子同字牌,其餘花色一律打走');
   else if(T.color==='pure')rules.push('只留'+sn+'子,其他花色同字牌一律打走');
@@ -3175,7 +3191,7 @@ function apAdvHTML(){
   };
   var row=function(lab,ts,note){return '<div class="mr"><div class="rl"><b>'+lab+'</b><small>'+note+'</small></div>'+ts.map(mc).join('')+'</div>';};
   var rng=function(a,b){var o=[];for(var i=a;i<b;i++)o.push(i);return o;};
-  var h='<div class="ov"><div class="sheet apsheet"><div class="row"><button class="btn sm" data-act="apAdvBack">‹ 返回</button><h2 style="margin:0">進階微調</h2><span style="color:var(--accent);font-weight:700;font-size:14px">'+esc(tgtLabel(T))+'</span></div>'+
+  var h='<div class="ov"><div class="sheet apsheet"><div class="row"><button class="btn sm" data-act="apAdvBack">‹ 返回</button><h2 style="margin:0">進階微調</h2><span style="color:var(--accent);font-weight:700;font-size:14px">'+esc(tgtLabel(T,true))+'</span></div>'+
     '<div class="melded" style="background:rgba(10,127,156,.08);border-color:rgba(10,127,156,.35)"><small style="color:var(--ink)">目標規則優先:唔屬於目標嘅牌已經鎖死,一律打走、唔碰唔上。你只可以調整目標範圍入面嘅牌。「留」熄咗,上同碰會自動禁用,即係優先打走。</small></div>'+
     '<div class="row" style="font-size:12px;color:var(--muted)"><span><b style="display:inline-block;width:22px;text-align:center;background:#1d4e89;color:#fff;border-radius:5px;letter-spacing:0">上</b> 可以上</span><span><b style="display:inline-block;width:22px;text-align:center;background:#d9822b;color:#fff;border-radius:5px;letter-spacing:0">碰</b> 可以碰 / 槓</span><span><b style="display:inline-block;width:22px;text-align:center;background:var(--accent);color:#fff;border-radius:5px;letter-spacing:0">留</b> 會留住</span><i style="flex:1"></i><button class="btn sm" data-act="apAdvReset">還原成目標預設</button></div>'+
     '<div class="apm">'+row('萬',rng(0,9),T.color!=='any'&&T.suit!==0?'鎖定':'')+row('筒',rng(9,18),T.color!=='any'&&T.suit!==1?'鎖定':'')+row('索',rng(18,27),T.color!=='any'&&T.suit!==2?'鎖定':'')+row('字',rng(27,34),T.color==='pure'?'鎖定':'')+'</div>'+
@@ -3377,15 +3393,15 @@ function handleAct(act,b){
   else if(act==='apOpen'){apOpen();}
   else if(act==='apClose'){U.ap=false;U.apAdv=false;render();}
   else if(act==='apQuickTog'){U.apQuick=!U.apQuick;draw();}
-  else if(act==='apSwitch'){var sw=tgtStore();sw.cur=+b.getAttribute('data-i');tgtSave(sw);U.apQuick=false;apSend(sw.list[sw.cur]);draw();}
-  else if(act==='apPre'){var pr=tgtStore();U.apCur=+b.getAttribute('data-i');U.apDraft=tgtCopy(pr.list[U.apCur]);U.apMsg='';render();}
+  else if(act==='apSwitch'){var sw=tgtStore(),sc=tgtCopy(sw.list[+b.getAttribute('data-i')]);sw.cur=+b.getAttribute('data-i');tgtSave(sw);sc.suit=V.tgt&&V.tgt.suit!=null?V.tgt.suit:bestSuit();U.apQuick=false;apSend(sc);draw();}
+  else if(act==='apPre'){var pr=tgtStore(),ks=U.apDraft?U.apDraft.suit:bestSuit();U.apCur=+b.getAttribute('data-i');U.apDraft=tgtCopy(pr.list[U.apCur]);U.apDraft.suit=ks;U.apMsg='';render();}
   else if(act==='apNew'){var pn=tgtStore();pn.list.push(tgtCopy(U.apDraft||TGT_PRESETS[0]));pn.cur=pn.list.length-1;tgtSave(pn);U.apCur=pn.cur;render();}
   else if(act==='apDel'){var pd3=tgtStore();if(pd3.list.length>1){pd3.list.splice(U.apCur,1);pd3.cur=Math.min(U.apCur,pd3.list.length-1);tgtSave(pd3);U.apCur=pd3.cur;U.apDraft=tgtCopy(pd3.list[pd3.cur]);}render();}
   else if(act==='apShape'){U.apDraft=apDraftFix();U.apDraft.shape=v;render();}
   else if(act==='apColor'){U.apDraft=apDraftFix();U.apDraft.color=v;render();}
   else if(act==='apSuit'){U.apDraft=apDraftFix();U.apDraft.suit=+v;render();}
   else if(act==='apTog'){U.apDraft=apDraftFix();U.apDraft[v]=U.apDraft[v]===false;render();}
-  else if(act==='apReset'){var rs=tgtStore();U.apDraft=tgtCopy(rs.list[U.apCur]);render();}
+  else if(act==='apReset'){var rs=tgtStore(),ks2=U.apDraft?U.apDraft.suit:bestSuit();U.apDraft=tgtCopy(rs.list[U.apCur]);U.apDraft.suit=ks2;render();}
   else if(act==='apSaveOnly'){apSaveDraft();U.ap=false;render();}
   else if(act==='apStart'){apSaveDraft();U.ap=false;U.apQuick=false;apSend(U.apDraft);render();}
   else if(act==='apAdv'){U.apAdv=true;render();}
