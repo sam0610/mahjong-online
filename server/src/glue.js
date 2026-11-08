@@ -165,5 +165,5 @@ return {
   idle:function(){return !connected().length;},
   info:function(){return {code:roomCode,created:created,running:S.running,paused:paused,members:NET.members.length,hand:S.handNo,cur:S.cur};},
   _S:S,_NET:NET,
-  _g:{tgtLocks:tgtLocks,fixTarget:fixTarget,tgtDiscard:tgtDiscard,tgtAnswer:tgtAnswer,tgtKeep:tgtKeep,tgtPung:tgtPung,tgtWinOK:tgtWinOK,tgtOff:tgtOff}   /* 測試用 */
+  _g:{tenpaiInfo:tenpaiInfo,tgtLocks:tgtLocks,fixTarget:fixTarget,tgtDiscard:tgtDiscard,tgtAnswer:tgtAnswer,tgtKeep:tgtKeep,tgtPung:tgtPung,tgtWinOK:tgtWinOK,tgtOff:tgtOff}   /* 測試用 */
 };
