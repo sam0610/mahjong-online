@@ -21,7 +21,7 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           set +e
-          npx wrangler deploy > /tmp/deploy.txt 2>&1
+          npx wrangler deploy --keep-vars > /tmp/deploy.txt 2>&1
           rc=$?
           sed -i 's/\x1b\[[0-9;]*[A-Za-z]//g' /tmp/deploy.txt
           cat /tmp/deploy.txt
