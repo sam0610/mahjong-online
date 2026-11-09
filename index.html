@@ -161,6 +161,8 @@ button{font:inherit;color:inherit}
 .chatp .sw.on{background:var(--accent)}
 .chatp .sw.on::after{left:18px}
 .chatp .xb{width:32px;height:32px;border:0;border-radius:8px;background:var(--surface-2);cursor:pointer}
+#qz{position:fixed;z-index:6;pointer-events:none}
+#qz svg{position:absolute;left:0;top:0}
 #chatlog{position:fixed;z-index:13;display:flex;flex-direction:column;align-items:flex-start;gap:3px;max-width:min(340px,70vw)}
 #chatlog .lgb{width:34px;height:34px;border:1px solid var(--line-2,#c5ccd8);border-radius:10px;background:var(--surface,#fff);color:var(--muted,#5d6678);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;margin-bottom:3px;box-shadow:0 2px 6px rgba(30,40,60,.12)}
 #chatlog .lgb.on{border-color:var(--accent,#0a7f9c);color:var(--accent,#0a7f9c)}
@@ -1941,7 +1943,7 @@ function pondList(){
 function buildView(seat){
   if(!S.running||!S.players.length)return null;
   var a=S.asks[seat];
-  return {me:seat,n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
+  return {me:seat,n:S.n,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
     players:S.players.map(function(p,i){return {name:p.name+(p.offline?'(離線'+(p.offLeft?' '+p.offLeft+' 秒':'')+')':''),score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:(S.players[seat].cheat||(U.debug&&seat===0&&!p.human&&U.role!=='client'))?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
@@ -3095,7 +3097,7 @@ function chatShow(m){
   CH.logUntil=Date.now()+8000;setTimeout(chatLog,8100);
   CH.bubbles=CH.bubbles.filter(function(x){return x.s!==m.s;});CH.bubbles.push(b);
   setTimeout(function(){CH.bubbles=CH.bubbles.filter(function(x){return x!==b;});chatLayer();},4000);
-  chatLayer();
+  chatLayer();chatLog();
 }
 HOOKS.chatLocal=chatShow;
 function chatAnchor(sd){   /* 闊屏用 #tbl .tchip,窄屏用 #opps .sh:攞到有尺寸嗰個 */
@@ -3104,13 +3106,42 @@ function chatAnchor(sd){   /* 闊屏用 #tbl .tchip,窄屏用 #opps .sh:攞到�
   return null;
 }
 /* 訊息記錄:左上角淡出串(最近 5 句),新訊息出現 8 秒,撳「記錄」掣可以再顯示 */
+/* 起莊牌:藍色直角三角牌,貼住起莊位嗰個桌角,箭咀逆時針沿桌邊 */
+function qzSvg(c){   /* 起莊標記:轉彎箭咀(逆時針沿桌邊)+「起莊」,字永遠正向 */
+  var W=36,H=36,m=3,r=7,a=10,b=16,col='#0a7f9c',P,hx,hy,dx,dy,t;
+  if(c==='bl'){P='M'+m+' '+(H-m-r-a)+'V'+(H-m-r)+'Q'+m+' '+(H-m)+' '+(m+r)+' '+(H-m)+'H'+(m+r+b);hx=m+r+b;hy=H-m;dx=1;dy=0;t=[m+8,H-m-r-1,'start'];}
+  else if(c==='br'){P='M'+(W-m-r-b)+' '+(H-m)+'H'+(W-m-r)+'Q'+(W-m)+' '+(H-m)+' '+(W-m)+' '+(H-m-r)+'V'+(H-m-r-a);hx=W-m;hy=H-m-r-a;dx=0;dy=-1;t=[W-m-8,H-m-r-1,'end'];}
+  else if(c==='tr'){P='M'+(W-m)+' '+(m+r+a)+'V'+(m+r)+'Q'+(W-m)+' '+m+' '+(W-m-r)+' '+m+'H'+(W-m-r-b);hx=W-m-r-b;hy=m;dx=-1;dy=0;t=[W-m-8,m+r+8,'end'];}
+  else{P='M'+(m+r+b)+' '+m+'H'+(m+r)+'Q'+m+' '+m+' '+m+' '+(m+r)+'V'+(m+r+a);hx=m;hy=m+r+a;dx=0;dy=1;t=[m+8,m+r+8,'start'];}
+  var px=-dy,py=dx,hd=6;
+  return '<svg width="80" height="80" viewBox="0 0 36 36" aria-label="起莊"><path d="'+P+'" fill="none" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round"/>'+
+    '<polygon points="'+(hx+dx*hd)+','+(hy+dy*hd)+' '+(hx+px*hd*.7)+','+(hy+py*hd*.7)+' '+(hx-px*hd*.7)+','+(hy-py*hd*.7)+'" fill="'+col+'"/>'+
+    '<text x="'+t[0]+'" y="'+t[1]+'" font-family="Noto Sans TC,sans-serif" font-weight="900" font-size="11" letter-spacing=".5" text-anchor="'+t[2]+'" fill="'+col+'">起莊</text></svg>';
+}
+function qzLayer(){
+  var e=document.getElementById('qz');
+  var tb=document.getElementById('tbl'),r=tb&&tb.getBoundingClientRect();
+  if(!V||U.pondMode||V.d0==null||!r||!r.width||!V.players||!V.players[V.d0]){if(e)e.hidden=true;U.qzTL=false;return;}
+  if(!e){e=document.createElement('div');e.id='qz';document.body.appendChild(e);}
+  var S0=80,corner='bl',a;
+  if(V.d0!==V.me){
+    a=chatAnchor(V.d0);
+    if(a){var q=a.getBoundingClientRect(),dx=q.left+q.width/2-(r.left+r.width/2),dy=q.top+q.height/2-(r.top+r.height/2);
+      corner=Math.abs(dy)>Math.abs(dx)?(dy<0?'tr':'bl'):(dx>0?'br':'tl');}
+  }
+  var m=4;
+  var left=(corner==='bl'||corner==='tl')?r.left+m:r.right-m-S0,top=(corner==='tl'||corner==='tr')?r.top+m:r.bottom-m-S0;
+  e.hidden=false;e.style.cssText='left:'+Math.round(left)+'px;top:'+Math.round(top)+'px;width:'+S0+'px;height:'+S0+'px';
+  if(e.getAttribute('data-c')!==corner){e.setAttribute('data-c',corner);e.innerHTML=qzSvg(corner);}
+  U.qzTL=corner==='tl';
+}
 function chatLog(){
   var e=document.getElementById('chatlog');
   if(!e){e=document.createElement('div');e.id='chatlog';document.body.appendChild(e);}
   if(!chatOK()){if(e.innerHTML)e.innerHTML='';return;}
   var tb=document.querySelector('#tbl'),op=document.getElementById('opps'),r=null;
   if(tb){r=tb.getBoundingClientRect();if(!r.width&&!r.height)r=null;}
-  var left=r?r.left+12:8,top=r?r.top+10:(op?Math.max(8,op.getBoundingClientRect().bottom+6):60);
+  var left=r?r.left+12:8,top=r?r.top+10+(U.qzTL?88:0):(op?Math.max(8,op.getBoundingClientRect().bottom+6):60);
   var on=Date.now()<CH.logUntil,CC=['#2b2e34','#e07a1f','#d6336c','#7a4fd0'],h='';
   e.style.left=Math.round(left)+'px';e.style.top=Math.round(top)+'px';
   h+='<button class="lgb'+(on?' on':'')+'" data-act="chatLog" aria-label="訊息記錄" aria-pressed="'+(on?'true':'false')+'" title="訊息記錄"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 4.5A1.5 1.5 0 014.5 3h9A1.5 1.5 0 0115 4.5v6A1.5 1.5 0 0113.5 12H8l-3.5 3v-3h0A1.5 1.5 0 013 10.5z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg></button>';
@@ -3370,7 +3401,7 @@ function draw(){
     /* 記低最後一隻出牌/自己摸嘅牌:房間伺服器(舊引擎)嘅結果冇 tile,贏牌時靠呢個推出食糊牌 */
     if(V.last&&V.last.t!=null)U.tkLast=V.last.t;
     var mp=V.players&&V.players[V.me];if(mp&&mp.drawn!=null)U.tkDrawn=mp.drawn;}
-  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();chatDraw();apqDraw();chatLayer();chatLog();
+  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();chatDraw();apqDraw();chatLayer();qzLayer();chatLog();
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
   if(els.share)els.share.hidden=!((U.role==='host'&&U.code)||(U.role==='solo'&&V));
