@@ -711,7 +711,36 @@ body.pondmode .sheet{color:var(--ink)}
 /* 版本號 */
 .ver{font:500 11px/1 var(--mono);color:var(--muted);letter-spacing:.04em;opacity:.8;flex:none}
 @media (min-width:641px){.ov.setupov .ver{position:absolute;bottom:8px;left:0;right:0;text-align:center}}
-@media (max-width:640px) and (max-height:620px){.ov.setupov{padding-top:8px;padding-bottom:8px;gap:4px}.ov.setupov .step .chip,.ov.setupov .step .inp{height:38px;min-height:38px}}
+@media (max-width:640px) and (max-height:620px){.ov.setupov .hero .logo{font-size:28px}.ov.setupov .step .note{display:none}.ov.setupov{padding-top:8px;padding-bottom:8px;gap:4px}.ov.setupov .step .chip,.ov.setupov .step .inp{height:38px;min-height:38px}}
+/* 手機打橫:logo 喺左,兩張卡並排,一版過 */
+@media (orientation:landscape) and (max-height:540px) and (max-width:899px){
+  .ov.setupov{flex-direction:row;align-items:center;justify-content:center;gap:16px;padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:max(8px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .ov.setupov .hero{flex:none;gap:0}
+  .ov.setupov .hero .logo{font-size:clamp(34px,13vh,52px);letter-spacing:.08em}
+  .ov.setupov .hero .tag,.ov.setupov .hero .tiles{display:none}
+  .ov.setupov .sheet.setup{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;width:auto;flex:1 1 0;max-width:680px;max-height:none;border-radius:16px;align-items:start}
+  .ov.setupov .sheet.setup>.resume,.ov.setupov .sheet.setup>.warn{grid-column:1/-1}
+  .ov.setupov .sheet.setup{grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-width:0}
+  .ov.setupov .step,.ov.setupov .step .card,.ov.setupov .step .card>div{min-width:0}
+  .ov.setupov .step .card>div:has(.chip) .lab{white-space:nowrap}
+  .ov.setupov .step .opts .chip{padding:0 2px}
+  .ov.setupov .step .opts{flex-wrap:nowrap}
+  .ov.setupov .step .inp.code{flex:1 1 0}
+  .ov.setupov .step .chip{min-width:0}
+  .ov.setupov .step>h4{display:none}
+  .ov.setupov .step .card{padding:8px;gap:6px}
+  .ov.setupov .step .card>div:has(.chip),.ov.setupov .step .card>div:has(#pname){display:flex;align-items:center;gap:8px}
+  .ov.setupov .step .card>div:has(.chip) .lab{flex:none;width:4.6em;margin:0}
+  .ov.setupov .step .card>div:has(#pname) .lab{display:none}
+  .ov.setupov .step .card>div>.opts{flex:1 1 auto;min-width:0}
+  .ov.setupov .step .chip,.ov.setupov .step .inp,.ov.setupov .step .btn,.ov.setupov .step .btn.block{height:36px;min-height:36px}
+  .ov.setupov .step .note,.ov.setupov .step .card>div>.note{display:none}
+  .ov.setupov .resume{grid-template-columns:1fr auto;align-items:center;gap:2px 8px;padding:6px 10px}
+  .ov.setupov .resume span{display:none}
+  .ov.setupov .resume .opts{grid-row:1;grid-column:2}
+  .ov.setupov .ver{position:absolute;bottom:4px;left:0;right:0;text-align:center}
+}
+@media (orientation:landscape) and (max-height:540px) and (max-width:720px){.ov.setupov{gap:8px}.ov.setupov .hero .logo{font-size:28px;letter-spacing:.04em}.ov.setupov .step .card>div:has(.chip) .lab{width:4.2em;font-size:11px}}
 /* ===== 手機主頁:縮到一版,唔駛上下滾 ===== */
 @media (max-width:640px){
   .ov.setupov{gap:6px;padding-top:max(10px,calc(env(safe-area-inset-top,0px) + 4px));padding-bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 6px));padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));justify-content:center}
@@ -737,7 +766,7 @@ body.pondmode .sheet{color:var(--ink)}
   .ov.setupov .hero .tiles,.ov.setupov .hero .tag{display:none}
 }
 @media (max-width:640px) and (max-height:700px){
-  .ov.setupov .hero{display:none}
+  .ov.setupov .hero .logo{font-size:34px;letter-spacing:.1em}
   .ov.setupov .step .card{gap:6px}
 }
 </style>
@@ -2978,7 +3007,7 @@ function drawDock(){
   }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
-var VERSION='2026.11.10-a';
+var VERSION='2026.11.10-b';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
@@ -3499,6 +3528,29 @@ function drawOverlay(){
   if(els.overlay.getAttribute('data-h')===h&&U.screen!=='x')return;
   els.overlay.setAttribute('data-h',h);
   els.overlay.innerHTML=h;
+  fitSetup();setTimeout(fitSetup,250);
+}
+/* 手機主頁:萬一內容仲高過畫面,成頁等比例縮細,保證一版過 */
+function cs0(o){return getComputedStyle(o).flexDirection==='row';}
+function fitSetup(){
+  try{
+    var o=els.overlay.querySelector('.ov.setupov');if(!o)return;
+    var kids=[].slice.call(o.children);
+    kids.forEach(function(k){k.style.zoom='';});
+    if(!window.matchMedia('(max-width:640px),(orientation:landscape) and (max-height:540px) and (max-width:899px)').matches)return;
+    var row=cs0(o);
+    var cs=getComputedStyle(o),gap=parseFloat(cs.rowGap)||0;
+    var avail=o.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+    var need=row?kids.reduce(function(a,k){return Math.max(a,k.getBoundingClientRect().height);},0):kids.reduce(function(a,k){return a+k.getBoundingClientRect().height;},0)+gap*(kids.length-1);
+    if(need>avail+0.5){
+      var z=Math.max(.5,(avail-1)/need);
+      kids.forEach(function(k){k.style.zoom=z});
+    }
+    if(o.scrollWidth>o.clientWidth+0.5){
+      var z0=parseFloat(kids[0].style.zoom)||1,z2=Math.max(.5,z0*(o.clientWidth-1)/o.scrollWidth);
+      kids.forEach(function(k){k.style.zoom=z2});
+    }
+  }catch(e){}
 }
 function drawFz(){
   var e=document.getElementById('fz');
@@ -3936,7 +3988,7 @@ function boot2(){
   });
   document.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing&&e.target&&e.target.id==='chatin'){e.preventDefault();handleAct('chatSend',null);return;}if(e.key==='Escape'&&U.chatOpen){U.chatOpen=false;U.chatEdit=false;draw();}if(e.key==='Enter'&&U.joinGate&&e.target&&e.target.id==='gname'){e.preventDefault();gateGo();}else if(e.key==='Enter'&&U.cheatAsk&&e.target&&e.target.id==='cheatpw'){e.preventDefault();cheatSet(true,e.target.value);}});
   document.addEventListener('click',onClick);
-  window.addEventListener('resize',function(){try{fitSide();}catch(e){}});
+  window.addEventListener('resize',function(){try{fitSide();}catch(e){}fitSetup();});
   document.addEventListener('input',onInput);
   try{U.name=localStorage.getItem('mj_name')||'';}catch(e){}
   try{if(localStorage.getItem('mj_ainames'))AI_CUSTOM=aiList();}catch(e){}
