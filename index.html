@@ -708,6 +708,38 @@ body.pondmode .sheet{color:var(--ink)}
   .rack.me .rm .sep{display:block}
   .rack.me .meld,.rack.me .fl{--tw:calc(var(--hw)*.72)}
 }
+/* 版本號 */
+.ver{font:500 11px/1 var(--mono);color:var(--muted);letter-spacing:.04em;opacity:.8;flex:none}
+@media (min-width:641px){.ov.setupov .ver{position:absolute;bottom:8px;left:0;right:0;text-align:center}}
+@media (max-width:640px) and (max-height:620px){.ov.setupov{padding-top:8px;padding-bottom:8px;gap:4px}.ov.setupov .step .chip,.ov.setupov .step .inp{height:38px;min-height:38px}}
+/* ===== 手機主頁:縮到一版,唔駛上下滾 ===== */
+@media (max-width:640px){
+  .ov.setupov{gap:6px;padding-top:max(10px,calc(env(safe-area-inset-top,0px) + 4px));padding-bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 6px));padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));justify-content:center}
+  .ov.setupov .hero{gap:0}
+  .ov.setupov .hero .logo{font-size:clamp(40px,9vh,72px)}
+  .ov.setupov .hero .tag{margin-top:2px;font-size:11px}
+  .ov.setupov .hero .tiles{--tw:clamp(24px,7.5vw,34px);margin-top:2px;padding-bottom:4px;gap:4px}
+  .ov.setupov .sheet.setup{padding:12px;gap:8px;border-radius:18px;width:100%}
+  .ov.setupov .step>h4{display:none}
+  .ov.setupov .step .card{padding:10px;gap:8px}
+  .ov.setupov .step .lab{margin-bottom:4px}
+  .ov.setupov .step .chip{height:40px;min-height:40px}
+  .ov.setupov .step .inp{height:40px}
+  .ov.setupov .step .btn.block,.ov.setupov .step .btn{min-height:42px}
+  .ov.setupov .step .note{margin:4px 0 0;font-size:12px}
+  .ov.setupov .step .card>div>.note{display:none}
+  .ov.setupov .resume{grid-template-columns:1fr auto;align-items:center;gap:2px 8px;padding:8px 10px}
+  .ov.setupov .resume span{display:none}
+  .ov.setupov .resume .opts{grid-row:1;grid-column:2}
+  .ov.setupov .sheet .warn{font-size:13px}
+}
+@media (max-width:640px) and (max-height:780px){
+  .ov.setupov .hero .tiles,.ov.setupov .hero .tag{display:none}
+}
+@media (max-width:640px) and (max-height:700px){
+  .ov.setupov .hero{display:none}
+  .ov.setupov .step .card{gap:6px}
+}
 </style>
 
 <div class="app">
@@ -2946,6 +2978,7 @@ function drawDock(){
   }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
+var VERSION='2026.11.10-a';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
@@ -2968,7 +3001,7 @@ function setupHTML(){
       '<hr class="hr"><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="輸入房號加入" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
       (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
     '</div></div>'+
-    '</div></div>';
+    '</div><div class="ver">v'+VERSION+'</div></div>';
 }
 function lobbyHTML(){
   if(U.resuming)return '<div class="ov"><div class="sheet"><h2>接手房間</h2><p>房號 <b>'+esc(U.resuming)+'</b> · 房主斷咗線,你嚟接手,連線中…</p><div class="opts"><button class="btn" data-act="leave">取消</button></div></div></div>';
