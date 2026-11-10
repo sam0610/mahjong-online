@@ -596,6 +596,117 @@ body.pondmode .sheet{color:var(--ink)}
 .hands .wintile{--tw:calc(var(--tw0,26px)*1.3);display:inline-flex;flex-direction:column;align-items:center;gap:3px;margin-left:auto;padding:4px 8px 6px;border-radius:10px;background:rgba(217,67,45,.1)}
 .hands .wintile small{font:900 12px/1 var(--sans);color:var(--hot);letter-spacing:.08em}
 .hands .wintile .t.win{outline:2px solid var(--hot);outline-offset:2px}
+/* ===== 手機一屏版面(直向 ≤640px / 橫向矮屏):成個牌桌唔使捲動;對手變一行、牌河喺中間自己捲、手牌固定喺底 ===== */
+@media (max-width:640px),(orientation:landscape) and (max-height:540px){
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+  body{padding-block:max(6px,env(safe-area-inset-top,0px)) 0}
+  .app{height:calc(100dvh - max(6px,env(safe-area-inset-top,0px)));min-height:0;max-width:none;grid-template-rows:auto auto minmax(0,1fr) auto auto;gap:6px;align-content:stretch}
+  .top{flex-wrap:nowrap;gap:6px}
+  .top h1{font-size:15px;letter-spacing:.04em;margin:0;white-space:nowrap}
+  .top h1 .logo{width:22px;height:22px;vertical-align:-5px;margin-right:6px}
+  .top .btn.sm{height:32px;min-height:32px;padding:0 10px;font-size:13px}
+  /* 對手:一行(風位 名 位置 莊 張數 分數),有碰/上/槓或花先多一行細牌;唔再畫牌背 */
+  .opps{grid-template-columns:1fr;gap:4px}
+  .seat{display:flex;flex-wrap:wrap;align-items:center;gap:3px 8px;padding:4px 8px;border-radius:10px}
+  .seat .sh{flex:1 1 auto;gap:6px;min-width:0}
+  .seat .wchip{width:22px;height:22px;border-radius:6px;font-size:13px}
+  .seat .nm{font-size:14px}
+  .seat .numbadge{padding:2px 8px;font-size:11px}.seat .numbadge b{font-size:14px}
+  .seat .sc{font-size:13px}
+  .seat .rack{flex:0 1 auto;margin-left:auto;background:none;border:0;box-shadow:none;padding:0 0 3px;gap:3px 0;justify-content:flex-end}
+  .seat .rack.bare,.seat .rack .backs,.seat .rack .sep{display:none}
+  .seat .rack .meld{margin-left:5px}
+  .seat .rack .meld,.seat .rack .fl,.seat .rack .reveal{--tw:19px}
+  .seat .rack .fl{margin-left:8px}
+  .seat .call{top:-6px;font-size:18px;padding:6px 12px}
+  /* 牌河:佔晒中間剩低嘅位,多過一屏就喺入面捲 */
+  .pond{min-height:0;padding:5px 8px 4px;gap:2px;grid-template-rows:auto minmax(0,1fr);overflow:hidden;border-radius:10px}
+  .pond .plg{flex-wrap:nowrap;gap:0 8px;font-size:11px;min-width:0}
+  .pond .lg{display:block;min-width:2.6em;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pond .lg i{display:inline-block;width:10px;vertical-align:middle;margin-right:4px}
+  .pond .pc{flex:none;font-size:11px}
+  .pond .tog{flex:none;min-height:24px;padding:1px 8px;margin-left:0;font-size:11px}
+  .pool{overflow-y:auto;min-height:0;padding:9px 10px 2px;gap:5px 3px;--tw:clamp(21px,6.6vw,27px);-webkit-overflow-scrolling:touch}
+  .pond .dcgrid{align-content:center;gap:6px}
+  .haschat .pond .plg{padding-left:34px}
+  #chatlog .lgb{width:28px;height:28px;border-radius:8px}
+  /* 中間資訊:一行細字;提示文字搬咗去操作列 */
+  .mid{padding:0 4px;border:0;background:none;min-height:0;font-size:12px;line-height:1.3;gap:4px 10px;flex-wrap:wrap}
+  .mid .mi{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mid .msg,.mid .lastd{display:none}
+  .mid b{font-size:12px}
+  /* 底部:名牌+提示+細掣同一行;手牌固定喺底 */
+  .dock{position:relative;margin:0 -10px;padding:6px 10px max(8px,env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line-2);box-shadow:none}
+  .dock>.actions>.call{top:-46px;right:10px}
+  .actions{min-height:0;gap:6px;margin-bottom:6px;align-items:center}
+  .mep{margin-right:0;padding:2px 10px 2px 3px}
+  .mep .wchip{width:24px;height:24px}
+  .dmsg{display:block;flex:1 1 0;min-width:0;margin:0;text-align:left;font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .actions .note.hint{display:none}
+  .actions .btn{height:42px;min-height:42px;font-size:16px;padding:0 16px;flex:1 1 auto;justify-content:center}
+  .actions .btn.sm{height:36px;min-height:36px;flex:0 0 auto;padding:0 12px;font-size:14px}
+  .actions .mep+.btn.sm,.actions .mep+.cmerge+.btn.sm{margin-left:auto}
+  .actions .btn.win{order:2;flex:1 1 100%;height:46px;font-size:19px}
+  .actions .note{order:2;flex:1 1 100%;font-size:13px}
+  .actions .alert{order:3;padding:5px 10px;font-size:15px;gap:8px}
+  .actions .alert .claimtile{--tw:26px}
+  .actions .claimrow{order:4;gap:6px}
+  .actions .claimrow .btn.win{order:0}
+  .actions .claimrow .btn.big{height:46px;min-height:46px;padding:0 12px;gap:6px}
+  .tpbar{margin:0 0 6px;padding:4px 8px;font-size:13px;min-height:0}
+}
+/* 直向:手牌每行 7 隻,兩行放得晒 14 隻(舊版計漏咗牌架內邊,變咗每行 6 隻、三行) */
+@media (max-width:640px){
+  .rack.me{padding:0 6px 6px}
+  .hand{--hw:calc((100vw - 20px - 14px - 30px - 1px) / 7);gap:8px 5px;padding-top:12px}
+  .rack.me .rm{flex-wrap:wrap;gap:3px 0;padding-top:5px}
+  .rack.me .meld,.rack.me .fl{--tw:clamp(22px,6.8vw,30px)}
+}
+/* 直向但畫面矮(細機 / Safari 有網址列):有得碰/上/槓時收起第一行,提示變一行,留返位畀牌河 */
+@media (max-width:640px) and (max-height:700px) and (orientation:portrait){
+  .actions:has(.alert)>.mep,.actions:has(.alert)>.btn.sm{display:none}
+  .app:has(.actions .alert) .mid{display:none}
+  .actions .alert{padding:4px 10px;white-space:nowrap;overflow:hidden}
+  .actions .alert small{display:inline;margin-left:6px}
+  .hand{gap:6px 5px;padding-top:10px}
+  .rack.me .meld,.rack.me .fl{--tw:22px}
+  .seat{padding:3px 8px}
+}
+/* 橫向(手機打橫):左邊對手,右邊牌河,底部手牌一行 */
+@media (orientation:landscape) and (max-height:540px){
+  body{padding-block:4px 0;font-size:14px}
+  .app{height:calc(100dvh - 4px);grid-template-columns:minmax(120px,1fr) auto minmax(0,2.1fr);grid-template-rows:minmax(0,1fr) auto auto;gap:4px 8px}
+  .opps{grid-column:1/3;grid-row:1;align-content:start;overflow-y:auto;min-height:0}
+  .seat{padding:3px 8px}
+  .seat .rel{display:none}
+  .mid{grid-column:1;grid-row:2;align-self:center}
+  .mid .mi{white-space:normal}
+  .top{grid-column:2;grid-row:2}
+  .top h1,.top .sp{display:none}
+  .top .btn.sm{height:28px;min-height:28px}
+  .pond{grid-column:3;grid-row:1/3}
+  .dock{grid-column:1/4;grid-row:3;margin:0;padding:4px 0 max(6px,env(safe-area-inset-bottom,0px));border-top:0}
+  .actions{flex-wrap:nowrap;margin-bottom:4px}
+  .actions .btn{height:36px;min-height:36px;flex:0 0 auto}
+  .actions .btn.sm{height:32px;min-height:32px}
+  .actions .btn.win{order:0;flex:0 0 auto;height:36px;font-size:16px}
+  .actions .note{order:0;flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .actions .alert{order:0;flex:0 1 auto;min-width:0;padding:3px 10px;white-space:nowrap;overflow:hidden}
+  .actions .alert small{display:inline;margin-left:6px}
+  .actions .claimrow{order:0;flex:0 0 auto;flex-wrap:nowrap}
+  .actions .claimrow .btn.big{height:36px;min-height:36px;padding:0 10px}
+  .actions .claimrow .bt{--tw:16px}
+  .actions:has(.alert) .dmsg{display:none}
+  .actions:has(.alert) .btn.sm{margin-left:auto}
+  .actions:has(.alert) .btn.sm+.btn.sm{margin-left:0}
+  .rack.me{flex-direction:row;flex-wrap:nowrap;align-items:flex-end;padding:0 8px 6px}
+  .hand{--hw:clamp(26px,calc((100vw - max(16px,env(safe-area-inset-left,0px)) - max(16px,env(safe-area-inset-right,0px)) - 50px) / 14.5),46px);flex-wrap:nowrap;justify-content:flex-start;gap:2px;padding-top:10px}
+  .hand .gap{display:block}
+  .rack.me .hand{justify-content:flex-start}
+  .rack.me .rm{border-top:0;padding-top:0;margin-top:0;margin-left:auto;flex-wrap:nowrap}
+  .rack.me .rm .sep{display:block}
+  .rack.me .meld,.rack.me .fl{--tw:calc(var(--hw)*.72)}
+}
 </style>
 
 <div class="app">
@@ -2790,7 +2901,7 @@ function drawDock(){
       }
       o.kongs.forEach(function(t){if(o.kongDrawn!=null&&U.kqDismiss!==a.id&&t===o.kongDrawn)return;acts+='<button class="btn" data-act="kong" data-t="'+t+'">槓 '+tname(t)+'</button>';});
       if(COARSE&&U.sel&&U.selT!=null)acts+='<button class="btn pri" data-act="discardsel">打出 '+tname(U.selT)+'</button>';
-      else acts+='<span class="note">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點一下揀牌(放大),再點(連按兩下)打出;鍵盤:<kbd>←</kbd><kbd>→</kbd> 揀牌,<kbd>↑</kbd> 移出,再按 <kbd>↑</kbd> 打出')+'</span>';
+      else acts+='<span class="note hint">'+(COARSE?'點一下選牌,再撳「打出」(或再點一下)':'點一下揀牌(放大),再點(連按兩下)打出;鍵盤:<kbd>←</kbd><kbd>→</kbd> 揀牌,<kbd>↑</kbd> 移出,再按 <kbd>↑</kbd> 打出')+'</span>';
     }else if(a.kind==='claim'){
       var can=[];if(o.ev)can.push('胡');if(o.kong)can.push('槓');if(o.pung)can.push('碰');if((o.chows||[]).length)can.push('上');
       acts+='<div class="cmerge"><div class="alert"><span class="claimtile">'+tileEl(o.tile)+'</span><span>'+esc(V.players[o.from].name)+' 打出 '+tname(o.tile)+'<small>你可以 '+can.join(' / ')+'</small></span></div><div class="claimrow">';
@@ -3147,10 +3258,13 @@ function qzLayer(){
 function chatLog(){
   var e=document.getElementById('chatlog');
   if(!e){e=document.createElement('div');e.id='chatlog';document.body.appendChild(e);}
-  if(!chatOK()){if(e.innerHTML)e.innerHTML='';return;}
+  if(!chatOK()){if(e.innerHTML)e.innerHTML='';document.body.classList.remove('haschat');return;}
   var tb=document.querySelector('#tbl'),op=document.getElementById('opps'),r=null;
   if(tb){r=tb.getBoundingClientRect();if(!r.width&&!r.height)r=null;}
-  var left=r?r.left+12:8,top=r?r.top+10+(U.qzTL?108:0):(op?Math.max(8,op.getBoundingClientRect().bottom+6):60);
+  var ph=!r&&window.matchMedia&&matchMedia('(max-width:640px),(orientation:landscape) and (max-height:540px)').matches;   /* 手機一屏版面:掣放喺牌河左上角 */
+  var pd=document.getElementById('pond'),pr=(ph&&pd&&!pd.hidden)?pd.getBoundingClientRect():null;if(pr&&!pr.width)pr=null;
+  document.body.classList.toggle('haschat',!!pr);
+  var left=r?r.left+12:pr?pr.left+5:8,top=r?r.top+10+(U.qzTL?108:0):pr?pr.top+4:(op?Math.max(8,op.getBoundingClientRect().bottom+6):60);
   var on=Date.now()<CH.logUntil,CC=['#2b2e34','#e07a1f','#d6336c','#7a4fd0'],h='';
   e.style.left=Math.round(left)+'px';e.style.top=Math.round(top)+'px';
   h+='<button class="lgb'+(on?' on':'')+'" data-act="chatLog" aria-label="訊息記錄" aria-pressed="'+(on?'true':'false')+'" title="訊息記錄"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 4.5A1.5 1.5 0 014.5 3h9A1.5 1.5 0 0115 4.5v6A1.5 1.5 0 0113.5 12H8l-3.5 3v-3h0A1.5 1.5 0 013 10.5z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg></button>';
@@ -3414,6 +3528,7 @@ function draw(){
     if(V.last&&V.last.t!=null)U.tkLast=V.last.t;
     var mp=V.players&&V.players[V.me];if(mp&&mp.drawn!=null)U.tkDrawn=mp.drawn;}
   drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();chatDraw();apqDraw();chatLayer();qzLayer();chatLog();
+  var pl=els.pond&&els.pond.querySelector('.pool');if(pl&&pl.scrollHeight>pl.clientHeight+2)pl.scrollTop=pl.scrollHeight;   /* 手機:牌河喺入面捲,自動跟住最新打出嗰隻 */
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
   if(els.share)els.share.hidden=!((U.role==='host'&&U.code)||(U.role==='solo'&&V));
