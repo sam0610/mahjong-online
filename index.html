@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>港式麻雀</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -329,7 +329,8 @@ button{font:inherit;color:inherit}
 .ft{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-variant-numeric:tabular-nums}
 .ft dt{color:var(--accent);font-weight:700;white-space:nowrap}
 .ft dd{margin:0;color:var(--muted)}
-.inp{font:500 15px var(--sans);color:var(--ink);background:var(--surface-2);border:1px solid var(--line-2);border-radius:10px;height:44px;padding:0 12px;min-width:0;flex:1}
+html,body,button,.t{touch-action:manipulation;-webkit-text-size-adjust:100%}   /* 唔俾雙撳放大 */
+.inp{font:500 16px var(--sans);color:var(--ink);background:var(--surface-2);border:1px solid var(--line-2);border-radius:10px;height:44px;padding:0 12px;min-width:0;flex:1}
 .inp:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .inp.code{flex:0 1 160px;text-transform:uppercase;letter-spacing:.2em;font-family:var(--mono)}
 .warn{color:var(--hot)!important;font-weight:700}
@@ -3782,7 +3783,10 @@ function needPw(fn){
       });
   });
 }
-function boot(){boot2();}
+function boot(){
+  /* iOS Safari 忽略 user-scalable=no:攔截兩指縮放;雙撳放大靠 CSS touch-action:manipulation(唔攔 touchend,免得連打兩下嘅 click 被吞) */
+  ['gesturestart','gesturechange','gestureend'].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault();},{passive:false});});
+  document.addEventListener('touchmove',function(e){if(e.touches&&e.touches.length>1)e.preventDefault();},{passive:false});boot2();}
 function boot2(){
   setInterval(function(){try{var l=cdLeft();if(l==null)return;var t=cdText();
     document.querySelectorAll('[data-cd]').forEach(function(e){var x=e.classList.contains('cdn')&&e.parentNode&&e.parentNode.classList.contains('note')?' '+t:t;if(e.textContent!==x)e.textContent=x;});
