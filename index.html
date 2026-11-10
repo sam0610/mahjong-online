@@ -3107,20 +3107,20 @@ function chatAnchor(sd){   /* 闊屏用 #tbl .tchip,窄屏用 #opps .sh:攞到�
 }
 /* 訊息記錄:左上角淡出串(最近 5 句),新訊息出現 8 秒,撳「記錄」掣可以再顯示 */
 /* 起莊牌:藍色直角三角牌,貼住起莊位嗰個桌角,箭咀逆時針沿桌邊 */
-function qzSvg(c){   /* 起莊牌:藍色直角三角牌 + 金色箭咀同「起莊」,字永遠正向 */
-  var T={bl:[0,44,222],br:[-90,142,250],tr:[180,150,104],tl:[90,66,96]}[c]||[0,44,222];
-  return '<svg width="112" height="112" viewBox="0 0 300 300" style="filter:drop-shadow(0 4px 6px rgba(20,30,70,.3))" aria-label="起莊"><defs><linearGradient id="qzg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3550c8"/><stop offset="1" stop-color="#1b2f9a"/></linearGradient></defs>'+
-    '<g transform="rotate('+T[0]+' 150 150)"><g transform="translate(0 80)"><polygon points="26,22 16,196 282,196" fill="url(#qzg)" stroke="url(#qzg)" stroke-width="22" stroke-linejoin="round"/>'+
-    '<polygon points="30,34 22,190 262,190" fill="none" stroke="rgba(233,201,110,.55)" stroke-width="3" stroke-linejoin="round"/>'+
-    '<path d="M38 176H96" fill="none" stroke="#e9c96e" stroke-width="7" stroke-dasharray="14 7 3 7"/><path d="M104 176H196" stroke="#e9c96e" stroke-width="9"/><path d="M178 158L208 176L178 194Z" fill="#e9c96e"/></g></g>'+
-    '<text x="'+T[1]+'" y="'+T[2]+'" font-family="Noto Sans TC,sans-serif" font-weight="900" font-size="34" letter-spacing="4" fill="#e9c96e">起莊</text></svg>';
+function qzSvg(c){   /* 起莊章:紅色圓徽章 + 金色繞圈箭咀(逆時針方向),字永遠正向 */
+  var K={bl:[46,52,0],br:[54,52,-90],tr:[54,48,180],tl:[46,48,90]}[c]||[46,52,0],cx=K[0],cy=K[1];
+  return '<svg width="100" height="100" viewBox="0 0 100 100" style="filter:drop-shadow(0 3px 4px rgba(20,30,70,.28))" aria-label="起莊">'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="34" fill="#d9432d" stroke="#1d4b57" stroke-width="3"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="27" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="3 4" opacity=".8"/>'+
+    '<g transform="translate('+cx+' '+cy+') rotate('+K[2]+') translate(-46 -52)"><path d="M12 62A38 38 0 0 0 46 92" fill="none" stroke="#f2c14e" stroke-width="6" stroke-linecap="round"/><path d="M46.5 85.4L57 92L46.5 98.6Z" fill="#f2c14e" stroke="#f2c14e" stroke-width="2" stroke-linejoin="round"/></g>'+
+    '<text x="'+cx+'" y="'+(cy+8)+'" font-family="Noto Sans TC,sans-serif" font-weight="900" font-size="22" text-anchor="middle" fill="#fff">起莊</text></svg>';
 }
 function qzLayer(){
   var e=document.getElementById('qz');
   var tb=document.getElementById('tbl'),r=tb&&tb.getBoundingClientRect();
   if(!V||U.pondMode||V.d0==null||!r||!r.width||!V.players||!V.players[V.d0]){if(e)e.hidden=true;U.qzTL=false;return;}
   if(!e){e=document.createElement('div');e.id='qz';document.body.appendChild(e);}
-  var S0=112,corner='bl',a;
+  var S0=100,corner='bl',a;
   if(V.d0!==V.me){
     a=chatAnchor(V.d0);
     if(a){var q=a.getBoundingClientRect(),dx=q.left+q.width/2-(r.left+r.width/2),dy=q.top+q.height/2-(r.top+r.height/2);
@@ -3138,7 +3138,7 @@ function chatLog(){
   if(!chatOK()){if(e.innerHTML)e.innerHTML='';return;}
   var tb=document.querySelector('#tbl'),op=document.getElementById('opps'),r=null;
   if(tb){r=tb.getBoundingClientRect();if(!r.width&&!r.height)r=null;}
-  var left=r?r.left+12:8,top=r?r.top+10+(U.qzTL?120:0):(op?Math.max(8,op.getBoundingClientRect().bottom+6):60);
+  var left=r?r.left+12:8,top=r?r.top+10+(U.qzTL?108:0):(op?Math.max(8,op.getBoundingClientRect().bottom+6):60);
   var on=Date.now()<CH.logUntil,CC=['#2b2e34','#e07a1f','#d6336c','#7a4fd0'],h='';
   e.style.left=Math.round(left)+'px';e.style.top=Math.round(top)+'px';
   h+='<button class="lgb'+(on?' on':'')+'" data-act="chatLog" aria-label="訊息記錄" aria-pressed="'+(on?'true':'false')+'" title="訊息記錄"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 4.5A1.5 1.5 0 014.5 3h9A1.5 1.5 0 0115 4.5v6A1.5 1.5 0 0113.5 12H8l-3.5 3v-3h0A1.5 1.5 0 013 10.5z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg></button>';
