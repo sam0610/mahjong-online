@@ -708,6 +708,8 @@ body.pondmode .sheet{color:var(--ink)}
   .rack.me .rm .sep{display:block}
   .rack.me .meld,.rack.me .fl{--tw:calc(var(--hw)*.72)}
 }
+.coaxb{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);height:24px;min-height:0;padding:0 9px;border-radius:12px;border:1.5px solid #16403f;background:#fff;color:#16403f;font:700 12px/1 var(--sans,sans-serif);white-space:nowrap;z-index:3}
+.coaxb.on{background:#d9432d;border-color:#d9432d;color:#fff}
 /* 版本號 */
 .ver{font:500 11px/1 var(--mono);color:var(--muted);letter-spacing:.04em;opacity:.8;flex:none}
 @media (min-width:641px){.ov.setupov .ver{position:absolute;bottom:8px;left:0;right:0;text-align:center}}
@@ -1404,9 +1406,11 @@ function aiChow1(p,t,opts){
   return null;
 }
 function aiTurn(p,ev,kongs){
-  if(ev&&ev.fan>=S.minFan&&winOK(p,ev))return {a:'win'};
-  if(kongs.length&&S.wall.length>4)return {a:'kong',t:kongs[0]};
-  return {a:'discard',t:chooseDiscard(p)};
+  var cx=(typeof coaxOn==='function')&&coaxOn();
+  if(!cx&&ev&&ev.fan>=S.minFan&&winOK(p,ev))return {a:'win'};
+  if(!cx&&kongs.length&&S.wall.length>4)return {a:'kong',t:kongs[0]};
+  var ft=cx?coaxFeed(p):null;
+  return {a:'discard',t:ft!=null?ft:chooseDiscard(p)};
 }
 
 /*@engine:end*/
@@ -1835,7 +1839,70 @@ function buildWall(){
   return w;
 }
 function sortHand(p){p.hand.sort(function(a,b){return a-b;});}
+/* ---------- 氹模式:只限已開金手指嘅人逐鋪開,幫指定真人座位 ---------- */
+function coaxOn(){var c=S.coax;return (c&&c.hand===S.handNo&&S.players[c.seat]&&S.players[c.by]&&S.players[c.by].cheat)?c:null;}
+function setCoax(by,seat){
+  var P=S.players;if(!S.running||!P[by]||!P[by].cheat)return;
+  seat=+seat;
+  if(!(seat>=0&&seat<S.n)||seat%1!==0||seat===by||!P[seat].human)S.coax=null;
+  else S.coax={seat:seat,by:by,hand:S.over?S.handNo+1:S.handNo};
+  render();
+}
+function coaxWins(p,self){   /* 目標而家食得糊嘅牌 */
+  var out=[],t,ev;
+  for(t=0;t<34;t++){try{ev=evalWith(p,t,{self:!!self,round:S.round,last:false});}catch(e){ev=null;}if(ev&&ev.fan>=S.minFan)out.push(t);}
+  return out;
+}
+function coaxUseful(p){      /* 摸到會令向聽數減少嘅牌 */
+  var c=cnt(p.hand),m=p.melds.length,s0=shanten(c,m),out=[],t,d,ok;
+  for(t=0;t<34;t++){
+    if(c[t]>=4)continue;
+    c[t]++;ok=false;
+    for(d=0;d<34&&!ok;d++){if(!c[d]||d===t)continue;c[d]--;if(shanten(c,m)<s0)ok=true;c[d]++;}
+    c[t]--;
+    if(ok)out.push(t);
+  }
+  return out;
+}
+function coaxDraw(p,fromBack){   /* 約六成機會將牌牆入面一隻有用牌換到佢下一隻摸嘅位 */
+  var cx=coaxOn();if(!cx||S.players[cx.seat]!==p||S.wall.length<2||Math.random()>=0.6)return;
+  var want=coaxWins(p,true);if(!want.length)want=coaxUseful(p);
+  if(!want.length)return;
+  var idx=[],i;for(i=0;i<S.wall.length;i++)if(want.indexOf(S.wall[i])>=0)idx.push(i);
+  if(!idx.length)return;
+  var j=idx[Math.floor(Math.random()*idx.length)],k=fromBack?S.wall.length-1:0,x=S.wall[k];
+  S.wall[k]=S.wall[j];S.wall[j]=x;
+}
+function coaxDeal(){             /* 開鋪前已開:派多幾次,揀佢起手較靚(但唔會一開波就聽)嗰副 */
+  var cx=coaxOn();if(!cx)return false;
+  var n=S.n,P=S.players,d=S.dealer,best=null,bs=99,tr,r,k,sh;
+  for(tr=0;tr<14;tr++){
+    S.wall=buildWall();
+    P.forEach(function(q){q.hand=[];q.flowers=[];});
+    for(r=0;r<13;r++)for(k=0;k<n;k++)P[(d+k)%n].hand.push(S.wall.shift());
+    for(k=0;k<n;k++)replaceFlowers(P[(d+k)%n]);
+    sh=shanten(cnt(P[cx.seat].hand),0);if(sh<2)sh=50+sh;
+    if(sh<bs){bs=sh;best={w:S.wall.slice(),h:P.map(function(q){return q.hand.slice();}),f:P.map(function(q){return q.flowers.slice();})};}
+    if(bs<=2)break;
+  }
+  S.wall=best.w;P.forEach(function(q,i){q.hand=best.h[i];q.flowers=best.f[i];});
+  return true;
+}
+function coaxFeed(p){            /* 電腦餵牌:佢聽牌就打佢要嗰隻,否則打佢碰得嘅牌 */
+  var cx=coaxOn();if(!cx||p.human)return null;
+  var tg=S.players[cx.seat],i,t;
+  if(Math.random()<0.7){
+    var w=coaxWins(tg,false);
+    for(i=0;i<p.hand.length;i++)if(w.indexOf(p.hand[i])>=0)return p.hand[i];
+  }
+  if(Math.random()<0.5){
+    var c=cnt(tg.hand);
+    for(i=0;i<p.hand.length;i++){t=p.hand[i];if(t<34&&c[t]>=2)return t;}
+  }
+  return null;
+}
 function drawTile(p,fromBack){
+  coaxDraw(p,fromBack);
   for(;;){
     if(S.wall.length<=0)return false;
     var t=fromBack?S.wall.pop():S.wall.shift();
@@ -1895,7 +1962,7 @@ async function resolveClaims(d,t){
     var ev=evalWith(p,t,{self:false,round:S.round,last:last});
     if(!ev||ev.fan<S.minFan)continue;
     if(p.human){a=await ask(s,'claim',{tile:t,from:d,ev:ev});if(a.a==='win')return {type:'win',seat:s,ev:ev,tile:t};}
-    else if(!winOK(p,ev))continue;   /* 食糊限制(只食大牌型):自摸同出銃一律,三個難度都一樣 */
+    else if(!winOK(p,ev)||coaxOn())continue;   /* 氹模式:電腦唔食糊 */ /* 食糊限制(只食大牌型):自摸同出銃一律,三個難度都一樣 */
     else return {type:'win',seat:s,ev:ev,tile:t};
   }
   var asked={};
@@ -1911,7 +1978,7 @@ async function resolveClaims(d,t){
       if(a.a==='pung'||a.a==='kong'){doClaim(s,d,t,a.a);return {type:a.a,seat:s};}
       if(a.a==='chow'){doClaim(s,d,t,'chow',a.seq);return {type:'chow',seat:s};}
     }else{
-      var dec=aiPung(p,t,canKong);
+      var dec=coaxOn()?null:aiPung(p,t,canKong);
       if(dec){await T(450);doClaim(s,d,t,dec);return {type:dec,seat:s};}
     }
   }
@@ -1921,7 +1988,7 @@ async function resolveClaims(d,t){
     if(p.human){
       if(!asked[s]){a=await ask(s,'claim',{tile:t,from:d,chows:opts});if(a.a==='chow'){doClaim(s,d,t,'chow',a.seq);return {type:'chow',seat:s};}}
     }else{
-      var seq=aiChow(p,t,opts);
+      var seq=coaxOn()?null:aiChow(p,t,opts);
       if(seq){await T(450);doClaim(s,d,t,'chow',seq);return {type:'chow',seat:s};}
     }
   }
@@ -1956,8 +2023,10 @@ async function playHand(resume){
     S.wall=buildWall();S.last=null;S.discN=0;
     S.msg='洗牌、起牌…';
     P.forEach(function(p,i){p.hand=[];p.melds=[];p.flowers=[];p.discards=[];p.taken={};p.drawn=null;p.wind=(i-d+n)%n;});S.pond=[];
-    for(var r=0;r<13;r++)for(k=0;k<n;k++)P[(d+k)%n].hand.push(S.wall.shift());
-    for(k=0;k<n;k++)replaceFlowers(P[(d+k)%n]);
+    if(!coaxDeal()){
+      for(var r=0;r<13;r++)for(k=0;k<n;k++)P[(d+k)%n].hand.push(S.wall.shift());
+      for(k=0;k<n;k++)replaceFlowers(P[(d+k)%n]);
+    }
     P.forEach(sortHand);
     S.cur=d;render();await T(700);
   }else{S.msg='繼續上次牌局';render();await T(400);}
@@ -2007,7 +2076,7 @@ async function rollOne(s){
 async function rollDealer(){
   var n=S.n,P=S.players,cand=[],i;
   for(i=0;i<n;i++){cand.push(i);P[i].wind=i;}
-  S.wall=[];S.pond=[];S.cur=0;S.over=false;S.result=null;S.last=null;S.call=null;S.discN=0;
+  S.wall=[];S.pond=[];S.cur=0;S.over=false;S.result=null;S.last=null;S.call=null;S.discN=0;S.coax=null;
   S.dice={vals:{},rolling:[],tie:[],win:-1};
   for(var guard=0;guard<20;guard++){
     cand.forEach(function(s){delete S.dice.vals[s];});
@@ -2131,7 +2200,7 @@ function buildView(seat){
     call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
     players:S.players.map(function(p,i){return {name:p.name+(p.offline?'(離線'+(p.offLeft?' '+p.offLeft+' 秒':'')+')':''),score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:(S.players[seat].cheat||(U.debug&&seat===0&&!p.human&&U.role!=='client'))?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
-    tp:(a&&a.kind==='turn')?tenpaiInfo(S.players[seat]):null,cheat:!!S.players[seat].cheat,auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,tgt:S.players[seat].proxy&&S.players[seat].tgt?fixTarget(S.players[seat].tgt,S.players[seat].melds):null,tgtOff:S.players[seat].proxy&&S.players[seat].tgt?tgtOff(S.players[seat],fixTarget(S.players[seat].tgt,S.players[seat].melds)):false,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
+    tp:(a&&a.kind==='turn')?tenpaiInfo(S.players[seat]):null,cheat:!!S.players[seat].cheat,coax:(S.players[seat].cheat&&S.coax&&S.coax.by===seat&&S.coax.hand>=S.handNo)?S.coax.seat:-1,auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,tgt:S.players[seat].proxy&&S.players[seat].tgt?fixTarget(S.players[seat].tgt,S.players[seat].melds):null,tgtOff:S.players[seat].proxy&&S.players[seat].tgt?tgtOff(S.players[seat],fixTarget(S.players[seat].tgt,S.players[seat].melds)):false,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
     result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number),
     fz:S.frozen?{n:S.frozenName||'',left:S.frozenLeft||0}:null,
@@ -2622,6 +2691,7 @@ function onHostConn(conn){
     else if(d.t==='ans'){if(m.seat>=0)answerSeat(m.seat,d.id,d.v);}
     else if(d.t==='chat'){if(m.seat>=0)chatIn(m.seat,d);}
     else if(d.t==='auto'){if(m.seat>=0)setAuto(m.seat,!!d.on);}
+    else if(d.t==='coax'){if(m.seat>=0)setCoax(m.seat,d.seat);}
     else if(d.t==='proxy'){if(m.seat>=0)setProxy(m.seat,!!d.on,d.tgt);}
     else if(d.t==='ready'){if(m.seat>=0&&S.over){S.ready[m.seat]=1;render();checkReady();}}
   });
@@ -2870,7 +2940,7 @@ function drawTable(){
   var lo='';
   if(V.last){var lps=V.last.seat===V.me?'b':map[(V.last.seat-V.me+n)%n];
     /* 試玩版:移除中間放大咗嘅最後打出牌 */}
-  var plate='<div class="plate" data-act="cheatTap"><small>'+WIND[V.round]+'風圈</small><b>'+V.live+'</b><small>牌牆</small>'+wds+lo+'</div>';
+  var plate='<div class="plate" data-act="cheatTap"><small>'+WIND[V.round]+'風圈</small><b>'+V.live+'</b><small>牌牆</small>'+wds+lo+(V.cheat?'<button class="coaxb'+(V.coax>=0?' on':'')+'" data-act="coax">'+(V.coax>=0?'氹緊 '+esc(V.players[V.coax].name):'氹')+'</button>':'')+'</div>';
   els.tbl.innerHTML=seats.t+seats.l+'<div class="tboard">'+pools.t+pools.l+plate+pools.r+pools.b+'</div>'+seats.r;
   fitSide();
 }
@@ -2929,6 +2999,7 @@ function drawMid(){
   var lastd=V.last?'<span class="lastd">'+tileEl(V.last.t)+'</span>':'';
   var extra='';
   if(V.over&&U.modalHidden)extra+='<button class="btn pri sm" data-act="next">下一局 <span data-cd2>'+(cdLeft()==null?'':Math.ceil(cdLeft()/1000))+'</span></button>';
+  if(V.cheat)extra+='<button class="btn sm'+(V.coax>=0?' pri':'')+'" data-act="coax">'+(V.coax>=0?'氹緊 '+esc(V.players[V.coax].name):'氹')+'</button>';
   if(U.role==='host'&&S.running){
     Object.keys(S.asks).forEach(function(k){
       var a=S.asks[k],pl=S.players[k];
@@ -3011,7 +3082,7 @@ function drawDock(){
   }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
-var VERSION='2026.11.11-a';
+var VERSION='2026.11.12-a';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
@@ -3699,6 +3770,12 @@ function handleAct(act,b){
   else if(act==='gateOk')gateGo();
   else if(act==='gateNo'){U.joinGate=false;U.roomInput='';render();}
   else if(act==='rename'){U.renaming=true;U.renameInit=myCurName();U.nameDraft=null;render();}
+  else if(act==='coax'){
+    if(!V)return;
+    var hs=[];V.players.forEach(function(q,i){if(i!==V.me&&q.human)hs.push(i);});
+    var ci=hs.indexOf(V.coax),nx=V.coax<0?(hs.length?hs[0]:-1):(ci>=0&&ci<hs.length-1?hs[ci+1]:-1);
+    if(U.role==='client')safeSend(NET.conn,{t:'coax',seat:nx});else setCoax(V.me,nx);
+  }
   else if(act==='cheatTap')cheatTap();
   else if(act==='cheatOk'){var ce=document.getElementById('cheatpw');cheatSet(true,ce?ce.value:'');}
   else if(act==='cheatNo'){U.cheatAsk=false;U.cheatMsg='';render();}
