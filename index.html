@@ -1789,7 +1789,7 @@ function roomPidIdx(o,pid){var r=-1;if(pid)o.players.forEach(function(p,i){if(p.
 function snapObj(phase,turn){
   var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,
     cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,
-    result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner}:S.result?{type:'draw'}:null,
+    result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner,multi:!!S.result.multi}:S.result?{type:'draw'}:null,
     players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn,pid:p.pid||'',baseName:p.baseName||'',away:!!p.away};})};
   if(U.code)o.room={code:U.code,cfg:{n:U.cfg.n,minFan:U.cfg.minFan,level:U.cfg.level}};
   return o;
@@ -1956,15 +1956,17 @@ function doClaim(s,d,t,kind,seq){
 async function resolveClaims(d,t){
   var n=S.n,P=S.players,order=[],k;
   for(k=1;k<n;k++)order.push((d+k)%n);
-  var last=S.wall.length<=0,i,s,p,a;
+  var last=S.wall.length<=0,i,s,p,a,wins=[];
+  /* 一炮雙響/三響:逐家問,食得又肯食嘅全部都算贏 */
   for(i=0;i<order.length;i++){
     s=order[i];p=P[s];
     var ev=evalWith(p,t,{self:false,round:S.round,last:last});
     if(!ev||ev.fan<S.minFan)continue;
-    if(p.human){a=await ask(s,'claim',{tile:t,from:d,ev:ev});if(a.a==='win')return {type:'win',seat:s,ev:ev,tile:t};}
+    if(p.human){a=await ask(s,'claim',{tile:t,from:d,ev:ev});if(a.a==='win')wins.push({seat:s,ev:ev});}
     else if(!winOK(p,ev)||coaxOn())continue;   /* 氹模式:電腦唔食糊 */ /* 食糊限制(只食大牌型):自摸同出銃一律,三個難度都一樣 */
-    else return {type:'win',seat:s,ev:ev,tile:t};
+    else wins.push({seat:s,ev:ev});
   }
+  if(wins.length)return {type:'win',seat:wins[0].seat,ev:wins[0].ev,tile:t,wins:wins};
   var asked={};
   for(i=0;i<order.length;i++){
     s=order[i];p=P[s];
@@ -2057,7 +2059,7 @@ async function playHand(resume){
     S.msg=p.name+' 打出 '+tname(t);render();
     await T(350);
     var res=await resolveClaims(S.cur,t);
-    if(res.type==='win')return endWin(res.seat,S.cur,res.ev,false,res.tile);
+    if(res.type==='win')return (res.wins&&res.wins.length>1)?endWinMulti(res.wins,S.cur,res.tile):endWin(res.seat,S.cur,res.ev,false,res.tile);
     if(res.type==='none'){S.cur=(S.cur+1)%n;mode='draw';continue;}
     S.cur=res.seat;mode=res.type==='kong'?'kongdraw':'claimed';
     await T(300);
@@ -2173,10 +2175,25 @@ function cdLeft(){
   return S.nextAt?Math.max(0,S.nextAt-Date.now()):null;
 }
 function cdText(){var l=cdLeft();return l==null?'':Math.ceil(l/1000)+' 秒後自動開下一局';}
+function endWinMulti(wins,from,tile){   /* 一炮多響:出銃嗰家逐個賠足 */
+  var P=S.players,deltas=P.map(function(){return 0;});
+  P[from].discards.pop();S.pond.pop();
+  wins.forEach(function(x){
+    var b=PTS[x.ev.fan];P[x.seat].hand.push(tile);sortHand(P[x.seat]);
+    deltas[from]-=b;deltas[x.seat]+=b;x.gain=b;
+  });
+  P.forEach(function(p,i){p.score+=deltas[i];p.drawn=null;});
+  S.over=true;S.ready={};armNext();S.winTile=tile;S.last=null;
+  S.result={type:'win',winner:wins[0].seat,from:from,self:false,ev:wins[0].ev,deltas:deltas,tile:tile,wins:wins,multi:true};
+  S.msg=wins.map(function(x){return P[x.seat].name;}).join('、')+' 食糊(一炮'+(wins.length>2?'三':'雙')+'響)';
+  callout(wins[0].seat,'胡');
+  snapshot('over');
+  render();
+}
 function nextHand(){
   var r=S.result;if(!S.over||!r)return;
   clearTimeout(S.nextT);S.nextAt=0;
-  if(r.type==='win'&&r.winner===S.dealer){S.lian++;}   /* 淨係莊家糊先連莊;流局(無人糊)過庄 */
+  if(r.type==='win'&&(r.winner===S.dealer||r.multi)){S.lian++;}   /* 莊家糊或者一炮多響先連莊;流局(無人糊)過庄 */
   else{S.lian=0;S.dealer=(S.dealer+1)%S.n;if(S.dealer===(S.d0||0))S.round=(S.round+1)%4;}
   S.handNo++;S.ready={};U.modalHidden=false;
   runGame();render();
@@ -2524,7 +2541,7 @@ function startTakeover(code,o,opt){
       S.players.push(pl);
     }
     U.resuming='';S.running=true;U.screen='game';U.modalHidden=false;rememberRoom(code);
-    if(o.phase==='over'){S.over=true;S.result=(o.result&&o.result.type==='win')?{type:'win',winner:rs(o.result.winner)}:o.result;S.msg='';nextHand();}
+    if(o.phase==='over'){S.over=true;S.result=(o.result&&o.result.type==='win')?{type:'win',winner:rs(o.result.winner),multi:!!o.result.multi}:o.result;S.msg='';nextHand();}
     else{S.over=false;S.result=null;runGame(o.turn||{});}
     render();
   }
@@ -3082,7 +3099,7 @@ function drawDock(){
   }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
-var VERSION='2026.11.12-a';
+var VERSION='2026.11.12-b';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
@@ -3163,7 +3180,7 @@ function rulesHTML(){
   '<dt>滿貫</dt><dd>十三么、天糊、字一色、清么九、大四喜、十八羅漢、八仙過海(封頂 8 番)</dd></dl>'+
   '<h3>番數對照(出銃全付 / 自摸每家付)</h3><dl class="ft"><dt>1 番</dt><dd>$2 / $1</dd><dt>2 番</dt><dd>$5 / $3</dd><dt>3 番</dt><dd>$16 / $8</dd><dt>4 番</dt><dd>$32 / $16</dd><dt>5 番</dt><dd>$48 / $24</dd><dt>6 番</dt><dd>$64 / $32</dd><dt>7 番</dt><dd>$96 / $48</dd><dt>8 番(滿糊)</dt><dd>$128 / $64</dd></dl>'+
   '<h3>多人對戰</h3><ul><li>房主嘅瀏覽器負責行牌局,其他人先試 WebRTC 直連房主,連唔到會自動轉用備用線路(公共 MQTT 伺服器)。房主要保持網頁開住。</li><li>有人斷線,佢嗰個座位會由電腦代打。有人太耐冇反應,房主可以按「由電腦代打」。</li><li>每局完要所有真人都按「下一局」先會開下一局。</li></ul>'+
-  '<p>未有搶槓、七對子、坎坎糊、地糊。</p>'+
+  '<p>一炮雙響、三響都計:出銃嗰家逐個賠足,當連莊。</p><p>未有搶槓、七對子、坎坎糊、地糊。</p>'+
   '<div class="opts"><button class="btn pri" data-act="closeRules">明白</button></div></div></div>';
 }
 function winTileOf(r){
@@ -3176,14 +3193,17 @@ function resultHTML(pond){
   if(r.type==='draw'){
     h+='<h2>流局</h2><p>牌牆已摸完,無人糊牌,過庄(輪到下家做莊)。</p>';
   }else{
-    var w=P[r.winner];
-    h+='<span class="stamp">'+(r.self?'自摸':'食糊')+'</span>';
-    h+='<h2>'+esc(w.name)+(r.self?' 自摸':' 食糊')+(r.self?'':'(出銃:'+esc(P[r.from].name)+')')+'</h2>';
-    h+='<div class="hands"><span class="hh">'+w.melds.map(function(m){return '<span class="meld" style="margin-right:6px;display:inline-flex;gap:1px">'+faces(m.tiles)+'</span>';}).join('')+'</span>'+
-       '<span class="hh">'+faces((function(){var hh=(w.hand||[]).slice();if(wt!=null){var ix=hh.indexOf(wt);if(ix>=0)hh.splice(ix,1);}return hh;})())+'</span>'+(wt!=null&&(w.hand||[]).indexOf(wt)>=0?'<span class="wintile"><small>'+(r.self?'自摸':'食糊')+'</small>'+tileEl(wt,'win')+'</span>':'')+'</div>';
-    var gain=(r.deltas?r.deltas[r.winner]:0);
-    h+='<div class="ftags">'+r.ev.items.map(function(x){var f=r.ev.limit?9:x[1];return '<span class="ftag f'+Math.min(f,5)+'">'+x[0]+'<i>'+(r.ev.limit?'滿':x[1])+'</i></span>';}).join('')+'</div>'+
-       '<div class="bigfan"><span>共 '+(r.ev.limit?'滿貫':r.ev.fan+' 番')+'</span><em><span class="pos">+</span><b class="cu" data-to="'+gain+'">'+gain+'</b></em></div>';
+    var ws=(r.wins&&r.wins.length>1)?r.wins:[{seat:r.winner,ev:r.ev,gain:(r.deltas?r.deltas[r.winner]:0)}],mu=ws.length>1;
+    h+='<span class="stamp">'+(mu?'一炮'+(ws.length>2?'三':'雙')+'響':r.self?'自摸':'食糊')+'</span>';
+    h+=mu?'<h2>出銃:'+esc(P[r.from].name)+'</h2>':'<h2>'+esc(P[ws[0].seat].name)+(r.self?' 自摸':' 食糊')+(r.self?'':'(出銃:'+esc(P[r.from].name)+')')+'</h2>';
+    ws.forEach(function(x){
+      var w=P[x.seat],ev=x.ev,gain=x.gain;
+      if(mu)h+='<h3 style="margin:10px 0 4px">'+esc(w.name)+'</h3>';
+      h+='<div class="hands"><span class="hh">'+w.melds.map(function(m){return '<span class="meld" style="margin-right:6px;display:inline-flex;gap:1px">'+faces(m.tiles)+'</span>';}).join('')+'</span>'+
+         '<span class="hh">'+faces((function(){var hh=(w.hand||[]).slice();if(wt!=null){var ix=hh.indexOf(wt);if(ix>=0)hh.splice(ix,1);}return hh;})())+'</span>'+(wt!=null&&(w.hand||[]).indexOf(wt)>=0?'<span class="wintile"><small>'+(r.self?'自摸':'食糊')+'</small>'+tileEl(wt,'win')+'</span>':'')+'</div>';
+      h+='<div class="ftags">'+ev.items.map(function(y){var f=ev.limit?9:y[1];return '<span class="ftag f'+Math.min(f,5)+'">'+y[0]+'<i>'+(ev.limit?'滿':y[1])+'</i></span>';}).join('')+'</div>'+
+         '<div class="bigfan"><span>共 '+(ev.limit?'滿貫':ev.fan+' 番')+'</span><em><span class="pos">+</span><b class="cu" data-to="'+gain+'">'+gain+'</b></em></div>';
+    });
   }
   h+='<div class="pay">'+P.map(function(p,i){
     var d=r.deltas?r.deltas[i]:0;
