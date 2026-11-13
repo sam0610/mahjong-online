@@ -710,6 +710,30 @@ body.pondmode .sheet{color:var(--ink)}
 }
 .coaxb{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);height:24px;min-height:0;padding:0 9px;border-radius:12px;border:1.5px solid #16403f;background:#fff;color:#16403f;font:700 12px/1 var(--sans,sans-serif);white-space:nowrap;z-index:3}
 .coaxb.on{background:#d9432d;border-color:#d9432d;color:#fff}
+/* 食糊記錄 */
+.sheet.hist{width:min(760px,100%);gap:10px}
+.sheet.hist h2 small{font:500 13px var(--sans);color:var(--muted);letter-spacing:0;margin-left:6px}
+.hsum{display:grid;gap:6px;text-align:center;font-size:13px;color:var(--muted);padding:8px 0;border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2)}
+.hsum b{display:block;font:800 18px/1.3 var(--mono);color:var(--ink,#1c2430)}
+.hsum b.pos,.hr1 em.pos{color:#0b8a4a}.hsum b.neg{color:#c0392b}
+.hlist{display:grid;gap:10px}
+.hrec{border:1px solid var(--line-2);border-radius:12px;padding:10px 12px;display:grid;gap:6px}
+.hr1{display:flex;align-items:baseline;gap:6px;font-size:15px;flex-wrap:wrap}
+.hr1 i{font-style:normal;color:var(--muted);font-size:12px;flex:none}
+.hr1 span{color:var(--muted);font-size:13px}
+.hr1 em{font:800 20px/1 var(--mono);font-style:normal;margin-left:auto;flex:none;color:var(--muted)}
+.htil{display:flex;flex-wrap:wrap;align-items:flex-end;gap:2px;--tw:34px}
+.htil .hm{display:inline-flex;gap:2px;margin-right:6px}
+.htil .t.hw{margin-left:6px;outline:2px solid #d9432d;outline-offset:1px}
+.htags{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:13px;color:var(--muted)}
+.htags u{text-decoration:none;background:#fff0dc;color:#8a4b00;border-radius:6px;padding:2px 6px;font-weight:700}
+.hpay{text-align:right;font:600 12px/1.2 var(--mono);color:var(--muted)}
+@media (max-width:640px){
+  .sheet.hist{padding:14px 12px}
+  .htil{--tw:calc((100vw - 24px - 26px - 24px - 30px) / 15.6);gap:1px}
+  .htil .hm{gap:1px;margin-right:4px}.htil .t.hw{margin-left:4px}
+  .hr1{font-size:14px}.hr1 em{font-size:17px}.hsum{font-size:11px}.hsum b{font-size:15px}.htags{font-size:11px}
+}
 /* 版本號 */
 .ver{font:500 11px/1 var(--mono);color:var(--muted);letter-spacing:.04em;opacity:.8;flex:none}
 @media (min-width:641px){.ov.setupov .ver{position:absolute;bottom:8px;left:0;right:0;text-align:center}}
@@ -1420,7 +1444,7 @@ function aiTurn(p,ev,kongs){
    V = what this screen draws: built from S on the host, received from the host on a guest.
    U = local UI state. */
 var S={pond:[],n:4,minFan:3,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],cur:0,over:false,last:null,msg:'',
-  asks:{},ready:{},token:0,speed:1,call:null,result:null,winTile:null,discN:0,running:false};
+  asks:{},ready:{},token:0,speed:1,call:null,result:null,winTile:null,discN:0,running:false,hist:[],histWant:{}};
 var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
 var HOSTSEAT=1,HOOKS={};   /* HOSTSEAT:房主佔一個座位(自己部機做主機);伺服器版係 0 */
@@ -1788,7 +1812,7 @@ function roomPidIdx(o,pid){var r=-1;if(pid)o.players.forEach(function(p,i){if(p.
 /*@engine:begin snap*/
 function snapObj(phase,turn){
   var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,
-    cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,
+    cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,hist:S.hist||[],
     result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner,multi:!!S.result.multi}:S.result?{type:'draw'}:null,
     players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn,pid:p.pid||'',baseName:p.baseName||'',away:!!p.away};})};
   if(U.code)o.room={code:U.code,cfg:{n:U.cfg.n,minFan:U.cfg.minFan,level:U.cfg.level}};
@@ -1817,7 +1841,7 @@ function resumeGame(){
   U.role='solo';U.notice='';
   S.token++;S.asks={};S.ready={};S.call=null;
   S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
-  S.wall=o.wall;S.discN=o.discN;S.last=o.last;S.cur=o.cur;
+  S.wall=o.wall;S.discN=o.discN;S.last=o.last;S.cur=o.cur;S.hist=Array.isArray(o.hist)?o.hist:[];S.histWant={};
   S.pond=Array.isArray(o.pond)?o.pond:(function(){var a=[];o.players.forEach(function(p,i){p.discards.forEach(function(){a.push(i);});});return a;})();
   S.players=o.players.map(function(p){return {id:p.id,name:p.name,human:p.human,remote:false,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn};});
   S.running=true;U.screen='game';U.rules=false;U.modalHidden=false;U.saved=null;
@@ -1997,6 +2021,19 @@ async function resolveClaims(d,t){
   return {type:'none'};
 }
 
+/* ---------- 食糊記錄(只記今場):每鋪完咗記低贏家成副牌、番種同各家輸贏 ---------- */
+function histPush(){
+  var r=S.result,P=S.players;if(!r)return;
+  if(!S.hist)S.hist=[];
+  var o={no:S.handNo,round:S.round,type:r.type,names:P.map(function(p){return p.name;}),deltas:r.deltas||P.map(function(){return 0;})};
+  if(r.type==='win'){
+    o.self=!!r.self;o.from=r.self?-1:r.from;o.tile=r.tile;
+    var ws=(r.wins&&r.wins.length)?r.wins:[{seat:r.winner,ev:r.ev,gain:r.deltas[r.winner]}];
+    o.wins=ws.map(function(x){var q=P[x.seat];return {seat:x.seat,fan:x.ev.fan,limit:!!x.ev.limit,items:x.ev.items,gain:x.gain,
+      melds:q.melds.map(function(m){return m.tiles.slice();}),hand:q.hand.slice()};});
+  }
+  S.hist.push(o);if(S.hist.length>200)S.hist.shift();
+}
 function endWin(w,from,ev,self,tile){
   var P=S.players,base=PTS[ev.fan],deltas=P.map(function(){return 0;});
   if(!self){P[from].discards.pop();S.pond.pop();P[w].hand.push(tile);}
@@ -2006,12 +2043,14 @@ function endWin(w,from,ev,self,tile){
   P.forEach(function(p,i){p.score+=deltas[i];p.drawn=null;});
   S.over=true;S.ready={};armNext();S.winTile=tile;S.last=null;S.result={type:'win',winner:w,from:from,self:self,ev:ev,deltas:deltas,tile:tile};
   S.msg=P[w].name+(self?' 自摸':' 食糊');
+  histPush();
   callout(w,self?'自摸':'胡');
   snapshot('over');
   render();
 }
 function endDraw(){
   S.over=true;S.ready={};armNext();S.last=null;S.result={type:'draw'};S.msg='流局';
+  histPush();
   snapshot('over');
   S.players.forEach(function(p){p.drawn=null;});
   render();
@@ -2138,7 +2177,7 @@ function shuffleSeats(){
 function runGame(resume){playHand(resume).catch(function(e){if(e!==CANCEL)console.error(e);});}
 
 function startGame(){
-  S.token++;S.asks={};S.ready={};
+  S.token++;S.asks={};S.ready={};S.hist=[];S.histWant={};
   var n=U.cfg.n,mem=U.role==='host'?NET.members:[];
   S.n=n;S.minFan=U.cfg.minFan;S.level=U.cfg.level;
   S.players=[];
@@ -2186,13 +2225,14 @@ function endWinMulti(wins,from,tile){   /* 一炮多響:出銃嗰家逐個賠足
   S.over=true;S.ready={};armNext();S.winTile=tile;S.last=null;
   S.result={type:'win',winner:wins[0].seat,from:from,self:false,ev:wins[0].ev,deltas:deltas,tile:tile,wins:wins,multi:true};
   S.msg=wins.map(function(x){return P[x.seat].name;}).join('、')+' 食糊(一炮'+(wins.length>2?'三':'雙')+'響)';
+  histPush();
   callout(wins[0].seat,'胡');
   snapshot('over');
   render();
 }
 function nextHand(){
   var r=S.result;if(!S.over||!r)return;
-  clearTimeout(S.nextT);S.nextAt=0;
+  clearTimeout(S.nextT);S.nextAt=0;S.histWant={};
   if(r.type==='win'&&(r.winner===S.dealer||r.multi)){S.lian++;}   /* 莊家糊或者一炮多響先連莊;流局(無人糊)過庄 */
   else{S.lian=0;S.dealer=(S.dealer+1)%S.n;if(S.dealer===(S.d0||0))S.round=(S.round+1)%4;}
   S.handNo++;S.ready={};U.modalHidden=false;
@@ -2219,6 +2259,7 @@ function buildView(seat){
       hand:(i===seat||S.over)?p.hand:(S.players[seat].cheat||(U.debug&&seat===0&&!p.human&&U.role!=='client'))?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
     tp:(a&&a.kind==='turn')?tenpaiInfo(S.players[seat]):null,cheat:!!S.players[seat].cheat,coax:(S.players[seat].cheat&&S.coax&&S.coax.by===seat&&S.coax.hand>=S.handNo)?S.coax.seat:-1,auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,tgt:S.players[seat].proxy&&S.players[seat].tgt?fixTarget(S.players[seat].tgt,S.players[seat].melds):null,tgtOff:S.players[seat].proxy&&S.players[seat].tgt?tgtOff(S.players[seat],fixTarget(S.players[seat].tgt,S.players[seat].melds)):false,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
     ask:a?{id:a.id,kind:a.kind,opts:a.opts}:null,
+    histN:(S.hist||[]).length,hist:(S.over||(S.histWant&&S.histWant[seat]))?(S.hist||[]):undefined,   /* 記錄只喺完鋪或者有人開咗記錄版先送,慳流量 */
     result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null,ready:Object.keys(S.ready).map(Number),
     fz:S.frozen?{n:S.frozenName||'',left:S.frozenLeft||0}:null,
     dice:S.dice?{vals:S.dice.vals,rolling:S.dice.rolling,tie:S.dice.tie,win:S.dice.win,left:S.dice.left||0}:null};
@@ -2531,6 +2572,12 @@ function startTakeover(code,o,opt){
     S.token++;S.asks={};S.ready={};S.call=null;
     S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=rs(o.dealer);S.d0=rs(o.d0||0);S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
     S.wall=o.wall;S.discN=o.discN;S.last=o.last?{seat:rs(o.last.seat),t:o.last.t}:null;S.cur=rs(o.cur);
+    S.histWant={};S.hist=(Array.isArray(o.hist)?o.hist:[]).map(function(r){   /* 座位轉咗,記錄入面嘅座位都要跟住轉 */
+      var q={no:r.no,round:r.round,type:r.type,names:[],deltas:[]},j;
+      for(j=0;j<n;j++){q.names[rs(j)]=r.names[j];q.deltas[rs(j)]=r.deltas[j];}
+      if(r.type==='win'){q.self=r.self;q.from=r.from<0?-1:rs(r.from);q.tile=r.tile;q.wins=r.wins.map(function(w){return {seat:rs(w.seat),fan:w.fan,limit:w.limit,items:w.items,gain:w.gain,melds:w.melds,hand:w.hand};});}
+      return q;
+    });
     S.pond=(Array.isArray(o.pond)?o.pond:[]).map(rs);
     S.players=[];
     for(var i=0;i<n;i++){
@@ -2709,6 +2756,7 @@ function onHostConn(conn){
     else if(d.t==='chat'){if(m.seat>=0)chatIn(m.seat,d);}
     else if(d.t==='auto'){if(m.seat>=0)setAuto(m.seat,!!d.on);}
     else if(d.t==='coax'){if(m.seat>=0)setCoax(m.seat,d.seat);}
+    else if(d.t==='hist'){if(m.seat>=0){S.histWant=S.histWant||{};S.histWant[m.seat]=1;render();}}
     else if(d.t==='proxy'){if(m.seat>=0)setProxy(m.seat,!!d.on,d.tgt);}
     else if(d.t==='ready'){if(m.seat>=0&&S.over){S.ready[m.seat]=1;render();checkReady();}}
   });
@@ -3099,7 +3147,7 @@ function drawDock(){
   }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
-var VERSION='2026.11.12-b';
+var VERSION='2026.11.14-a';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
@@ -3276,10 +3324,36 @@ function nameListHTML(){
     '<div class="opts"><button class="btn" data-act="nlUndo">撤銷上一次改動</button><button class="btn" data-act="nlReset">還原預設名單</button></div>'+
     '<div class="opts"><button class="btn" data-act="nlBack">返回設定</button></div></div></div>';
 }
+function histList(){   /* 用最新收到嗰份;冇跟住嗰陣用上次收到嘅 */
+  if(V&&V.hist){U.histCache=V.hist;U.histKey=V.histN;}
+  var h=U.histCache||[];return (V&&h.length>(V.histN||0))?[]:h;
+}
+function histHTML(){
+  var H=histList(),P=V.players,n=P.length,tot=P.map(function(){return 0;}),i;
+  H.forEach(function(r){for(i=0;i<n;i++)tot[i]+=(r.deltas&&r.deltas[i])||0;});
+  var sg=function(d){return (d>0?'+':d<0?'−':'')+Math.abs(d);},cl=function(d){return d>0?'pos':d<0?'neg':'';};
+  var h='<div class="ov"><div class="sheet hist"><h2>食糊記錄 <small>今場 '+(V.histN||0)+' 鋪</small></h2>';
+  h+='<div class="hsum" style="grid-template-columns:repeat('+n+',1fr)">'+P.map(function(p,k){return '<div>'+esc(p.name)+'<b class="'+cl(tot[k])+'">'+sg(tot[k])+'</b></div>';}).join('')+'</div>';
+  if(H.length<(V.histN||0))h+='<p class="note">載入緊…</p>';
+  else if(!H.length)h+='<p class="note">今場未有完成嘅牌局。</p>';
+  h+='<div class="hlist">'+H.slice().reverse().map(function(r){
+    var hd='<i>第'+r.no+'局 · '+WIND[r.round]+'風</i>',nm=function(k){return esc(r.names[k]||'');};
+    if(r.type!=='win')return '<div class="hrec"><div class="hr1">'+hd+'<b>流局</b><em>0</em></div></div>';
+    var mu=r.wins.length>1,how=r.self?'自摸':mu?'一炮'+(r.wins.length>2?'三':'雙')+'響':'食糊';
+    var pay=r.deltas.map(function(d,k){return d<0?nm(k)+' −'+(-d):'';}).filter(Boolean).join(' · ');
+    return '<div class="hrec">'+r.wins.map(function(w,wi){
+      var hh=w.hand.slice(),ix=hh.indexOf(r.tile);if(ix>=0)hh.splice(ix,1);
+      return '<div class="hr1">'+(wi?'<i></i>':hd)+'<b>'+nm(w.seat)+'</b><span>'+how+(r.self?'':'(出銃:'+nm(r.from)+')')+'</span><em class="pos">+'+w.gain+'</em></div>'+
+        '<div class="htil">'+w.melds.map(function(m){return '<span class="hm">'+faces(m)+'</span>';}).join('')+faces(hh)+(ix>=0?tileEl(r.tile,'hw'):'')+'</div>'+
+        '<div class="htags">'+w.items.map(function(x){return '<u>'+x[0]+' '+(w.limit?'滿':x[1])+'</u>';}).join('')+'<span>共 '+(w.limit?'滿貫':w.fan+' 番')+'</span></div>';
+    }).join('')+'<div class="hpay">'+pay+'</div></div>';
+  }).join('')+'</div>';
+  return h+'<div class="opts"><button class="btn" data-act="histBack">返回</button><button class="btn pri" data-act="closeSet">完成</button></div></div></div>';
+}
 function settingsHTML(){
   var b=function(act,t,extra){return '<button class="btn block" data-act="setItem" data-v="'+act+'" style="justify-content:space-between">'+t+(extra||'')+'</button>';};
   return '<div class="ov"><div class="sheet"><h2>設定</h2><div class="opts" style="display:grid;gap:10px">'+
-    b('rename','改名')+b('names','電腦玩家名單','<span>'+aiList().length+' 個</span>')+b('phrases','快捷語名單','<span>8 句</span>')+b('tiles','牌面設計')+b('sfx','音效提示')+
+    b('rename','改名')+b('names','電腦玩家名單','<span>'+aiList().length+' 個</span>')+b('phrases','快捷語名單','<span>8 句</span>')+b('tiles','牌面設計')+b('sfx','音效提示')+(V&&U.screen==='game'?b('hist','食糊記錄','<span>'+(V.histN||0)+' 鋪</span>'):'')+
     (U.role==='client'?'':b('speed','遊戲速度','<span>'+(S.speed===1?'標準':'快')+'</span>'))+
     '</div><div class="opts"><button class="btn pri" data-act="closeSet">完成</button></div></div></div>';
 }
@@ -3610,6 +3684,7 @@ function drawOverlay(){
   else if(U.ap&&V&&!V.over)h=U.apAdv?apAdvHTML():apHTML();
   else if(U.settings&&U.phOpen&&!U.renaming)h=phHTML();
   else if(U.settings&&U.nlOpen&&!U.renaming)h=nameListHTML();
+  else if(U.settings&&U.histOpen&&!U.renaming&&V)h=histHTML();
   else if(U.settings&&!U.renaming&&!U.tiles&&!U.sfxOpen)h=settingsHTML();
   else if(U.cheatAsk)h=cheatHTML();
   else if(U.renaming)h=renameHTML();
@@ -3781,8 +3856,9 @@ function handleAct(act,b){
   else if(act==='sfxTest'){sfxCtx();sfxPlay('turn');setTimeout(function(){sfxPlay('disc');},500);setTimeout(function(){sfxPlay('call');},900);}
   else if(act==='closeSfx'){U.sfxOpen=false;render();}
   else if(act==='settings'){U.settings=true;render();}
-  else if(act==='closeSet'){U.settings=false;U.nlOpen=false;U.phOpen=false;render();}
-  else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else if(v==='names'){U.nlOpen=true;U.nlMsg='';fetchAiNames();render();}else if(v==='phrases'){U.phOpen=true;U.phMsg='';U.phDirty=false;U.phDraft=chatPhrases().slice();U.phFetched=false;fetchPhrases();render();}else{handleAct(v,b);}}
+  else if(act==='closeSet'){U.settings=false;U.nlOpen=false;U.phOpen=false;U.histOpen=false;render();}
+  else if(act==='histBack'){U.histOpen=false;render();}
+  else if(act==='setItem'){if(v==='speed'){S.speed=S.speed===1?0.4:1;render();}else if(v==='hist'){U.histOpen=true;if(V&&histList().length!==(V.histN||0)){if(U.role==='client')safeSend(NET.conn,{t:'hist'});else{S.histWant=S.histWant||{};S.histWant[V.me]=1;}}render();}else if(v==='names'){U.nlOpen=true;U.nlMsg='';fetchAiNames();render();}else if(v==='phrases'){U.phOpen=true;U.phMsg='';U.phDirty=false;U.phDraft=chatPhrases().slice();U.phFetched=false;fetchPhrases();render();}else{handleAct(v,b);}}
   else if(act==='nlBack'){U.nlOpen=false;render();}
   else if(act==='nlAdd'){var ne=document.getElementById('nlnew'),nv=ne?ne.value:'';if(ne)ne.value='';aiCall({op:'add',name:nv},'');}
   else if(act==='nlDel'){var dn=aiList()[+b.getAttribute('data-i')];if(dn)aiCall({op:'del',name:dn},'');}
