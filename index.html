@@ -3178,7 +3178,7 @@ function drawDock(){
   }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
-var VERSION='2026.11.19-a';
+var VERSION='2026.11.19-b';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
@@ -3192,7 +3192,7 @@ function setupHTML(){
     '<div class="step"><h4><i>1</i>牌局設定</h4><div class="card">'+
       '<div><span class="lab">你嘅名(多人對戰用)</span><div class="opts"><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'"></div></div>'+
       '<div><span class="lab">座位數</span>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+'</div>'+
-      '<div><span class="lab">起糊番數</span>'+chipRow('cfgF',[1,2,3],c.minFan,function(v){return v+' 番'+(v===3?' <small>標準</small>':'');})+'</div>'+
+      '<div><span class="lab">起糊番數</span>'+chipRow('cfgF',[3,6,8],c.minFan,function(v){return v+' 番'+(v===3?' <small>標準</small>':'');})+'</div>'+
       '<div><span class="lab">封頂</span>'+chipRow('cfgC',[8,10,13,0],c.cap,function(v){return v===0?'無上限':v+' 番';})+(c.cap===0?'<p class="note">番數照疊,賠率每兩番翻一倍;滿貫牌有底番,仲可以疊自摸、花等。</p>':'')+'</div>'+
       '<div><span class="lab">電腦強度</span>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手':'大師';})+'<p class="note">'+lvNote+'</p></div>'+
     '</div></div>'+
