@@ -24,19 +24,20 @@ function connected(){return NET.members.filter(function(m){return m.conn&&m.conn
 /* ---- 大廳 ---- */
 HOOKS.lobby=function(){
   var l=lobbyInfo();
-  NET.members.forEach(function(m,i){safeSend(m.conn,{t:'lobby',n:l.n,minFan:l.minFan,code:l.code,players:l.players,seats:l.seats,owner:i===0});});
+  NET.members.forEach(function(m,i){safeSend(m.conn,{t:'lobby',n:l.n,minFan:l.minFan,cap:l.cap,code:l.code,players:l.players,seats:l.seats,owner:i===0});});
 };
 function setCfg(c){
   c=c||{};
   var n=+c.n;U.cfg.n=(n>=2&&n<=4)?n:4;
   var f=+c.minFan;U.cfg.minFan=(f>=0&&f<=8)?f:3;
+  var cp=+c.cap;U.cfg.cap=(cp===0||cp===8||cp===10||cp===13)?cp:8;
   var lv=+c.level;U.cfg.level=(lv>=1&&lv<=3)?lv:2;
 }
 function startServerGame(){
   if(S.running)return false;
   var n=U.cfg.n,all=NET.members.filter(function(m){return m.joined&&!m.pond;}),mem=seatPlan();
   S.token++;S.asks={};S.ready={};
-  S.n=n;S.minFan=U.cfg.minFan;S.level=U.cfg.level;S.players=[];
+  S.n=n;S.minFan=U.cfg.minFan;S.cap=U.cfg.cap;S.level=U.cfg.level;S.players=[];
   AI_NAMES=aiNamesShuffle();var used={},ai=0;AI_USED=[];
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
   for(var i=0;i<n;i++){
@@ -57,8 +58,8 @@ function startServerGame(){
 function restore(o){
   clearGrace();
   S.token++;S.asks={};S.ready={};S.call=null;
-  U.cfg.n=o.n;U.cfg.minFan=o.minFan;U.cfg.level=o.level;
-  S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+  U.cfg.n=o.n;U.cfg.minFan=o.minFan;U.cfg.cap=o.cap==null?8:o.cap;U.cfg.level=o.level;
+  S.n=o.n;S.minFan=o.minFan;S.cap=U.cfg.cap;S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
   S.wall=o.wall.slice();S.discN=o.discN;S.last=o.last?{seat:o.last.seat,t:o.last.t}:null;S.cur=o.cur;S.pond=(o.pond||[]).slice();
   S.players=o.players.map(function(q,i){
     var base=q.baseName||q.name;
@@ -164,6 +165,6 @@ return {
   },
   idle:function(){return !connected().length;},
   info:function(){return {code:roomCode,created:created,running:S.running,paused:paused,members:NET.members.length,hand:S.handNo,cur:S.cur};},
-  _S:S,_NET:NET,
+  _S:S,_NET:NET,_eval:function(p,ctx){return evalWin(p,ctx);},_pay:function(f,self){return self?paySelf(f):payFull(f);},
   _g:{tenpaiInfo:tenpaiInfo,tgtLocks:tgtLocks,fixTarget:fixTarget,tgtDiscard:tgtDiscard,tgtAnswer:tgtAnswer,tgtKeep:tgtKeep,tgtPung:tgtPung,tgtWinOK:tgtWinOK,tgtOff:tgtOff}   /* 測試用 */
 };

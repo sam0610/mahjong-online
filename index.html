@@ -167,7 +167,7 @@ button{font:inherit;color:inherit}
 .chatp .sw.on{background:var(--accent)}
 .chatp .sw.on::after{left:18px}
 .chatp .xb{width:32px;height:32px;border:0;border-radius:8px;background:var(--surface-2);cursor:pointer}
-#qz{position:fixed;z-index:6;pointer-events:none}
+#qz{position:fixed;z-index:6;pointer-events:none;transition:opacity .15s}
 #qz svg{position:absolute;left:0;top:0}
 #chatlog{position:fixed;z-index:13;display:flex;flex-direction:column;align-items:flex-start;gap:3px;max-width:min(340px,70vw)}
 #chatlog .lgb{width:34px;height:34px;border:1px solid var(--line-2,#c5ccd8);border-radius:10px;background:var(--surface,#fff);color:var(--muted,#5d6678);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;margin-bottom:3px;box-shadow:0 2px 6px rgba(30,40,60,.12)}
@@ -750,7 +750,7 @@ body.pondmode .sheet{color:var(--ink)}
   .ov.setupov .sheet.setup{grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-width:0}
   .ov.setupov .step,.ov.setupov .step .card,.ov.setupov .step .card>div{min-width:0}
   .ov.setupov .step .card>div:has(.chip) .lab{white-space:nowrap}
-  .ov.setupov .step .opts .chip{padding:0 2px}
+  .ov.setupov .step .opts .chip{padding:0 2px;font-size:13px}
   .ov.setupov .step .opts{flex-wrap:nowrap}
   .ov.setupov .step .inp.code{flex:1 1 0}
   .ov.setupov .step .chip{min-width:0}
@@ -834,7 +834,13 @@ var SUIT=['萬','筒','索'], WIND=['東','南','西','北'], DRAG=['中','發',
 /* money per fan: PTS = discarder pays in full, PSELF = each player pays on a self-draw; cap is 8 fan */
 var PTS={0:1,1:2,2:5,3:16,4:32,5:48,6:64,7:96,8:128};
 var PSELF={0:1,1:1,2:3,3:8,4:16,5:24,6:32,7:48,8:64};
-var CAP=8;
+function capS(){return S.cap===0?0:(S.cap||8);}   /* 封頂番數;0 = 無上限 */
+function capName(c){return c===0?'無上限':c+' 番封頂';}
+/* 8 番以上嘅賠率:每兩番翻一倍,單數番乘 1.5(9 番 192、10 番 256、11 番 384…);自摸每家付一半 */
+function payFull(f){if(f<=8)return PTS[f];var k=f-8,v=128*Math.pow(2,Math.floor(k/2));return k%2?v*1.5:v;}
+function paySelf(f){return f<=8?PSELF[f]:payFull(f)/2;}
+function fanLabel(ev){var c=(typeof V!=='undefined'&&V&&V.cap!=null)?V.cap:8;return (c&&ev.fan>=c)?'滿貫':ev.fan+'番';}
+function fanTxt(f){var c=(typeof V!=='undefined'&&V&&V.cap!=null)?V.cap:8;return (c&&f>=c)?'滿':f;}
 /* 電腦玩家名:每局由名單隨機抽(麻雀同音梗、地道花名),最多 8 字 */
 var AI_POOL=['食糊黃','鄧俄林壯','戴對對','詐糊查','街市阿岑','放槍大王','麻雀龔','偷雞盧','牌神EASON','十三IU','三番市','四筒發達','大牌檔','拆牌專家','SMALL黃','一索得藍','青衣色','字魔是我','大山園','山缺一哥','食葫蘆','最愛碰碰車','洗白白','一世書家','營家之主','雀神','麻雀公爵','雞鴨湖','門前青草地','親一色','亂打一TONE','三番都唔夠','無PIE用','運財童子','九萬李','清一色雞糊','紅鍾','成地雀仔'];
 var AI_NAMES=AI_POOL.slice(0,3);
@@ -856,7 +862,6 @@ function isTerm(t){return t<27&&(t%9===0||t%9===8);}
 function cnt(hand){var c=new Array(34).fill(0);for(var i=0;i<hand.length;i++){if(hand[i]<34)c[hand[i]]++;}return c;}
 function removeOne(a,t){var i=a.indexOf(t);if(i>=0)a.splice(i,1);}
 function removeN(a,t,n){for(var k=0;k<n;k++)removeOne(a,t);}
-function fanLabel(ev){return ev.fan>=CAP?'滿貫':ev.fan+'番';}
 
 /*@engine:end*/
 /* ---------- tile faces ---------- */
@@ -926,17 +931,36 @@ function scoreDecomp(d,p,ctx){
   var rw=27+ctx.round,sw=27+p.wind;
   var dragons=sets.filter(function(s){return s.k==='pung'&&s.t>=31;});
   var winds=sets.filter(function(s){return s.k==='pung'&&s.t>=27&&s.t<31;});
-  var limit=null;
-  if(ctx.heaven)limit='天糊';
-  else if(nsuit===0)limit='字一色';
-  else if(allPung&&allTH&&!honors)limit='清么九';
-  else if(winds.length===4)limit='大四喜';
-  else if(sets.filter(function(s){return s.kong;}).length===4)limit='十八羅漢';
-  else if(p.flowers.length===8)limit='八仙過海';
-  if(limit)return {fan:CAP,items:[[limit,CAP]],limit:true};
-  var items=[];
+  var lims=[],free=capS()===0,CAPN=capS();
+  if(ctx.heaven)lims.push(['天糊',13]);
+  if(nsuit===0)lims.push(['字一色',10]);
+  if(allPung&&allTH&&!honors)lims.push(['清么九',13]);
+  if(winds.length===4)lims.push(['大四喜',13]);
+  if(sets.filter(function(s){return s.kong;}).length===4)lims.push(['十八羅漢',13]);
+  if(p.flowers.length===8)lims.push(['八仙過海',10]);
+  if(lims.length&&!free)return {fan:CAPN,items:[[lims[0][0],CAPN]],limit:true};
+  var L=null;   /* 無上限:同時成立就取底番最高嗰個,唔互相疊 */
+  lims.forEach(function(l){if(!L||l[1]>L[1])L=l;});
+  var items=[],noFlower=false,tot=0;
+  var open=!sets.every(function(s){return !s.open;});
+  function windItems(){winds.forEach(function(s){if(s.t===rw)items.push(['圈風 '+WIND[ctx.round],1]);if(s.t===sw)items.push(['門風 '+WIND[p.wind],1]);});}
+  function lastItem(){if(ctx.last)items.push([ctx.self?'海底撈月':'河底撈魚',1]);}
+  if(L&&L[0]!=='八仙過海'){   /* 滿貫牌底番 + 自摸、門前清、風、槓上開花、海底、花;牌型番(混一色、對對糊等)已包喺入面,唔再疊 */
+    items.push([L[0],L[1]]);
+    if(L[0]!=='天糊'){
+      if(ctx.self)items.push(['自摸',1]);
+      if(!open)items.push(['門前清',1]);
+      if(L[0]!=='大四喜')windItems();
+      if(ctx.self&&ctx.kongDraw)items.push(['槓上開花',1]);
+      lastItem();
+    }
+    flowerItems(p,items);
+    items.forEach(function(x){tot+=x[1];});
+    return {fan:tot,items:items,limit:false};
+  }
+  if(L){items.push(['八仙過海',10]);noFlower=true;}   /* 八仙過海:牌型照疊,唔再計花番 */
   if(ctx.self)items.push(['自摸',1]);
-  if(sets.every(function(s){return !s.open;}))items.push(['門前清',1]);
+  if(!open)items.push(['門前清',1]);
   if(allPung&&allTH&&honors)items.push(['混么九',7]);
   else if(allPung)items.push(['對對糊',3]);
   if(nsuit===1&&!honors)items.push(['清一色',7]);
@@ -946,24 +970,31 @@ function scoreDecomp(d,p,ctx){
   else if(dragons.length===2&&pair>=31)items.push(['小三元',5]);
   else dragons.forEach(function(s){items.push(['三元牌 '+DRAG[s.t-31],1]);});
   if(winds.length===3&&pair>=27&&pair<31)items.push(['小四喜',6]);
-  else winds.forEach(function(s){if(s.t===rw)items.push(['圈風 '+WIND[ctx.round],1]);if(s.t===sw)items.push(['門風 '+WIND[p.wind],1]);});
+  else windItems();
   if(ctx.self&&ctx.kongDraw)items.push(['槓上開花',1]);
-  if(ctx.last)items.push([ctx.self?'海底撈月':'河底撈魚',1]);
-  var f=p.flowers;
-  if(f.length===0)items.push(['無花',1]);
-  else{var m=0;f.forEach(function(t){if((t-34)%4===p.wind)m++;});
-    if(m)items.push(['正花'+(m>1?' ×'+m:''),m]);
-    var a=[34,35,36,37].every(function(t){return f.indexOf(t)>=0;}),b=[38,39,40,41].every(function(t){return f.indexOf(t)>=0;});
-    if(a||b)items.push(['一台花',2]);}
-  var tot=0;items.forEach(function(x){tot+=x[1];});
-  return {fan:Math.min(CAP,tot),items:items,limit:false};
+  lastItem();
+  if(!noFlower)flowerItems(p,items);
+  items.forEach(function(x){tot+=x[1];});
+  return {fan:free?tot:Math.min(CAPN,tot),items:items,limit:false};
 }
+function flowerItems(p,items){
+  var f=p.flowers;
+  if(f.length===0){items.push(['無花',1]);return;}
+  var m=0;f.forEach(function(t){if((t-34)%4===p.wind)m++;});
+  if(m)items.push(['正花'+(m>1?' ×'+m:''),m]);
+  var a=[34,35,36,37].every(function(t){return f.indexOf(t)>=0;}),b=[38,39,40,41].every(function(t){return f.indexOf(t)>=0;});
+  if(a||b)items.push(['一台花',2]);
+}
+function lastItemTop(ctx,it){if(ctx.last)it.push([ctx.self?'海底撈月':'河底撈魚',1]);}
 function evalWin(p,ctx){
   var c=cnt(p.hand),tot=0,i;for(i=0;i<34;i++)tot+=c[i];
   var ns=4-p.melds.length;
   if(tot!==ns*3+2)return null;
   var best=null;
-  if(p.melds.length===0&&isThirteen(c))best={fan:CAP,items:[['十三么',CAP]],limit:true};
+  if(p.melds.length===0&&isThirteen(c)){
+    if(capS()===0){var it=[['十三么',13]];if(ctx.self)it.push(['自摸',1]);lastItemTop(ctx,it);flowerItems(p,it);var tt=0;it.forEach(function(x){tt+=x[1];});best={fan:tt,items:it,limit:false};}
+    else best={fan:capS(),items:[['十三么',capS()]],limit:true};
+  }
   var ds=decomps(c,false);
   for(i=0;i<ds.length;i++){var r=scoreDecomp(ds[i],p,ctx);if(!best||r.fan>best.fan)best=r;}
   return best;
@@ -1265,8 +1296,8 @@ function waitValue(p,h13,vis){
       var so=evalWith(p,u,{self:true,round:S.round,last:false});
       var ro=evalWith(p,u,{self:false,round:S.round,last:false});
       var v=0;
-      if(ro&&ro.fan>=S.minFan)v+=PTS[ro.fan];
-      if(so&&so.fan>=S.minFan)v+=(S.n===2?PTS[so.fan]:PSELF[so.fan]);
+      if(ro&&ro.fan>=S.minFan)v+=payFull(ro.fan);
+      if(so&&so.fan>=S.minFan)v+=(S.n===2?payFull(so.fan):paySelf(so.fan));
       tot+=rem*v/8;
     }
   }finally{p.hand=save;}
@@ -1443,9 +1474,9 @@ function aiTurn(p,ev,kongs){
    S = authoritative game state (lives on the host / single player only).
    V = what this screen draws: built from S on the host, received from the host on a guest.
    U = local UI state. */
-var S={pond:[],n:4,minFan:3,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],cur:0,over:false,last:null,msg:'',
+var S={pond:[],n:4,minFan:3,cap:8,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],cur:0,over:false,last:null,msg:'',
   asks:{},ready:{},token:0,speed:1,call:null,result:null,winTile:null,discN:0,running:false,hist:[],histWant:{}};
-var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
+var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,cap:8,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
 var HOSTSEAT=1,HOOKS={};   /* HOSTSEAT:房主佔一個座位(自己部機做主機);伺服器版係 0 */
 var PREFIX='hkmj-';
@@ -1811,11 +1842,11 @@ function lastRoom(){try{var o=JSON.parse(localStorage.getItem(ROOM_KEY)||'null')
 function roomPidIdx(o,pid){var r=-1;if(pid)o.players.forEach(function(p,i){if(p.pid&&p.pid===pid)r=i;});return r;}
 /*@engine:begin snap*/
 function snapObj(phase,turn){
-  var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,level:S.level,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,
+  var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,cap:S.cap,level:S.level,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,
     cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,hist:S.hist||[],
     result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner,multi:!!S.result.multi}:S.result?{type:'draw'}:null,
     players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn,pid:p.pid||'',baseName:p.baseName||'',away:!!p.away};})};
-  if(U.code)o.room={code:U.code,cfg:{n:U.cfg.n,minFan:U.cfg.minFan,level:U.cfg.level}};
+  if(U.code)o.room={code:U.code,cfg:{n:U.cfg.n,minFan:U.cfg.minFan,cap:U.cfg.cap,level:U.cfg.level}};
   return o;
 }
 /*@engine:end*/
@@ -1840,7 +1871,7 @@ function resumeGame(){
   var o=U.saved;if(!validSave(o))return;
   U.role='solo';U.notice='';
   S.token++;S.asks={};S.ready={};S.call=null;
-  S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+  S.n=o.n;S.minFan=o.minFan;S.cap=o.cap==null?8:o.cap;U.cfg.cap=S.cap;S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
   S.wall=o.wall;S.discN=o.discN;S.last=o.last;S.cur=o.cur;S.hist=Array.isArray(o.hist)?o.hist:[];S.histWant={};
   S.pond=Array.isArray(o.pond)?o.pond:(function(){var a=[];o.players.forEach(function(p,i){p.discards.forEach(function(){a.push(i);});});return a;})();
   S.players=o.players.map(function(p){return {id:p.id,name:p.name,human:p.human,remote:false,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn};});
@@ -2035,10 +2066,10 @@ function histPush(){
   S.hist.push(o);if(S.hist.length>200)S.hist.shift();
 }
 function endWin(w,from,ev,self,tile){
-  var P=S.players,base=PTS[ev.fan],deltas=P.map(function(){return 0;});
+  var P=S.players,base=payFull(ev.fan),deltas=P.map(function(){return 0;});
   if(!self){P[from].discards.pop();S.pond.pop();P[w].hand.push(tile);}
   sortHand(P[w]);
-  if(self){var each=S.n===2?PTS[ev.fan]:PSELF[ev.fan];   /* 2 players: self-draw is paid in full like a discard win */P.forEach(function(p,i){if(i!==w){deltas[i]-=each;deltas[w]+=each;}});}
+  if(self){var each=S.n===2?payFull(ev.fan):paySelf(ev.fan);   /* 2 players: self-draw is paid in full like a discard win */P.forEach(function(p,i){if(i!==w){deltas[i]-=each;deltas[w]+=each;}});}
   else{deltas[from]-=base;deltas[w]+=base;}
   P.forEach(function(p,i){p.score+=deltas[i];p.drawn=null;});
   S.over=true;S.ready={};armNext();S.winTile=tile;S.last=null;S.result={type:'win',winner:w,from:from,self:self,ev:ev,deltas:deltas,tile:tile};
@@ -2179,7 +2210,7 @@ function runGame(resume){playHand(resume).catch(function(e){if(e!==CANCEL)consol
 function startGame(){
   S.token++;S.asks={};S.ready={};S.hist=[];S.histWant={};
   var n=U.cfg.n,mem=U.role==='host'?NET.members:[];
-  S.n=n;S.minFan=U.cfg.minFan;S.level=U.cfg.level;
+  S.n=n;S.minFan=U.cfg.minFan;S.cap=U.cfg.cap;S.level=U.cfg.level;
   S.players=[];
   AI_NAMES=aiNamesShuffle();var used={},ai=0;AI_USED=[];
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
@@ -2218,7 +2249,7 @@ function endWinMulti(wins,from,tile){   /* 一炮多響:出銃嗰家逐個賠足
   var P=S.players,deltas=P.map(function(){return 0;});
   P[from].discards.pop();S.pond.pop();
   wins.forEach(function(x){
-    var b=PTS[x.ev.fan];P[x.seat].hand.push(tile);sortHand(P[x.seat]);
+    var b=payFull(x.ev.fan);P[x.seat].hand.push(tile);sortHand(P[x.seat]);
     deltas[from]-=b;deltas[x.seat]+=b;x.gain=b;
   });
   P.forEach(function(p,i){p.score+=deltas[i];p.drawn=null;});
@@ -2254,7 +2285,7 @@ function buildView(seat){
   if(!S.running||!S.players.length)return null;
   var a=S.asks[seat];
   return {me:seat,n:S.n,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
-    call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
+    call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,cap:S.cap,
     players:S.players.map(function(p,i){return {name:p.name+(p.offline?'(離線'+(p.offLeft?' '+p.offLeft+' 秒':'')+')':''),score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:(S.players[seat].cheat||(U.debug&&seat===0&&!p.human&&U.role!=='client'))?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
     tp:(a&&a.kind==='turn')?tenpaiInfo(S.players[seat]):null,cheat:!!S.players[seat].cheat,coax:(S.players[seat].cheat&&S.coax&&S.coax.by===seat&&S.coax.hand>=S.handNo)?S.coax.seat:-1,auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,tgt:S.players[seat].proxy&&S.players[seat].tgt?fixTarget(S.players[seat].tgt,S.players[seat].melds):null,tgtOff:S.players[seat].proxy&&S.players[seat].tgt?tgtOff(S.players[seat],fixTarget(S.players[seat].tgt,S.players[seat].melds)):false,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
@@ -2268,7 +2299,7 @@ function buildView(seat){
 function pondView(){
   if(!S.running||!S.players.length)return null;
   return {n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,
-    call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,
+    call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,cap:S.cap,
     players:S.players.map(function(p){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,n:p.hand.length,hand:S.over?p.hand:null};}),
     result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null};
 }
@@ -2280,7 +2311,7 @@ function broadcast(){
 }
 function lobbyInfo(){
   var plan=seatPlan(),seats=plan.map(function(g,k){return k===0&&HOSTSEAT?myName():g?g.name:null;});
-  return {t:'lobby',n:U.cfg.n,minFan:U.cfg.minFan,code:U.code,players:(HOSTSEAT?[myName()]:[]).concat(NET.members.map(function(m){return m.name;})),seats:seats};
+  return {t:'lobby',n:U.cfg.n,minFan:U.cfg.minFan,cap:U.cfg.cap,code:U.code,players:(HOSTSEAT?[myName()]:[]).concat(NET.members.map(function(m){return m.name;})),seats:seats};
 }
 function sendLobby(){if(HOOKS.lobby){HOOKS.lobby();return;}var l=lobbyInfo();NET.members.forEach(function(m){safeSend(m.conn,l);});}
 function randCode(){var L='ABCDEFGHJKLMNPQRSTUVWXYZ',D='23456789',s=L[Math.floor(Math.random()*L.length)];for(var i=0;i<3;i++)s+=D[Math.floor(Math.random()*D.length)];return s;}   /* 一個英文字母 + 3 個數字,例如 K382 */
@@ -2564,13 +2595,13 @@ function startTakeover(code,o,opt){
   var k=roomPidIdx(o,myPid());if(k<0)return false;
   U.resuming=code;U.joinGen=(U.joinGen||0)+1;U.rejoin='';
   leaveAll(true);
-  U.role='host';U.screen='lobby';U.code=code;U.notice='';NET.members=[];U.cfg.n=o.n;U.cfg.minFan=o.minFan;U.cfg.level=o.level;
+  U.role='host';U.screen='lobby';U.code=code;U.notice='';NET.members=[];U.cfg.n=o.n;U.cfg.minFan=o.minFan;U.cfg.cap=o.cap==null?8:o.cap;U.cfg.level=o.level;
   function begin(){
     if(U.role!=='host'||U.resuming!==code)return;
     var n=o.players.length;
     function rs(i){return (i-k+n)%n;}
     S.token++;S.asks={};S.ready={};S.call=null;
-    S.n=o.n;S.minFan=o.minFan;S.level=o.level;S.dealer=rs(o.dealer);S.d0=rs(o.d0||0);S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+    S.n=o.n;S.minFan=o.minFan;S.cap=U.cfg.cap;S.level=o.level;S.dealer=rs(o.dealer);S.d0=rs(o.d0||0);S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
     S.wall=o.wall;S.discN=o.discN;S.last=o.last?{seat:rs(o.last.seat),t:o.last.t}:null;S.cur=rs(o.cur);
     S.histWant={};S.hist=(Array.isArray(o.hist)?o.hist:[]).map(function(r){   /* 座位轉咗,記錄入面嘅座位都要跟住轉 */
       var q={no:r.no,round:r.round,type:r.type,names:[],deltas:[]},j;
@@ -2775,7 +2806,7 @@ function myPid(){var k='mj_pid',v='';try{v=localStorage.getItem(k)||'';if(!v){v=
 function helloMsg(){
   if(U.pondMode)return {t:'hello',role:'pond',name:'牌河屏'};
   var h={t:'hello',name:myName(),pid:myPid()};
-  if(U.creating){h.create=true;h.cfg={n:U.cfg.n,minFan:U.cfg.minFan,level:U.cfg.level};}
+  if(U.creating){h.create=true;h.cfg={n:U.cfg.n,minFan:U.cfg.minFan,cap:U.cfg.cap,level:U.cfg.level};}
   return h;
 }
 function pondRetry(msg){
@@ -3085,7 +3116,7 @@ function tpHTML(t){
   var r=tp[t];
   var w=r.w.slice().sort(function(a,b){return Math.max(b[2],b[3])-Math.max(a[2],a[3]);});
   return '<div class="tpbar" id="tpbar">'+(r.ok?'':'<b style="color:#c0392b">未夠起糊 '+V.minFan+' 番</b>')+
-    w.map(function(x){var f=Math.max(x[2],x[3]);return '<span class="tw'+(f<V.minFan?' lo':'')+'">'+tileEl(x[0])+'<small>餘'+x[1]+' · 出銃'+(x[2]>=CAP?'滿':x[2])+' / 自摸'+(x[3]>=CAP?'滿':x[3])+'番</small></span>';}).join('')+'</div>';
+    w.map(function(x){var f=Math.max(x[2],x[3]);return '<span class="tw'+(f<V.minFan?' lo':'')+'">'+tileEl(x[0])+'<small>餘'+x[1]+' · 出銃'+fanTxt(x[2])+' / 自摸'+fanTxt(x[3])+'番</small></span>';}).join('')+'</div>';
 }
 function drawDock(){
   if(!V){els.dock.innerHTML='';els.dock.hidden=true;return;}
@@ -3147,7 +3178,7 @@ function drawDock(){
   }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
-var VERSION='2026.11.14-a';
+var VERSION='2026.11.19-a';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
@@ -3162,6 +3193,7 @@ function setupHTML(){
       '<div><span class="lab">你嘅名(多人對戰用)</span><div class="opts"><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'"></div></div>'+
       '<div><span class="lab">座位數</span>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+'</div>'+
       '<div><span class="lab">起糊番數</span>'+chipRow('cfgF',[1,2,3],c.minFan,function(v){return v+' 番'+(v===3?' <small>標準</small>':'');})+'</div>'+
+      '<div><span class="lab">封頂</span>'+chipRow('cfgC',[8,10,13,0],c.cap,function(v){return v===0?'無上限':v+' 番';})+(c.cap===0?'<p class="note">番數照疊,賠率每兩番翻一倍;滿貫牌有底番,仲可以疊自摸、花等。</p>':'')+'</div>'+
       '<div><span class="lab">電腦強度</span>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手':'大師';})+'<p class="note">'+lvNote+'</p></div>'+
     '</div></div>'+
     '<div class="step"><h4><i>2</i>點樣玩</h4><div class="card">'+
@@ -3184,11 +3216,11 @@ function lobbyHTML(){
     h+='<p>房號 <b>'+esc(U.code)+'</b>'+(l?'(連接咗)':'(連線中…)')+'</p><p class="note">狀態:'+esc(NET.state||'連線中…')+' · 收到 '+NET.rx+' 個訊息'+(NET.rx>0&&!V?' · 等開房嗰位撳「開始遊戲」':'')+'</p>';
   }
   if(l&&l.seats){
-    h+='<h3>座位('+l.players.length+' / '+l.n+' 人,空位由電腦補)</h3>'+seatTableHTML(l,host)+'<p class="note">'+(host?'你固定坐下面。拖其餘玩家去右、上、左(手指或者滑鼠都得),拖去有人嘅座位會對調;唔想拖,可以先撳一位玩家,再撳目標座位。':'房主排緊座位,你見到嘅係即時更新。')+' '+l.n+' 個座位 · '+l.minFan+' 番起糊。入咗牌桌之後,四家擲骰決定邊個做莊。</p>'+
+    h+='<h3>座位('+l.players.length+' / '+l.n+' 人,空位由電腦補)</h3>'+seatTableHTML(l,host)+'<p class="note">'+(host?'你固定坐下面。拖其餘玩家去右、上、左(手指或者滑鼠都得),拖去有人嘅座位會對調;唔想拖,可以先撳一位玩家,再撳目標座位。':'房主排緊座位,你見到嘅係即時更新。')+' '+l.n+' 個座位 · '+l.minFan+' 番起糊 · '+capName(l.cap==null?8:l.cap)+'。入咗牌桌之後,四家擲骰決定邊個做莊。</p>'+
       (host?'<div class="opts"><button class="btn" data-act="seatShuf">隨機排位</button></div>':'');
   }else if(l){
     h+='<h3>玩家('+l.players.length+' / '+l.n+')</h3><div class="plist">'+l.players.map(function(nm,i){return '<div>'+esc(nm)+(i===0?'<span class="rel">房主</span>':'')+'</div>';}).join('')+
-      new Array(Math.max(0,l.n-l.players.length)+1).join('<div class="empty">電腦補位</div>')+'</div><p class="note">'+l.n+' 個座位 · '+l.minFan+' 番起糊</p>';
+      new Array(Math.max(0,l.n-l.players.length)+1).join('<div class="empty">電腦補位</div>')+'</div><p class="note">'+l.n+' 個座位 · '+l.minFan+' 番起糊 · '+capName(l.cap==null?8:l.cap)+'</p>';
   }
   h+='<div class="opts">'+(host?'<button class="btn pri" data-act="startRoom"'+(U.code?'':' disabled')+'>開始遊戲</button>':'')+'<button class="btn" data-act="rename">改名</button><button class="btn" data-act="leave">'+(host0?'關房':'離開')+'</button></div></div></div>';
   return h;
@@ -3218,15 +3250,16 @@ function pipEl(n,rolling){
 function rulesHTML(){
   return '<div class="ov"><div class="sheet rules"><h2>規則</h2>'+
   '<h3>基本</h3><ul><li>144 隻牌:萬、筒、索各 1–9 四隻,東南西北、中發白各四隻,另有 8 隻花牌。</li><li>每人 13 隻,莊家先摸牌。摸到花牌即時補花,由牌尾補一隻。</li><li>糊牌需要 4 組面子(順、刻、槓)加一對將,或者十三么。</li><li>「上」只可以上家(你左手邊)打出的牌;碰、槓任何人都可以。糊牌優先於碰槓,碰槓優先於上。</li><li>牌牆摸晒(冇留牌尾)即流局,莊家連莊。</li></ul>'+
-  '<h3>起糊與計分</h3><ul><li>要夠起糊番數(預設 3 番)先可以糊牌,否則唔可以糊。</li><li>食糊:出銃者全付。自摸:其餘每家各付自摸價(見下面番數對照)。封頂 8 番。兩個人玩時自摸都係全付(同出銃一樣)。</li><li>淨係莊家糊牌先連莊;流局(無人糊)或者閒家糊牌,都輪到下家做莊;輪完一圈,風圈由東轉南。</li></ul>'+
+  '<h3>起糊與計分</h3><ul><li>要夠起糊番數(預設 3 番)先可以糊牌,否則唔可以糊。</li><li>食糊:出銃者全付。自摸:其餘每家各付自摸價(見下面番數對照)。預設封頂 8 番(開房時可以揀 10 / 13 番或者無上限,見下面)。兩個人玩時自摸都係全付(同出銃一樣)。</li><li>淨係莊家糊牌先連莊;流局(無人糊)或者閒家糊牌,都輪到下家做莊;輪完一圈,風圈由東轉南。</li></ul>'+
   '<h3>番種</h3><dl class="ft">'+
   '<dt>1 番</dt><dd>無花、正花(每隻)、自摸、門前清、平糊、圈風、門風、三元牌(每副)、槓上開花、海底撈月、河底撈魚</dd>'+
   '<dt>2 番</dt><dd>一台花(春夏秋冬或梅蘭菊竹齊四隻,額外計)</dd>'+
   '<dt>3 番</dt><dd>對對糊、混一色</dd>'+
   '<dt>5–6 番</dt><dd>小三元 5、小四喜 6</dd>'+
   '<dt>7–8 番</dt><dd>清一色 7、混么九 7、大三元 8</dd>'+
-  '<dt>滿貫</dt><dd>十三么、天糊、字一色、清么九、大四喜、十八羅漢、八仙過海(封頂 8 番)</dd></dl>'+
+  '<dt>滿貫</dt><dd>十三么、天糊、字一色、清么九、大四喜、十八羅漢、八仙過海(預設封頂 8 番)</dd></dl>'+
   '<h3>番數對照(出銃全付 / 自摸每家付)</h3><dl class="ft"><dt>1 番</dt><dd>$2 / $1</dd><dt>2 番</dt><dd>$5 / $3</dd><dt>3 番</dt><dd>$16 / $8</dd><dt>4 番</dt><dd>$32 / $16</dd><dt>5 番</dt><dd>$48 / $24</dd><dt>6 番</dt><dd>$64 / $32</dd><dt>7 番</dt><dd>$96 / $48</dd><dt>8 番(滿糊)</dt><dd>$128 / $64</dd></dl>'+
+  '<h3>封頂同無上限</h3><ul><li>設定可以揀 8(標準)、10、13 番封頂,或者無上限。封頂時滿貫牌就係封頂數,其他牌疊到封頂就停。</li><li>無上限:番數照疊。8 番以上嘅賠率每兩番翻一倍,單數番乘 1.5:9 番 $192、10 番 $256、11 番 $384、12 番 $512、13 番 $768、14 番 $1,024…;自摸每家付一半。</li><li>無上限嘅滿貫牌有底番:十三么、天糊、清么九、大四喜、十八羅漢各 13 番,字一色、八仙過海各 10 番。同時成立只取最高。</li><li>滿貫牌可以再疊自摸、門前清、圈風門風、槓上開花、海底河底同花番;混一色、清一色、對對糊、平糊、三元牌等牌型番已經包咗,唔重複計。大四喜唔再疊風牌番,十三么唔疊門前清。</li><li>天糊唔疊自摸、門前清、槓上開花、海底;八仙過海唔計花番,但牌型番照疊。</li></ul>'+
   '<h3>多人對戰</h3><ul><li>房主嘅瀏覽器負責行牌局,其他人先試 WebRTC 直連房主,連唔到會自動轉用備用線路(公共 MQTT 伺服器)。房主要保持網頁開住。</li><li>有人斷線,佢嗰個座位會由電腦代打。有人太耐冇反應,房主可以按「由電腦代打」。</li><li>每局完要所有真人都按「下一局」先會開下一局。</li></ul>'+
   '<p>一炮雙響、三響都計:出銃嗰家逐個賠足,當連莊。</p><p>未有搶槓、七對子、坎坎糊、地糊。</p>'+
   '<div class="opts"><button class="btn pri" data-act="closeRules">明白</button></div></div></div>';
@@ -3486,6 +3519,7 @@ function qzLayer(){
   e.hidden=false;e.style.cssText='left:'+Math.round(left)+'px;top:'+Math.round(top)+'px;width:'+S0+'px;height:'+S0+'px';
   if(e.getAttribute('data-c')!==corner){e.setAttribute('data-c',corner);e.innerHTML=qzSvg(corner);}
   U.qzTL=corner==='tl';
+  e.style.opacity=(V.ask&&V.ask.kind==='claim')?'0':'';   /* 有上/碰/槓/胡選擇時讓位,唔好蓋住掣 */
 }
 function chatLog(){
   var e=document.getElementById('chatlog');
@@ -3799,6 +3833,7 @@ function handleAct(act,b){
   var v=b?b.getAttribute('data-v'):null;
   if(act==='cfgN'){U.cfg.n=+v;render();}
   else if(act==='cfgF'){U.cfg.minFan=+v;render();}
+  else if(act==='cfgC'){U.cfg.cap=+v;render();}
   else if(act==='cfgL'){U.cfg.level=+v;render();}
   else if(act==='solo'){needPw(function(){U.role='solo';U.notice='';startGame();});}
   else if(act==='resume')resumeGame();
