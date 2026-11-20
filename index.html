@@ -3218,12 +3218,11 @@ function setupHTML(){
       '<div><span class="lab">座位數</span>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+'</div>'+
       '<div><span class="lab">起糊番數</span>'+chipRow('cfgF',[3,6,8],c.minFan,function(v){return v+' 番'+(v===3?' <small>標準</small>':'');})+'</div>'+
       '<div><span class="lab">封頂</span>'+chipRow('cfgC',[8,10,13,0],c.cap,function(v){return v===0?'無上限':v+' 番';})+(c.cap===0?'<p class="note">番數照疊,賠率每兩番翻一倍;滿貫牌有底番,仲可以疊自摸、花等。</p>':'')+'</div>'+
-      (U.roomPick?'<div><span class="lab">角色</span><div class="chrows">'+Array.from({length:c.n},function(_,i){return '<div class="chrow"><small>座位 '+(i+1)+'</small>'+chipRow('chSeat',CH_CHARS.map(function(_,k){return i*10+k;}),i*10+Math.max(0,CH_CHARS.findIndex(function(x){return x[0]===U.chars[i];})),function(v){return CH_CHARS[v%10][1];})+'</div>';}).join('')+'</div></div>':'')+
       '<div><span class="lab">電腦強度</span>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手':'大師';})+'<p class="note">'+lvNote+'</p></div>'+
     '</div></div>'+
     '<div class="step"><h4><i>2</i>點樣玩</h4><div class="card">'+
       '<button class="btn pri block" data-act="solo">單人對電腦</button>'+
-      '<button class="btn block" data-act="host"'+(ok?'':' disabled')+'>'+(U.roomPick?'開房(用以上角色)':'開房同朋友打')+'</button>'+
+      '<button class="btn block" data-act="host"'+(ok?'':' disabled')+'>開房同朋友打</button>'+
       '<hr class="hr"><div class="opts"><input class="inp code" id="roomcode" maxlength="8" autocomplete="off" placeholder="輸入房號加入" value="'+esc(U.roomInput)+'"><button class="btn" data-act="join"'+(ok?'':' disabled')+'>加入</button></div>'+
       (ok?'<p class="note">開房後座位唔夠人會由電腦補上。</p>':'<p class="note">多人對戰要用 GitHub Pages 版(要連到互聯網)。</p>')+
     '</div></div>'+
@@ -3247,6 +3246,7 @@ function lobbyHTML(){
     h+='<h3>玩家('+l.players.length+' / '+l.n+')</h3><div class="plist">'+l.players.map(function(nm,i){return '<div>'+esc(nm)+(i===0?'<span class="rel">房主</span>':'')+'</div>';}).join('')+
       new Array(Math.max(0,l.n-l.players.length)+1).join('<div class="empty">電腦補位</div>')+'</div><p class="note">'+l.n+' 個座位 · '+l.minFan+' 番起糊 · '+capName(l.cap==null?8:l.cap)+'</p>';
   }
+  if(host0&&U.code){var nn=(l&&l.n)||U.cfg.n;h+='<h3>角色(按座位揀)</h3><div class="chrows">'+Array.from({length:nn},function(_,i){return '<div class="chrow"><small>座位 '+(i+1)+'</small>'+chipRow('chSeat',CH_CHARS.map(function(_,k){return i*10+k;}),i*10+Math.max(0,CH_CHARS.findIndex(function(x){return x[0]===U.chars[i];})),function(v){return CH_CHARS[v%10][1];})+'</div>';}).join('')+'</div>';}
   h+='<div class="opts">'+(host?'<button class="btn pri" data-act="startRoom"'+(U.code?'':' disabled')+'>開始遊戲</button>':'')+'<button class="btn" data-act="rename">改名</button><button class="btn" data-act="leave">'+(host0?'關房':'離開')+'</button></div></div></div>';
   return h;
 }
@@ -3879,10 +3879,10 @@ function handleAct(act,b){
   else if(act==='cfgC'){U.cfg.cap=+v;render();}
   else if(act==='chSeat'){var sn=Math.floor(+v/10),ci=(+v)%10;if(sn>=0&&sn<4&&CH_CHARS[ci])U.chars[sn]=CH_CHARS[ci][0];render();}
   else if(act==='cfgL'){U.cfg.level=+v;render();}
-  else if(act==='solo'){U.roomPick=false;needPw(function(){U.role='solo';U.notice='';startGame();});}
+  else if(act==='solo'){needPw(function(){U.role='solo';U.notice='';startGame();});}
   else if(act==='resume')resumeGame();
   else if(act==='dropsave'){dropSave();render();}
-  else if(act==='host'){if(!U.roomPick){U.roomPick=true;render();}else needPw(hostOpen);}
+  else if(act==='host')needPw(hostOpen);
   else if(act==='join')joinRoom();
   else if(act==='startRoom'){if(U.role==='host'&&!S.running&&U.code&&!U.resuming)startGame();else if(U.role==='client'&&NET.conn){safeSend(NET.conn,{t:'start'});}}
   else if(act==='leave'||act==='setup'){U.rejoin='';if(U.resuming){U.resuming='';}forgetRoom();leaveAll();U.notice='';render();}
