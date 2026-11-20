@@ -49,7 +49,7 @@ console.log('names OK');
 {
   const ip='7.7.7.7';
   let r=await call();
-  assert.deepStrictEqual(r.j.phrases,['快啲啦!','等我諗諗','好牌!','嘩,咁都食得','唔該曬','又係你','手風順喎','玩得開心']);
+  assert.deepStrictEqual(r.j.phrases,['哈囉','鳴鳴鳴','犀利','多謝','激死','嘩','多謝晒','唔駛客氣']);
   const mine=['一','二','三','四','五','六','七','八九十一二三四五六七八'];
   r=await call({op:'phSet',list:mine},ip);assert.strictEqual(r.s,200);assert.deepStrictEqual(r.j.phrases,mine);
   r=await call(null,ip);assert.deepStrictEqual(r.j.phrases,mine);
@@ -58,7 +58,7 @@ console.log('names OK');
   r=await call({op:'phSet',list:mine.slice(0,7).concat(['  '])},ip);assert.strictEqual(r.s,400);   // 空白
   r=await call(null,ip);assert.deepStrictEqual(r.j.phrases,mine);   // 失敗唔會改到
   r=await call({op:'phReset',pw:'0000'},ip);assert.strictEqual(r.s,403);
-  r=await call({op:'phReset',pw:'8964'},ip);assert.strictEqual(r.s,200);assert.strictEqual(r.j.phrases[0],'快啲啦!');
-  r=await call(null,ip);assert.strictEqual(r.j.phrases[0],'快啲啦!');
+  r=await call({op:'phReset',pw:'8964'},ip);assert.strictEqual(r.s,200);assert.strictEqual(r.j.phrases[0],'哈囉');
+  r=await call(null,ip);assert.strictEqual(r.j.phrases[0],'哈囉');
 }
 console.log('phrases ok');

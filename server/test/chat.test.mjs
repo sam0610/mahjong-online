@@ -34,8 +34,8 @@ assert(!/[<>]/.test(last.v),'去除 < >');
 assert(Array.from(last.v).length<=30,'最多 30 字');
 // 角色表情:合法 c/i 照發,非法就當冇
 await wait(3100);
-A.send({t:'chat',k:'x',v:'好牌!',c:'bobo',i:2});await wait(50);
-assert.deepStrictEqual(B.chats.slice(-1)[0],{t:'chat',s:sa,k:'x',v:'好牌!',c:'bobo',i:2},'角色表情傳去其他人');
+A.send({t:'chat',k:'x',v:'好牌!',c:'salt',i:2});await wait(50);
+assert.deepStrictEqual(B.chats.slice(-1)[0],{t:'chat',s:sa,k:'x',v:'好牌!',c:'salt',i:2},'角色表情傳去其他人');
 await wait(3100);
 A.send({t:'chat',k:'x',v:'唔該曬',c:'<evil>',i:99});await wait(50);
 assert.deepStrictEqual(B.chats.slice(-1)[0],{t:'chat',s:sa,k:'x',v:'唔該曬'},'非法角色/格數 → 淨文字');
