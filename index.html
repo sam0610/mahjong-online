@@ -799,6 +799,14 @@ body.pondmode .sheet{color:var(--ink)}
   .ov.setupov .hero .logo{font-size:34px;letter-spacing:.1em}
   .ov.setupov .step .card{gap:6px}
 }
+.chrows{display:flex;flex-direction:column;gap:6px;width:100%}
+.chrow{display:flex;align-items:center;gap:8px}
+.chrow small{min-width:4.6em;color:var(--ink-2,#5b6470);font-size:13px}
+.chrow .opts{flex:1}
+#evtpop{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:5;pointer-events:none}
+#evtpop[hidden]{display:none}
+#evtpop img{display:block;width:min(28vw,180px);height:auto;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35));animation:evtpop .35s ease-out}
+@keyframes evtpop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
 </style>
 
 <div class="app">
@@ -1474,9 +1482,10 @@ function aiTurn(p,ev,kongs){
    S = authoritative game state (lives on the host / single player only).
    V = what this screen draws: built from S on the host, received from the host on a guest.
    U = local UI state. */
-var S={pond:[],n:4,minFan:3,cap:8,level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],cur:0,over:false,last:null,msg:'',
+var S={pond:[],n:4,minFan:3,cap:8,chars:['salt','salt','salt','salt'],level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],cur:0,over:false,last:null,msg:'',
   asks:{},ready:{},token:0,speed:1,call:null,result:null,winTile:null,discN:0,running:false,hist:[],histWant:{}};
-var U={screen:'setup',role:'solo',cfg:{n:4,minFan:3,cap:8,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
+var CH_CHARS=[['salt','鹽樽'],['mah','麻雀牌'],['chick','雞仔'],['cai','菜心']];   /* 角色:每個座位揀一個,事件圖跟住座位角色 */
+var U={screen:'setup',role:'solo',chars:['salt','salt','salt','salt'],cfg:{n:4,minFan:3,cap:8,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
 var HOSTSEAT=1,HOOKS={};   /* HOSTSEAT:房主佔一個座位(自己部機做主機);伺服器版係 0 */
 var PREFIX='hkmj-';
@@ -1624,6 +1633,9 @@ function ask(seat,kind,opts){
     var p=S.players[seat];
     S.asks[seat]={id:++askSeq,kind:kind,opts:opts,res:res,rej:rej,since:Date.now()};
     scheduleAuto(seat);
+    if(kind==='turn'&&p.human){var aid=S.asks[seat].id;setTimeout(function(){
+      if(S.asks[seat]&&S.asks[seat].id===aid){evt(seat,Math.random()<0.5?'bian':'lanpai');render();}
+    },10000);}
     S.msg=kind==='roll'?'擲骰決定邊個做莊':kind==='dok'?'確認開始':kind==='turn'?'輪到 '+p.name+(opts.claimed?'(碰/上之後打牌)':''):S.players[opts.from].name+' 打出 '+tname(opts.tile);
     render();
   });
@@ -1842,7 +1854,7 @@ function lastRoom(){try{var o=JSON.parse(localStorage.getItem(ROOM_KEY)||'null')
 function roomPidIdx(o,pid){var r=-1;if(pid)o.players.forEach(function(p,i){if(p.pid&&p.pid===pid)r=i;});return r;}
 /*@engine:begin snap*/
 function snapObj(phase,turn){
-  var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,cap:S.cap,level:S.level,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,
+  var o={v:1,ts:Date.now(),phase:phase,turn:turn||null,n:S.n,minFan:S.minFan,cap:S.cap,chars:S.chars,level:S.level,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,
     cur:S.cur,wall:S.wall,discN:S.discN,last:S.last,pond:S.pond,hist:S.hist||[],
     result:(S.result&&S.result.type==='win')?{type:'win',winner:S.result.winner,multi:!!S.result.multi}:S.result?{type:'draw'}:null,
     players:S.players.map(function(p){return {id:p.id,name:p.name,human:p.human,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn,pid:p.pid||'',baseName:p.baseName||'',away:!!p.away};})};
@@ -1871,7 +1883,7 @@ function resumeGame(){
   var o=U.saved;if(!validSave(o))return;
   U.role='solo';U.notice='';
   S.token++;S.asks={};S.ready={};S.call=null;
-  S.n=o.n;S.minFan=o.minFan;S.cap=o.cap==null?8:o.cap;U.cfg.cap=S.cap;S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+  S.n=o.n;S.minFan=o.minFan;S.cap=o.cap==null?8:o.cap;U.cfg.cap=S.cap;S.chars=Array.isArray(o.chars)?o.chars.slice():['salt','salt','salt','salt'];S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
   S.wall=o.wall;S.discN=o.discN;S.last=o.last;S.cur=o.cur;S.hist=Array.isArray(o.hist)?o.hist:[];S.histWant={};
   S.pond=Array.isArray(o.pond)?o.pond:(function(){var a=[];o.players.forEach(function(p,i){p.discards.forEach(function(){a.push(i);});});return a;})();
   S.players=o.players.map(function(p){return {id:p.id,name:p.name,human:p.human,remote:false,score:p.score,level:p.level,hand:p.hand,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},wind:p.wind,drawn:p.drawn};});
@@ -1885,6 +1897,11 @@ function resumeGame(){
 
 /*@engine:begin flow*/
 /* ---------- game flow (host / single player) ---------- */
+/* 事件圖:記低一串最近事件(有編號),畫面見到新編號就彈圖 */
+function evt(seat,key){
+  var id=(S.evSeq||0)+1;S.evSeq=id;
+  S.evts=(S.evts||[]).concat([{id:id,seat:seat,key:key,ch:(S.chars&&S.chars[seat])||'salt'}]).slice(-8);
+}
 function callout(i,text){var id=++callId;S.call={i:i,text:text,id:id};render();setTimeout(function(){if(S.call&&S.call.id===id){S.call=null;render();}},1100);}
 function buildWall(){
   var w=[],t,k;
@@ -2006,6 +2023,7 @@ function doClaim(s,d,t,kind,seq){
   var label=kind==='pung'?'碰':kind==='kong'?'槓':'上';
   S.msg=p.name+' '+label+' '+tname(t);
   callout(s,label);
+  evt(s,kind==='pung'?'peng':kind==='kong'?'kong':'shang');
 }
 
 async function resolveClaims(d,t){
@@ -2076,11 +2094,13 @@ function endWin(w,from,ev,self,tile){
   S.msg=P[w].name+(self?' 自摸':' 食糊');
   histPush();
   callout(w,self?'自摸':'胡');
+  evt(w,self?'zimo':'hu');if(!self)evt(from,'fang');
   snapshot('over');
   render();
 }
 function endDraw(){
   S.over=true;S.ready={};armNext();S.last=null;S.result={type:'draw'};S.msg='流局';
+  evt(Math.floor(Math.random()*S.n),'draw');
   histPush();
   snapshot('over');
   S.players.forEach(function(p){p.drawn=null;});
@@ -2091,6 +2111,7 @@ async function playHand(resume){
   var n=S.n,P=S.players,d=S.dealer,k;
   S.over=false;S.result=null;S.winTile=null;S.call=null;S.ready={};
   if(!resume){
+    if(S.handNo===1)evt(U.role==='host'?HOSTSEAT:0,'opening');
     S.players.forEach(function(q){q.auto=false;});
     S.wall=buildWall();S.last=null;S.discN=0;
     S.msg='洗牌、起牌…';
@@ -2106,8 +2127,10 @@ async function playHand(resume){
   for(;;){
     var p=P[S.cur];
     var heaven=false;
+    if(S.wall.length<=4&&S.kzHand!==S.handNo){S.kzHand=S.handNo;evt(Math.floor(Math.random()*n),'kanzhu');}   /* 牌牆剩 4 隻,每鋪一次(補花會跳過 4,所以用 ≤4) */
     if(mode==='resume'){kongDraw=!!resume.kongDraw;heaven=!!resume.heaven;mode=resume.claimed?'claimed':'resumed';}
-    else if(mode==='draw'){if(!drawTile(p,false))return endDraw();kongDraw=false;heaven=(S.cur===d&&S.discN===0);}
+    else if(mode==='draw'){
+      if(!drawTile(p,false))return endDraw();kongDraw=false;heaven=(S.cur===d&&S.discN===0);}
     else if(mode==='kongdraw'){if(!drawTile(p,true))return endDraw();kongDraw=true;}
     render();
     var ev=null,kongs=[];
@@ -2121,7 +2144,7 @@ async function playHand(resume){
     else{S.msg=p.name+' 思考中…';render();await T(650);act=aiTurn(p,ev,kongs);}
     if(act.a==='win')return endWin(S.cur,null,ev,true,p.drawn);
     if(act.a==='kong'){
-      doKong(p,act.t);S.msg=p.name+' 槓 '+tname(act.t);callout(S.cur,'槓');await T(650);
+      doKong(p,act.t);S.msg=p.name+' 槓 '+tname(act.t);callout(S.cur,'槓');evt(S.cur,'kong');await T(650);
       mode='kongdraw';continue;
     }
     var t=act.t;
@@ -2210,7 +2233,7 @@ function runGame(resume){playHand(resume).catch(function(e){if(e!==CANCEL)consol
 function startGame(){
   S.token++;S.asks={};S.ready={};S.hist=[];S.histWant={};
   var n=U.cfg.n,mem=U.role==='host'?NET.members:[];
-  S.n=n;S.minFan=U.cfg.minFan;S.cap=U.cfg.cap;S.level=U.cfg.level;
+  S.n=n;S.minFan=U.cfg.minFan;S.cap=U.cfg.cap;S.chars=U.chars.slice(0,4);S.level=U.cfg.level;
   S.players=[];
   AI_NAMES=aiNamesShuffle();var used={},ai=0;AI_USED=[];
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
@@ -2258,6 +2281,7 @@ function endWinMulti(wins,from,tile){   /* 一炮多響:出銃嗰家逐個賠足
   S.msg=wins.map(function(x){return P[x.seat].name;}).join('、')+' 食糊(一炮'+(wins.length>2?'三':'雙')+'響)';
   histPush();
   callout(wins[0].seat,'胡');
+  wins.forEach(function(x){evt(x.seat,'hu');});evt(from,'fang');
   snapshot('over');
   render();
 }
@@ -2285,7 +2309,7 @@ function buildView(seat){
   if(!S.running||!S.players.length)return null;
   var a=S.asks[seat];
   return {me:seat,n:S.n,dealer:S.dealer,d0:S.d0||0,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,msg:S.msg,
-    call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,cap:S.cap,
+    call:S.call?{i:S.call.i,text:S.call.text}:null,evts:(S.evts||[]),last:S.last,pond:pondList(),minFan:S.minFan,cap:S.cap,
     players:S.players.map(function(p,i){return {name:p.name+(p.offline?'(離線'+(p.offLeft?' '+p.offLeft+' 秒':'')+')':''),score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,discards:p.discards,taken:p.taken||{},n:p.hand.length,
       hand:(i===seat||S.over)?p.hand:(S.players[seat].cheat||(U.debug&&seat===0&&!p.human&&U.role!=='client'))?p.hand.slice().sort(function(a,b){return a-b;}):null,drawn:i===seat?p.drawn:null};}),
     tp:(a&&a.kind==='turn')?tenpaiInfo(S.players[seat]):null,cheat:!!S.players[seat].cheat,coax:(S.players[seat].cheat&&S.coax&&S.coax.by===seat&&S.coax.hand>=S.handNo)?S.coax.seat:-1,auto:!!S.players[seat].auto,proxy:!!S.players[seat].proxy,tgt:S.players[seat].proxy&&S.players[seat].tgt?fixTarget(S.players[seat].tgt,S.players[seat].melds):null,tgtOff:S.players[seat].proxy&&S.players[seat].tgt?tgtOff(S.players[seat],fixTarget(S.players[seat].tgt,S.players[seat].melds)):false,autoSh:S.players[seat].human?autoSh(S.players[seat]):99,
@@ -2299,7 +2323,7 @@ function buildView(seat){
 function pondView(){
   if(!S.running||!S.players.length)return null;
   return {n:S.n,dealer:S.dealer,round:S.round,handNo:S.handNo,lian:S.lian,live:Math.max(0,S.wall.length),cur:S.cur,over:S.over,
-    call:S.call?{i:S.call.i,text:S.call.text}:null,last:S.last,pond:pondList(),minFan:S.minFan,cap:S.cap,
+    call:S.call?{i:S.call.i,text:S.call.text}:null,evts:(S.evts||[]),last:S.last,pond:pondList(),minFan:S.minFan,cap:S.cap,
     players:S.players.map(function(p){return {name:p.name,score:p.score,wind:p.wind,human:p.human,melds:p.melds,flowers:p.flowers,n:p.hand.length,hand:S.over?p.hand:null};}),
     result:S.over?S.result:null,cd:S.over&&S.nextAt?Math.max(0,S.nextAt-Date.now()):null};
 }
@@ -2601,7 +2625,7 @@ function startTakeover(code,o,opt){
     var n=o.players.length;
     function rs(i){return (i-k+n)%n;}
     S.token++;S.asks={};S.ready={};S.call=null;
-    S.n=o.n;S.minFan=o.minFan;S.cap=U.cfg.cap;S.level=o.level;S.dealer=rs(o.dealer);S.d0=rs(o.d0||0);S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
+    S.n=o.n;S.minFan=o.minFan;S.cap=U.cfg.cap;S.chars=Array.isArray(o.chars)?o.chars.slice():['salt','salt','salt','salt'];S.level=o.level;S.dealer=rs(o.dealer);S.d0=rs(o.d0||0);S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
     S.wall=o.wall;S.discN=o.discN;S.last=o.last?{seat:rs(o.last.seat),t:o.last.t}:null;S.cur=rs(o.cur);
     S.histWant={};S.hist=(Array.isArray(o.hist)?o.hist:[]).map(function(r){   /* 座位轉咗,記錄入面嘅座位都要跟住轉 */
       var q={no:r.no,round:r.round,type:r.type,names:[],deltas:[]},j;
@@ -3178,7 +3202,7 @@ function drawDock(){
   }
 }
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
-var VERSION='2026.11.19-b';
+var VERSION='2026.11.20-a';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
 function setupHTML(){
   var c=U.cfg,ok=netOK();
@@ -3194,6 +3218,7 @@ function setupHTML(){
       '<div><span class="lab">座位數</span>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+'</div>'+
       '<div><span class="lab">起糊番數</span>'+chipRow('cfgF',[3,6,8],c.minFan,function(v){return v+' 番'+(v===3?' <small>標準</small>':'');})+'</div>'+
       '<div><span class="lab">封頂</span>'+chipRow('cfgC',[8,10,13,0],c.cap,function(v){return v===0?'無上限':v+' 番';})+(c.cap===0?'<p class="note">番數照疊,賠率每兩番翻一倍;滿貫牌有底番,仲可以疊自摸、花等。</p>':'')+'</div>'+
+      '<div><span class="lab">角色</span><div class="chrows">'+Array.from({length:c.n},function(_,i){return '<div class="chrow"><small>座位 '+(i+1)+'</small>'+chipRow('chSeat',CH_CHARS.map(function(_,k){return i*10+k;}),i*10+Math.max(0,CH_CHARS.findIndex(function(x){return x[0]===U.chars[i];})),function(v){return CH_CHARS[v%10][1];})+'</div>';}).join('')+'</div></div>'+
       '<div><span class="lab">電腦強度</span>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手':'大師';})+'<p class="note">'+lvNote+'</p></div>'+
     '</div></div>'+
     '<div class="step"><h4><i>2</i>點樣玩</h4><div class="card">'+
@@ -3521,6 +3546,23 @@ function qzLayer(){
   U.qzTL=corner==='tl';
   e.style.opacity=(V.ask&&V.ask.kind==='claim')?'0':'';   /* 有上/碰/槓/胡選擇時讓位,唔好蓋住掣 */
 }
+var EVT_T=null;
+function evtShow(){
+  var list=(V&&V.evts)||[];if(!list.length){U.evLast=0;return;}
+  if(U.evLast==null){U.evLast=list[list.length-1].id;return;}
+  if(list[list.length-1].id<U.evLast)U.evLast=list[0].id-1;   /* 新一場編號由頭計 */
+  var last=null;
+  list.forEach(function(e){if(e.id>U.evLast){U.evLast=e.id;last=e;}});
+  if(!last)return;
+  var el=document.getElementById('evtpop');
+  if(!el){el=document.createElement('div');el.id='evtpop';el.hidden=true;document.body.appendChild(el);}
+  el.innerHTML='<img alt="" src="img/'+last.ch+'/'+last.key+'.webp">';
+  /* 放喺該玩家名牌同枱中心之間(即係佢面前);搵唔到位置就用畫面中間 */
+  var tb=document.getElementById('tbl'),tr=tb&&tb.getBoundingClientRect(),an=chatAnchor(last.seat),pos=null;
+  if(an&&tr&&tr.width){var q=an.getBoundingClientRect(),cx=q.left+q.width/2,cy=q.top+q.height/2,mx=tr.left+tr.width/2,my=tr.top+tr.height/2;pos={x:cx+(mx-cx)*0.45,y:cy+(my-cy)*0.45};}
+  el.style.left=pos?Math.round(pos.x)+'px':'50%';el.style.top=pos?Math.round(pos.y)+'px':'42%';
+  el.hidden=false;clearTimeout(EVT_T);EVT_T=setTimeout(function(){el.hidden=true;},1700);
+}
 function chatLog(){
   var e=document.getElementById('chatlog');
   if(!e){e=document.createElement('div');e.id='chatlog';document.body.appendChild(e);}
@@ -3817,7 +3859,7 @@ function draw(){
     /* 記低最後一隻出牌/自己摸嘅牌:房間伺服器(舊引擎)嘅結果冇 tile,贏牌時靠呢個推出食糊牌 */
     if(V.last&&V.last.t!=null)U.tkLast=V.last.t;
     var mp=V.players&&V.players[V.me];if(mp&&mp.drawn!=null)U.tkDrawn=mp.drawn;}
-  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();chatDraw();apqDraw();chatLayer();qzLayer();chatLog();
+  drawOpps();drawMe();drawPond();drawTable();drawMid();drawDock();drawOverlay();drawFz();sfxWatch();chatDraw();apqDraw();chatLayer();qzLayer();chatLog();evtShow();
   var pl=els.pond&&els.pond.querySelector('.pool');if(pl&&pl.scrollHeight>pl.clientHeight+2)pl.scrollTop=pl.scrollHeight;   /* 手機:牌河喺入面捲,自動跟住最新打出嗰隻 */
   document.body.classList.toggle('ingame',!!V);
   var rt=document.getElementById('roomTag');if(rt){var rc=(U.role==='host'||U.role==='client')&&U.code&&V?U.code:'';rt.hidden=!rc;rt.textContent=rc?'房號 '+rc:'';}
@@ -3834,6 +3876,7 @@ function handleAct(act,b){
   if(act==='cfgN'){U.cfg.n=+v;render();}
   else if(act==='cfgF'){U.cfg.minFan=+v;render();}
   else if(act==='cfgC'){U.cfg.cap=+v;render();}
+  else if(act==='chSeat'){var sn=Math.floor(+v/10),ci=(+v)%10;if(sn>=0&&sn<4&&CH_CHARS[ci])U.chars[sn]=CH_CHARS[ci][0];render();}
   else if(act==='cfgL'){U.cfg.level=+v;render();}
   else if(act==='solo'){needPw(function(){U.role='solo';U.notice='';startGame();});}
   else if(act==='resume')resumeGame();

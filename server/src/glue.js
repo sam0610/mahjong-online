@@ -37,7 +37,7 @@ function startServerGame(){
   if(S.running)return false;
   var n=U.cfg.n,all=NET.members.filter(function(m){return m.joined&&!m.pond;}),mem=seatPlan();
   S.token++;S.asks={};S.ready={};
-  S.n=n;S.minFan=U.cfg.minFan;S.cap=U.cfg.cap;S.level=U.cfg.level;S.players=[];
+  S.n=n;S.minFan=U.cfg.minFan;S.cap=U.cfg.cap;S.chars=U.chars.slice(0,4);S.level=U.cfg.level;S.players=[];
   AI_NAMES=aiNamesShuffle();var used={},ai=0;AI_USED=[];
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
   for(var i=0;i<n;i++){
