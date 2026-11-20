@@ -271,11 +271,15 @@ button{font:inherit;color:inherit}
 .sp-seat .tag{font:500 11px var(--sans);color:var(--muted)}
 .sp-seat .chsel{font:600 12px var(--sans);max-width:100%;margin-top:3px;border:1px solid #9fbcbc;border-radius:8px;background:#fff;color:var(--ink);padding:2px 4px}
 .sp-av{width:38px;height:38px;object-fit:contain;display:block;margin:2px auto 0}
+.sp-edit .sp-seat{cursor:pointer}
+.chg{display:inline-block;margin-top:3px;padding:2px 9px;border-radius:999px;background:#0a7f9c;color:#fff;font:700 11px var(--sans)}
+.sp-seat.pickc{border:3px solid var(--accent);box-shadow:0 0 0 4px rgba(10,127,156,.18)}
+.sp-seat.pickc .chg{background:#065566}
 .chpick{margin-top:10px;padding:10px;border:1px solid #9fbcbc;border-radius:14px;background:#f4f9f9}
 .chpick-h{margin:0 0 8px;font:700 13px var(--sans);color:var(--ink)}
-.chpick-g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.chpick-c{border:2px solid #d5e3e4;border-radius:12px;background:#fff;padding:4px;cursor:pointer;font:600 13px var(--sans);color:var(--ink)}
-.chpick-c img{width:100%;height:64px;object-fit:contain;display:block}
+.chpick-g{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.chpick-c{min-width:0;border:2px solid #d5e3e4;border-radius:12px;background:#fff;padding:3px 2px;cursor:pointer;font:600 12px var(--sans);color:var(--ink)}
+.chpick-c img{width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;display:block}
 .chpick-c.on{border-color:var(--accent);background:rgba(10,127,156,.08)}
 .sp-seat .pn{display:flex;align-items:center;gap:5px;max-width:100%}
 .sp-seat .pn i{width:11px;height:11px;border-radius:50%;background:var(--c);flex:none}
@@ -3291,9 +3295,9 @@ function seatTableHTML(l,can){
   var n=l.n,pos=SP_POS(n),h='<div class="sp-table'+(can?' sp-edit':'')+'" id="spT"><div class="sp-mid">牌桌</div>';
   for(var s=0;s<n;s++){
     var nm=l.seats[s];
-    h+='<div class="sp-seat '+pos[s]+(nm?' on':'')+(s===0?' fixed':'')+(U.spSel===s?' sel':'')+'" data-s="'+s+'" style="--c:var(--c'+s+')">'+
+    h+='<div class="sp-seat '+pos[s]+(nm?' on':'')+(s===0?' fixed':'')+(U.spSel===s?' sel':'')+(can&&U.chPick===s?' pickc':'')+'" data-s="'+s+'" style="--c:var(--c'+s+')">'+
       (nm?'<span class="pn"><i></i><b>'+esc(nm)+'</b></span><span class="tag">'+(s===0?'房主 · 固定坐下':'玩家')+'</span>':'<span class="tag">電腦</span>')+
-      (can?'<img class="sp-av" alt="" src="img/'+U.chars[s]+'/opening.webp">':'')+'</div>';
+      (can?'<img class="sp-av" alt="" src="img/'+U.chars[s]+'/opening.webp"><span class="chg">'+(U.chPick===s?'揀緊 ▲':'換角色 ✎')+'</span>':'')+'</div>';
   }
   h+='</div>';
   if(can&&U.chPick!=null&&CH_CHARS[0]){
