@@ -184,6 +184,7 @@ button{font:inherit;color:inherit}
 .cb.e b{font-size:56px;line-height:1.2}
 @keyframes cbin{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.cb{animation:none}}
+.cb.seen,#chatlog .lgr.seen{animation:none}
 .chbadge{min-width:18px;height:18px;border-radius:9px;background:var(--hot);color:#fff;font:700 11px/18px var(--sans);text-align:center;padding:0 5px}
 .call{position:absolute;right:12px;top:-15px;background:var(--hot);color:#fff;font:900 22px/1 var(--sans);padding:8px 14px;border-radius:8px;animation:pop 1.1s ease-out forwards;z-index:2;box-shadow:0 4px 14px rgba(30,40,60,.3)}
 @keyframes pop{0%{transform:scale(.4);opacity:0}18%{transform:scale(1.15);opacity:1}30%{transform:scale(1)}85%{opacity:1}100%{opacity:0}}
@@ -3529,8 +3530,8 @@ function chatShow(m){
   var mine=m.s===V.me;
   if(!mine&&U.chatMute)return;
   if(!mine&&!U.chatOpen){U.chatUnread=(U.chatUnread||0)+1;draw();}
-  var b={s:m.s,k:m.k,v:String(m.v||''),c:(m.k!=='e'&&CHAT_CH.indexOf(m.c)>=0&&m.i>=0&&m.i<8)?m.c:'',i:m.i|0};
-  CH.log.push({s:m.s,v:b.v});if(CH.log.length>5)CH.log.shift();
+  var b={id:(CH.seq=(CH.seq||0)+1),s:m.s,k:m.k,v:String(m.v||''),c:(m.k!=='e'&&CHAT_CH.indexOf(m.c)>=0&&m.i>=0&&m.i<8)?m.c:'',i:m.i|0};
+  CH.log.push({id:b.id,s:m.s,v:b.v});if(CH.log.length>5)CH.log.shift();
   CH.logUntil=Date.now()+8000;setTimeout(chatLog,8100);
   CH.bubbles=CH.bubbles.filter(function(x){return x.s!==m.s;});CH.bubbles.push(b);
   setTimeout(function(){CH.bubbles=CH.bubbles.filter(function(x){return x!==b;});chatLayer();},4000);
@@ -3598,14 +3599,14 @@ function chatLog(){
   var pd=document.getElementById('pond'),pr=(ph&&pd&&!pd.hidden)?pd.getBoundingClientRect():null;if(pr&&!pr.width)pr=null;
   document.body.classList.toggle('haschat',!!pr);
   var left=r?r.left+12:pr?pr.left+5:8,top=r?r.top+10+(U.qzTL?108:0):pr?pr.top+4:(op?Math.max(8,op.getBoundingClientRect().bottom+6):60);
-  var on=Date.now()<CH.logUntil,CC=['#2b2e34','#e07a1f','#d6336c','#7a4fd0'],h='';
+  var on=Date.now()<CH.logUntil,CC=['#2b2e34','#e07a1f','#d6336c','#7a4fd0'],h='',seenL={};e.querySelectorAll('.lgr[data-id]').forEach(function(x){seenL[x.getAttribute('data-id')]=1;});
   e.style.left=Math.round(left)+'px';e.style.top=Math.round(top)+'px';
   h+='<button class="lgb'+(on?' on':'')+'" data-act="chatLog" aria-label="訊息記錄" aria-pressed="'+(on?'true':'false')+'" title="訊息記錄"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 4.5A1.5 1.5 0 014.5 3h9A1.5 1.5 0 0115 4.5v6A1.5 1.5 0 0113.5 12H8l-3.5 3v-3h0A1.5 1.5 0 013 10.5z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg></button>';
   if(on){
     if(!CH.log.length)h+='<div class="lgr" style="opacity:1"><span>暫時冇訊息</span></div>';
     CH.log.forEach(function(x,i){
       var pn=V.players[x.s],n=x.s===V.me?'你':(pn?pn.name.replace(/\(.*$/,''):'?'),op2=(0.4+0.6*(i+1)/CH.log.length).toFixed(2);
-      h+='<div class="lgr" style="opacity:'+op2+'"><b style="color:'+CC[(x.s-V.me+V.n)%V.n%CC.length]+'">'+esc(n)+'</b><span>'+esc(x.v)+'</span></div>';
+      h+='<div class="lgr'+(seenL[x.id]?' seen':'')+'" data-id="'+x.id+'" style="opacity:'+op2+'"><b style="color:'+CC[(x.s-V.me+V.n)%V.n%CC.length]+'">'+esc(n)+'</b><span>'+esc(x.v)+'</span></div>';
     });
   }
   if(e.getAttribute('data-h')!==h){e.setAttribute('data-h',h);e.innerHTML=h;}
@@ -3614,7 +3615,7 @@ function chatLayer(){
   var e=document.getElementById('chatl');
   if(!e){e=document.createElement('div');e.id='chatl';document.body.appendChild(e);}
   if(!V||!CH.bubbles.length){if(e.innerHTML)e.innerHTML='';return;}
-  var h='';
+  var h='',seen={};e.querySelectorAll('.cb[data-id]').forEach(function(x){seen[x.getAttribute('data-id')]=1;});
   CH.bubbles.forEach(function(b){
     var me=b.s===V.me,el=me?document.querySelector('#dock .mep'):chatAnchor(b.s);
     if(!el)return;
@@ -3625,7 +3626,7 @@ function chatLayer(){
     else st='left:'+Math.round(Math.max(8,r.left))+'px;top:'+Math.round(r.bottom+8)+'px';
     var pn=V.players[b.s],rl=b.s===V.me?'你':(pn&&pn.wind!=null?WIND[pn.wind]+'家':''),CC=['#2b2e34','#e07a1f','#d6336c','#7a4fd0'];
     var inner='<small>'+esc(rl+(pn?' · '+pn.name.replace(/\(.*$/,''):''))+'</small><b>'+esc(b.v)+'</b>';
-    h+='<div class="cb'+(b.k==='e'?' e':'')+(b.c?' ch':'')+'" style="--cc:'+CC[(b.s-V.me+V.n)%V.n%CC.length]+';'+st+'">'+(b.c?chSv(b.c,b.i,64)+'<div>'+inner+'</div>':inner)+'</div>';
+    h+='<div class="cb'+(seen[b.id]?' seen':'')+(b.k==='e'?' e':'')+(b.c?' ch':'')+'" data-id="'+b.id+'" style="--cc:'+CC[(b.s-V.me+V.n)%V.n%CC.length]+';'+st+'">'+(b.c?chSv(b.c,b.i,64)+'<div>'+inner+'</div>':inner)+'</div>';
   });
   e.innerHTML=h;
 }
