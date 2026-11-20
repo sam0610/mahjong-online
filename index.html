@@ -263,6 +263,7 @@ button{font:inherit;color:inherit}
 .sp-seat.on{border-style:solid;background:#fff}
 .sp-seat.fixed{background:#f4f9f9}
 .sp-seat .tag{font:500 11px var(--sans);color:var(--muted)}
+.sp-seat .chsel{font:600 12px var(--sans);max-width:100%;margin-top:3px;border:1px solid #9fbcbc;border-radius:8px;background:#fff;color:var(--ink);padding:2px 4px}
 .sp-seat .pn{display:flex;align-items:center;gap:5px;max-width:100%}
 .sp-seat .pn i{width:11px;height:11px;border-radius:50%;background:var(--c);flex:none}
 .sp-seat .pn b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -312,6 +313,13 @@ button{font:inherit;color:inherit}
   padding-block:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .sheet{width:min(580px,100%);max-height:100%;overflow:auto;background:var(--surface);border:1px solid var(--line-2);border-radius:16px;padding:20px;display:grid;gap:14px}
 .sheet h2{margin:0;font:900 24px/1.2 var(--sans);letter-spacing:.08em}
+.sheet.lobby{width:min(980px,100%)}
+.lob-grid{display:grid;gap:16px}
+.lob-side{display:grid;gap:10px;align-content:start}
+.lob-main{display:grid;gap:10px;align-content:start;min-width:0}
+.lob-bar{position:sticky;bottom:-16px;margin:4px -20px -20px;padding:12px 20px 16px;background:var(--surface);border-top:1px solid var(--line-2);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;z-index:2}
+.lob-bar .lob-go{flex:1 1 180px}
+@media (min-width:768px){.lob-grid{grid-template-columns:minmax(240px,300px) minmax(0,1fr);gap:24px;align-items:start}.lob-bar .lob-go{flex:0 0 auto}}
 .sheet h3{margin:0;font:700 13px var(--sans);color:var(--accent);letter-spacing:.08em}
 .sheet p{margin:0;color:var(--muted)}
 .opts{display:flex;gap:8px;flex-wrap:wrap}
@@ -3233,21 +3241,26 @@ function lobbyHTML(){
   var host0=U.role==='host',l=host0?lobbyInfo():NET.lobby,host=host0||!!(l&&l.owner);
   var link='';
   if(host&&U.code&&!U.creating){link=location.origin+location.pathname+'?room='+U.code;}
-  var h='<div class="ov"><div class="sheet"><h2>'+(host?'房間':'等開始')+'</h2>';
+  var h='<div class="ov"><div class="sheet lobby"><h2>'+(host?'房間':'等開始')+'</h2><div class="lob-grid">';
+  /* 左欄:房號、連結、QR(房主)或者連線狀態(玩家) */
+  h+='<div class="lob-side">';
   if(host){
-    h+=U.code?'<div class="opts"><button class="btn pri" data-act="startRoom">開始遊戲(撳咗,朋友嗰邊先會入牌桌)</button></div><div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="qrrow">'+(qrSVG(link)?'<div class="qr sm">'+qrSVG(link)+'</div>':'')+'<div class="linkbox">'+esc(link)+'</div></div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button></div>':'<p>開緊房…</p>';
+    h+=U.code?'<div class="roomcode">'+esc(U.code)+'</div><p>叫朋友打開同一個網頁,輸入房號,或者直接用呢條連結:</p><div class="qrrow">'+(qrSVG(link)?'<div class="qr sm">'+qrSVG(link)+'</div>':'')+'<div class="linkbox">'+esc(link)+'</div></div><div class="opts"><button class="btn sm" data-act="copy">'+(U.copied?'已複製':'複製連結')+'</button></div><p class="note">朋友入咗房之後,撳「開始遊戲」就會入牌桌。</p>':'<p>開緊房…</p>';
   }else{
     h+='<p>房號 <b>'+esc(U.code)+'</b>'+(l?'(連接咗)':'(連線中…)')+'</p><p class="note">狀態:'+esc(NET.state||'連線中…')+' · 收到 '+NET.rx+' 個訊息'+(NET.rx>0&&!V?' · 等開房嗰位撳「開始遊戲」':'')+'</p>';
   }
+  h+='</div>';
+  /* 右欄:座位表(房主可按座位揀角色)、隨機排位 */
+  h+='<div class="lob-main">';
   if(l&&l.seats){
-    h+='<h3>座位('+l.players.length+' / '+l.n+' 人,空位由電腦補)</h3>'+seatTableHTML(l,host)+'<p class="note">'+(host?'你固定坐下面。拖其餘玩家去右、上、左(手指或者滑鼠都得),拖去有人嘅座位會對調;唔想拖,可以先撳一位玩家,再撳目標座位。':'房主排緊座位,你見到嘅係即時更新。')+' '+l.n+' 個座位 · '+l.minFan+' 番起糊 · '+capName(l.cap==null?8:l.cap)+'。入咗牌桌之後,四家擲骰決定邊個做莊。</p>'+
-      (host?'<div class="opts"><button class="btn" data-act="seatShuf">隨機排位</button></div>':'');
+    h+='<h3>座位('+l.players.length+' / '+l.n+' 人,空位由電腦補)</h3>'+seatTableHTML(l,host);
   }else if(l){
     h+='<h3>玩家('+l.players.length+' / '+l.n+')</h3><div class="plist">'+l.players.map(function(nm,i){return '<div>'+esc(nm)+(i===0?'<span class="rel">房主</span>':'')+'</div>';}).join('')+
       new Array(Math.max(0,l.n-l.players.length)+1).join('<div class="empty">電腦補位</div>')+'</div><p class="note">'+l.n+' 個座位 · '+l.minFan+' 番起糊 · '+capName(l.cap==null?8:l.cap)+'</p>';
   }
-  if(host&&U.code){var nn=(l&&l.n)||U.cfg.n;h+='<h3>角色(按座位揀)</h3><div class="chrows">'+Array.from({length:nn},function(_,i){return '<div class="chrow"><small>座位 '+(i+1)+'</small>'+chipRow('chSeat',CH_CHARS.map(function(_,k){return i*10+k;}),i*10+Math.max(0,CH_CHARS.findIndex(function(x){return x[0]===U.chars[i];})),function(v){return CH_CHARS[v%10][1];})+'</div>';}).join('')+'</div>';}
-  h+='<div class="opts">'+(host?'<button class="btn pri" data-act="startRoom"'+(U.code?'':' disabled')+'>開始遊戲</button>':'')+'<button class="btn" data-act="rename">改名</button><button class="btn" data-act="leave">'+(host0?'關房':'離開')+'</button></div></div></div>';
+  h+='</div></div>';
+  /* 底部固定列:主要操作 */
+  h+='<div class="lob-bar">'+(host?'<button class="btn pri lob-go" data-act="startRoom"'+(U.code?'':' disabled')+'>開始遊戲</button>':'')+'<button class="btn" data-act="rename">改名</button><button class="btn" data-act="leave">'+(host0?'關房':'離開')+'</button></div></div></div>';
   return h;
 }
 var SP_POS=function(n){return n===4?['pb','pr','pt','pl']:n===3?['pb','pr','pl']:['pb','pt'];};
@@ -3256,7 +3269,8 @@ function seatTableHTML(l,can){
   for(var s=0;s<n;s++){
     var nm=l.seats[s];
     h+='<div class="sp-seat '+pos[s]+(nm?' on':'')+(s===0?' fixed':'')+(U.spSel===s?' sel':'')+'" data-s="'+s+'" style="--c:var(--c'+s+')">'+
-      (nm?'<span class="pn"><i></i><b>'+esc(nm)+'</b></span><span class="tag">'+(s===0?'房主 · 固定坐下':'玩家')+'</span>':'<span class="tag">電腦</span>')+'</div>';
+      (nm?'<span class="pn"><i></i><b>'+esc(nm)+'</b></span><span class="tag">'+(s===0?'房主 · 固定坐下':'玩家')+'</span>':'<span class="tag">電腦</span>')+
+      (can?'<select class="chsel" data-chs="'+s+'" aria-label="座位 '+(s+1)+' 角色">'+CH_CHARS.map(function(x){return '<option value="'+x[0]+'"'+(x[0]===U.chars[s]?' selected':'')+'>'+x[1]+'</option>';}).join('')+'</select>':'')+'</div>';
   }
   return h+'</div>';
 }
@@ -4074,6 +4088,7 @@ function onClick(e){
   }
 }
 document.addEventListener('change',function(e){
+  var tc=e.target;if(tc&&tc.getAttribute&&tc.getAttribute('data-chs')!=null){U.chars[+tc.getAttribute('data-chs')]=tc.value;render();return;}
   var t=e.target,i=t&&t.getAttribute&&t.getAttribute('data-nl');
   if(i==null)return;
   var old=t.getAttribute('data-old'),v=String(t.value).trim().slice(0,8);
@@ -4140,6 +4155,7 @@ function boot2(){
     function editable(){return U.screen==='lobby'&&!!document.querySelector('#spT.sp-edit');}
     document.addEventListener('pointerdown',function(e){
       if(!editable())return;
+      if(e.target.closest&&e.target.closest('select'))return;
       var el=e.target.closest('#spT .sp-seat.on');if(!el)return;
       var sv=+el.getAttribute('data-s');if(!(sv>=1))return;
       drag={s:sv,x:e.clientX,y:e.clientY,on:false,id:e.pointerId,nm:(el.querySelector('b')||{}).textContent||'',c:getComputedStyle(el).getPropertyValue('--c')};
@@ -4172,6 +4188,7 @@ function boot2(){
     document.addEventListener('pointercancel',function(e){end(e,true);});
     document.addEventListener('click',function(e){
       if(Date.now()-(window.__spDragged||0)<350)return;
+      if(e.target.closest&&e.target.closest('select'))return;
       var el=e.target.closest('#spT.sp-edit .sp-seat');if(!el)return;
       var sv=+el.getAttribute('data-s');if(!(sv>=1))return;
       if(U.spSel==null){if(el.classList.contains('on')){U.spSel=sv;draw();}}
