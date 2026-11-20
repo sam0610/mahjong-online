@@ -24,7 +24,7 @@ function connected(){return NET.members.filter(function(m){return m.conn&&m.conn
 /* ---- 大廳 ---- */
 HOOKS.lobby=function(){
   var l=lobbyInfo();
-  NET.members.forEach(function(m,i){safeSend(m.conn,{t:'lobby',n:l.n,minFan:l.minFan,cap:l.cap,code:l.code,players:l.players,seats:l.seats,owner:i===0});});
+  NET.members.forEach(function(m,i){safeSend(m.conn,{t:'lobby',n:l.n,minFan:l.minFan,cap:l.cap,chars:l.chars,code:l.code,players:l.players,seats:l.seats,owner:i===0});});
 };
 function setCfg(c){
   c=c||{};
@@ -62,6 +62,7 @@ function restore(o){
   clearGrace();
   S.token++;S.asks={};S.ready={};S.call=null;
   U.cfg.n=o.n;U.cfg.minFan=o.minFan;U.cfg.cap=o.cap==null?8:o.cap;U.cfg.level=o.level;
+  setChars(o.chars);S.chars=U.chars.slice(0,4);
   S.n=o.n;S.minFan=o.minFan;S.cap=U.cfg.cap;S.level=o.level;S.dealer=o.dealer;S.d0=o.d0||0;S.round=o.round;S.handNo=o.handNo;S.lian=o.lian;
   S.wall=o.wall.slice();S.discN=o.discN;S.last=o.last?{seat:o.last.seat,t:o.last.t}:null;S.cur=o.cur;S.pond=(o.pond||[]).slice();
   S.players=o.players.map(function(q,i){
