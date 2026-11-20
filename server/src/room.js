@@ -74,7 +74,7 @@ export class Room{
         const ns=this.env.NAMES;
         (ns?ns.get(ns.idFromName('global')).fetch('https://names/names').then(x=>x.json()):Promise.resolve(null))
           .catch(()=>null).then(j=>{
-            const ok=eng.start(conn,j&&j.names,j&&j.uses);
+            const ok=eng.start(conn,j&&j.names,j&&j.uses,d.chars);
             const used=ok?eng.usedAi():[];
             if(ns&&used.length)ns.get(ns.idFromName('global')).fetch('https://names/names',{method:'POST',body:JSON.stringify({op:'use',names:used})}).catch(()=>{});   /* 記低今局用咗邊啲電腦名 */
           });

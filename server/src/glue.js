@@ -32,8 +32,9 @@ function setCfg(c){
   var f=+c.minFan;U.cfg.minFan=(f>=0&&f<=8)?f:3;
   var cp=+c.cap;U.cfg.cap=(cp===0||cp===8||cp===10||cp===13)?cp:8;
   var lv=+c.level;U.cfg.level=(lv>=1&&lv<=3)?lv:2;
-  if(Array.isArray(c.chars))U.chars=[0,1,2,3].map(function(i){var x=c.chars[i];return CH_OK.indexOf(x)>=0?x:'salt';});
+  setChars(c.chars);
 }
+function setChars(a){if(Array.isArray(a))U.chars=[0,1,2,3].map(function(i){var x=a[i];return CH_OK.indexOf(x)>=0?x:'salt';});}
 var CH_OK=['salt','mah','chick','cai'];
 function startServerGame(){
   if(S.running)return false;
@@ -158,7 +159,8 @@ return {
     if(on)conn.on('close',function(){if(S.players[m.seat])S.players[m.seat].cheat=false;});
     render();return true;
   },
-  start:function(conn,names,uses){
+  start:function(conn,names,uses,chars){
+    setChars(chars);
     if(uses&&typeof uses==='object')AI_USES=uses;
     if(Array.isArray(names))AI_CUSTOM=names.filter(function(x){return typeof x==='string'&&x.trim();}).map(function(x){return x.trim().slice(0,8);}).slice(0,60);
     var i=NET.members.findIndex(function(m){return m.conn===conn;});
