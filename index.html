@@ -2233,7 +2233,7 @@ function runGame(resume){playHand(resume).catch(function(e){if(e!==CANCEL)consol
 function startGame(){
   S.token++;S.asks={};S.ready={};S.hist=[];S.histWant={};
   var n=U.cfg.n,mem=U.role==='host'?NET.members:[];
-  S.n=n;S.minFan=U.cfg.minFan;S.cap=U.cfg.cap;S.chars=U.chars.slice(0,4);S.level=U.cfg.level;
+  S.n=n;S.minFan=U.cfg.minFan;S.cap=U.cfg.cap;S.chars=U.role==='solo'?['salt','salt','salt','salt']:U.chars.slice(0,4);S.level=U.cfg.level;
   S.players=[];
   AI_NAMES=aiNamesShuffle();var used={},ai=0;AI_USED=[];
   function uniq(nm){var x=nm,k=2;while(used[x]){x=nm+k;k++;}used[x]=1;return x;}
@@ -3554,6 +3554,7 @@ function evtShow(){
   var last=null;
   list.forEach(function(e){if(e.id>U.evLast){U.evLast=e.id;last=e;}});
   if(!last)return;
+  if(U.role==='solo')return;   /* 角色場景圖只限開房;單人對電腦唔彈 */
   var el=document.getElementById('evtpop');
   if(!el){el=document.createElement('div');el.id='evtpop';el.hidden=true;document.body.appendChild(el);}
   el.innerHTML='<img alt="" src="img/'+last.ch+'/'+last.key+'.webp">';
