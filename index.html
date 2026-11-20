@@ -1536,7 +1536,7 @@ function aiTurn(p,ev,kongs){
    U = local UI state. */
 var S={pond:[],n:4,minFan:3,cap:8,chars:['salt','salt','salt','salt'],level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],cur:0,over:false,last:null,msg:'',
   asks:{},ready:{},token:0,speed:1,call:null,result:null,winTile:null,discN:0,running:false,hist:[],histWant:{}};
-var CH_CHARS=[['salt','鹽樽'],['mah','麻雀牌'],['chick','雞仔'],['cai','菜心'],['peach','桃仔']];   /* 角色:每個座位揀一個,事件圖跟住座位角色 */
+var CH_CHARS=[['salt','鹽樽'],['mah','麻雀牌'],['chick','雞仔'],['cai','菜心'],['peach','比比']];   /* 角色:每個座位揀一個,事件圖跟住座位角色 */
 var U={screen:'setup',role:'solo',chars:['salt','salt','salt','salt'],cfg:{n:4,minFan:3,cap:8,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
 var HOSTSEAT=1,HOOKS={};   /* HOSTSEAT:房主佔一個座位(自己部機做主機);伺服器版係 0 */
@@ -3562,7 +3562,7 @@ function tilesHTML(){
     '<div class="opts"><button class="btn pri" data-act="closeTiles">完成</button></div></div></div>';
 }
 /* ---------- 房內聊天(快捷語 + 表情 + 打字):面板、氣泡、設定頁嘅共用名單 ---------- */
-var CHARS=[['','無角色'],['chick','雞仔'],['mah','麻雀牌'],['cai','菜心'],['salt','鹽樽'],['peach','桃仔']];
+var CHARS=[['','無角色'],['chick','雞仔'],['mah','麻雀牌'],['cai','菜心'],['salt','鹽樽'],['peach','比比']];
 function chChar(){var c='';try{c=localStorage.getItem('mj_char')||'';}catch(e){}return CHAT_CH.indexOf(c)>=0?c:'';}
 function chSv(c,i,z){return CHAT_CH.indexOf(c)>=0&&i>=0&&i<8?'<img class="chsv" alt="" draggable="false" src="img/'+c+'/chat-'+i+'.webp" style="width:auto;height:'+z+'px">':'';}
 var PH_DEF=['哈囉','鳴鳴鳴','犀利','多謝','激死','嘩','多謝晒','唔駛客氣'],CH={bubbles:[],sentAt:0,log:[],logUntil:0};
