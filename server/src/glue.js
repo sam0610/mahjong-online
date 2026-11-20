@@ -32,7 +32,9 @@ function setCfg(c){
   var f=+c.minFan;U.cfg.minFan=(f>=0&&f<=8)?f:3;
   var cp=+c.cap;U.cfg.cap=(cp===0||cp===8||cp===10||cp===13)?cp:8;
   var lv=+c.level;U.cfg.level=(lv>=1&&lv<=3)?lv:2;
+  if(Array.isArray(c.chars))U.chars=[0,1,2,3].map(function(i){var x=c.chars[i];return CH_OK.indexOf(x)>=0?x:'salt';});
 }
+var CH_OK=['salt','mah','chick','cai'];
 function startServerGame(){
   if(S.running)return false;
   var n=U.cfg.n,all=NET.members.filter(function(m){return m.joined&&!m.pond;}),mem=seatPlan();
