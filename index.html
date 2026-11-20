@@ -40,6 +40,11 @@ button{font:inherit;color:inherit}
 .btn.sm{height:34px;padding:0 12px;font-size:13px}
 .chip{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);border-radius:10px;height:44px;min-width:64px;padding:0 14px;cursor:pointer;font:500 15px var(--sans)}
 .chip.on{border-color:var(--accent);background:rgba(10,127,156,.1);color:var(--accent);font-weight:700}
+.tset{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0}
+.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;aspect-ratio:1/1;padding:6px 4px;border:1px solid var(--line-2);border-radius:14px;background:var(--surface);color:var(--ink);cursor:pointer;font:inherit}
+.tile small{font-size:13px;opacity:.75;font-weight:600}
+.tile b{font-size:17px;color:var(--accent);font-weight:800;text-align:center}
+@media (max-height:760px){.tile{aspect-ratio:auto;padding:8px 4px}}
 
 /* 牌面設計:預設米白,另有粉彩石墨灰藍(牌底 #2b3340),用 data-tile 切換 */
 :root{--f-ink:#1c1a17;--f-red:#b3261e;--f-grn:#1f7a4d;--f-blu:#1d4e89;--f-iv:#f7f1e1;--f-fl:#b8541c;--f-ol:none}
@@ -1503,7 +1508,7 @@ function aiTurn(p,ev,kongs){
    U = local UI state. */
 var S={pond:[],n:4,minFan:3,cap:8,chars:['salt','salt','salt','salt'],level:2,players:[],dealer:0,round:0,handNo:1,lian:0,wall:[],cur:0,over:false,last:null,msg:'',
   asks:{},ready:{},token:0,speed:1,call:null,result:null,winTile:null,discN:0,running:false,hist:[],histWant:{}};
-var CH_CHARS=[['salt','鹽樽'],['mah','麻雀牌'],['chick','雞仔'],['cai','菜心']];   /* 角色:每個座位揀一個,事件圖跟住座位角色 */
+var CH_CHARS=[['salt','鹽樽'],['mah','麻雀牌'],['chick','雞仔'],['cai','菜心'],['peach','桃仔']];   /* 角色:每個座位揀一個,事件圖跟住座位角色 */
 var U={screen:'setup',role:'solo',chars:['salt','salt','salt','salt'],cfg:{n:4,minFan:3,cap:8,level:2},name:'',code:'',roomInput:'',notice:'',rules:false,sel:null,modalHidden:false,copied:false};
 var V=null,callId=0,askSeq=0;
 var HOSTSEAT=1,HOOKS={};   /* HOSTSEAT:房主佔一個座位(自己部機做主機);伺服器版係 0 */
@@ -2757,7 +2762,7 @@ function openRoom(attempt,opts){
 }
 /*@engine:begin onHostConn*/
 /* ---------- 房內聊天:快捷語 / 表情 / 打字,房主驗證後廣播俾所有座位(每人最少隔 3 秒) ---------- */
-var CHAT_EMO=['😄','😂','😭','😮','👍','🙏','😏','🔥'],CHAT_GAP=3000,CHAT_MAX=30,CHAT_CH=['chick','mah','cai','salt'],chatAt={};
+var CHAT_EMO=['😄','😂','😭','😮','👍','🙏','😏','🔥'],CHAT_GAP=3000,CHAT_MAX=30,CHAT_CH=['chick','mah','cai','salt','peach'],chatAt={};
 function chatOut(seat,k,v,c,i){
   var msg={t:'chat',s:seat,k:k,v:v};if(c){msg.c=c;msg.i=i;}
   NET.members.forEach(function(m){if(m.seat>=0)safeSend(m.conn,msg);});
@@ -3220,6 +3225,7 @@ function drawDock(){
     var cb=els.dock.querySelectorAll('.claimrow .btn');if(cb[U.cq.idx]){cb[U.cq.idx].classList.add('kbsel');if(U.cq.armed)cb[U.cq.idx].classList.add('armed');}
   }
 }
+function tileBtn(act,label,vals,cur,fmt){var i=vals.indexOf(cur);return '<button class="tile" data-act="'+act+'" data-v="'+vals[(i+1)%vals.length]+'"><small>'+label+'</small><b>'+fmt(cur)+'</b></button>';}
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
 var VERSION='2026.11.20-a';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
@@ -3235,9 +3241,8 @@ function setupHTML(){
     '<div class="step"><h4><i>1</i>牌局設定</h4><div class="card">'+
       '<div><span class="lab">你嘅名(多人對戰用)</span><div class="opts"><input class="inp" id="pname" maxlength="8" autocomplete="off" placeholder="例如:阿強" value="'+esc(U.name)+'"></div></div>'+
       '<div><span class="lab">座位數</span>'+chipRow('cfgN',[2,3,4],c.n,function(v){return v+' 人';})+'</div>'+
-      '<div><span class="lab">起糊番數</span>'+chipRow('cfgF',[3,6,8],c.minFan,function(v){return v+' 番'+(v===3?' <small>標準</small>':'');})+'</div>'+
-      '<div><span class="lab">封頂</span>'+chipRow('cfgC',[8,10,13,0],c.cap,function(v){return v===0?'無上限':v+' 番';})+(c.cap===0?'<p class="note">番數照疊,賠率每兩番翻一倍;滿貫牌有底番,仲可以疊自摸、花等。</p>':'')+'</div>'+
-      '<div><span class="lab">電腦強度</span>'+chipRow('cfgL',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手':'大師';})+'<p class="note">'+lvNote+'</p></div>'+
+      '<div class="tset">'+tileBtn('cfgF','起糊番數',[3,6,8],c.minFan,function(v){return v+' 番'+(v===3?' 標準':'');})+tileBtn('cfgC','封頂',[8,10,13,0],c.cap,function(v){return v===0?'無上限':v+' 番';})+tileBtn('cfgL','電腦強度',[1,2,3],c.level,function(v){return v===1?'普通':v===2?'高手':'大師';})+'</div>'+
+      (c.cap===0?'<p class="note">番數照疊,賠率每兩番翻一倍;滿貫牌有底番,仲可以疊自摸、花等。</p>':'')+'<p class="note">'+lvNote+'</p>'+
     '</div></div>'+
     '<div class="step"><h4><i>2</i>點樣玩</h4><div class="card">'+
       '<button class="btn pri block" data-act="solo">單人對電腦</button>'+
@@ -3506,7 +3511,7 @@ function tilesHTML(){
     '<div class="opts"><button class="btn pri" data-act="closeTiles">完成</button></div></div></div>';
 }
 /* ---------- 房內聊天(快捷語 + 表情 + 打字):面板、氣泡、設定頁嘅共用名單 ---------- */
-var CHARS=[['','無角色'],['chick','雞仔'],['mah','麻雀牌'],['cai','菜心'],['salt','鹽樽']];
+var CHARS=[['','無角色'],['chick','雞仔'],['mah','麻雀牌'],['cai','菜心'],['salt','鹽樽'],['peach','桃仔']];
 function chChar(){var c='';try{c=localStorage.getItem('mj_char')||'';}catch(e){}return CHAT_CH.indexOf(c)>=0?c:'';}
 function chSv(c,i,z){return CHAT_CH.indexOf(c)>=0&&i>=0&&i<8?'<img class="chsv" alt="" draggable="false" src="img/'+c+'/chat-'+i+'.webp" style="width:auto;height:'+z+'px">':'';}
 var PH_DEF=['哈囉','鳴鳴鳴','犀利','多謝','激死','嘩','多謝晒','唔駛客氣'],CH={bubbles:[],sentAt:0,log:[],logUntil:0};

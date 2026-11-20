@@ -35,7 +35,7 @@ function setCfg(c){
   setChars(c.chars);
 }
 function setChars(a){if(Array.isArray(a))U.chars=[0,1,2,3].map(function(i){var x=a[i];return CH_OK.indexOf(x)>=0?x:'salt';});}
-var CH_OK=['salt','mah','chick','cai'];
+var CH_OK=['salt','mah','chick','cai','peach'];
 function startServerGame(){
   if(S.running)return false;
   var n=U.cfg.n,all=NET.members.filter(function(m){return m.joined&&!m.pond;}),mem=seatPlan();
