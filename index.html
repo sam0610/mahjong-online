@@ -1689,6 +1689,8 @@ function setAuto(seat,on){
   if(on)scheduleAuto(seat);
 }
 
+/* 等太耐(10 秒未出牌)可用嘅場景圖:每個角色有邊幾張,隨機出一張(冇列嘅角色只出「打邊隻」) */
+var CH_WAIT={salt:['bian','w1','w2'],mah:['bian','w1','w2'],chick:['bian','w1','w2'],cai:['bian','w1','w2'],peach:['bian','w1','w2']};
 /* ---------- asking a human seat (local or remote) ---------- */
 function ask(seat,kind,opts){
   return new Promise(function(res,rej){
@@ -1696,7 +1698,7 @@ function ask(seat,kind,opts){
     S.asks[seat]={id:++askSeq,kind:kind,opts:opts,res:res,rej:rej,since:Date.now()};
     scheduleAuto(seat);
     if(kind==='turn'&&p.human){var aid=S.asks[seat].id;setTimeout(function(){
-      if(S.asks[seat]&&S.asks[seat].id===aid){S.wait={seat:seat,key:Math.random()<0.5?'bian':'lanpai',id:aid};render();}
+      if(S.asks[seat]&&S.asks[seat].id===aid){var wl=CH_WAIT[S.chars&&S.chars[seat]]||['bian'];S.wait={seat:seat,key:wl[Math.floor(Math.random()*wl.length)],id:aid};render();}
     },10000);}
     S.msg=kind==='roll'?'擲骰決定邊個做莊':kind==='dok'?'確認開始':kind==='turn'?'輪到 '+p.name+(opts.claimed?'(碰/上之後打牌)':''):S.players[opts.from].name+' 打出 '+tname(opts.tile);
     render();
