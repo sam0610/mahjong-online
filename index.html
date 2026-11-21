@@ -283,6 +283,16 @@ button{font:inherit;color:inherit}
 .sp-seat.fixed{background:#f4f9f9}
 .sp-seat .tag{font:500 11px var(--sans);color:var(--muted)}
 .sp-seat .chsel{font:600 12px var(--sans);max-width:100%;margin-top:3px;border:1px solid #9fbcbc;border-radius:8px;background:#fff;color:var(--ink);padding:2px 4px}
+.av{width:26px;height:26px;object-fit:contain;flex:none;pointer-events:none}
+.mep .av{width:30px;height:30px}
+@media (min-width:900px) and (min-height:560px){
+ .tchip{overflow:visible}
+ .tchip .av{position:absolute;width:72px;height:72px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.2));left:-20px;top:50%;transform:translateY(-50%);z-index:2}
+ .tchip:has(.av){padding-left:58px}
+ .tseat.ps-l .tchip:has(.av),.tseat.ps-r .tchip:has(.av){padding-left:10px;padding-top:46px}
+ .tseat.ps-l .tchip .av,.tseat.ps-r .tchip .av{left:50%;top:-36px;transform:translateX(-50%)}
+ .mep .av{width:52px;height:52px;margin:-12px 0 -12px -8px}
+}
 .rhead{display:flex;align-items:center;gap:12px;margin-bottom:6px}
 .rhead>div{min-width:0}
 .rhead img{width:min(30vw,128px);height:auto;aspect-ratio:1/1;object-fit:contain;flex:none}
@@ -3045,7 +3055,7 @@ function riverHTMLOld(p,i){
 function headHTML(p,i,k){
   var call=(V.call&&V.call.i===i)?'<span class="call">'+esc(V.call.text)+'</span>':'';
   var tag=k===0?(p.name==='你'?'':'<span class="rel">你</span>'):'<span class="rel">'+relLabel(k,V.n)+(p.human&&V.players.filter(function(q){return q.human;}).length>1?' · 真人':'')+'</span>';
-  return call+'<div class="sh"><span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span>'+tag+
+  return call+'<div class="sh">'+avHTML(i)+'<span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span>'+tag+
     (i===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+
     (k>0&&!V.over?'<span class="numbadge"><b>'+p.n+'</b>張</span>':'')+
     '<span class="sc">'+p.score.toLocaleString()+'</span></div>';
@@ -3070,7 +3080,7 @@ function tseat(i,k,ps){
   var call=(V.call&&V.call.i===i)?'<span class="call">'+esc(V.call.text)+'</span>':'';
   var bub='';
   if(V.last&&V.last.seat===i&&!V.over){var be=Date.now()-(U.flyAt||0);if(be<1900)bub='<span class="dbub ps-'+ps+'" style="--fd:-'+be+'ms">'+tileEl(V.last.t)+'</span>';}
-  var chip='<div class="tchip'+(cur?' on':'')+'" data-seat="'+i+'">'+call+bub+'<span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span><span class="rel">'+relLabel(k,V.n)+'</span>'+
+  var chip='<div class="tchip'+(cur?' on':'')+'" data-seat="'+i+'">'+call+bub+avHTML(i)+'<span class="wchip">'+WIND[p.wind]+'</span><span class="nm">'+esc(p.name)+'</span><span class="rel">'+relLabel(k,V.n)+'</span>'+
     (i===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+p.score.toLocaleString()+'</span>'+
     (!V.over?'<span class="numbadge"><b>'+p.n+'</b>張</span>':'')+'</div>';
   var body;
@@ -3254,7 +3264,7 @@ function drawDock(){
   if(V.over)hh=faces(me.hand||[]);
   var rm=(me.melds.length?'<span class="sep"></span>'+meldsHTML(me,true):'')+flowersHTML(me);
   var mp=V.players[V.me],mturn=V.cur===V.me&&!V.over;
-  var mep=((V.call&&V.call.i===V.me)?'<span class="call">'+esc(V.call.text)+'</span>':'')+'<span class="mep'+(mturn?' on':'')+'"><span class="wchip">'+WIND[mp.wind]+'</span>'+(mp.name!=='你'?'<span class="nm">'+esc(mp.name)+'</span>':'')+(V.me===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+mp.score.toLocaleString()+'</span></span>';
+  var mep=((V.call&&V.call.i===V.me)?'<span class="call">'+esc(V.call.text)+'</span>':'')+'<span class="mep'+(mturn?' on':'')+'">'+avHTML(V.me)+'<span class="wchip">'+WIND[mp.wind]+'</span>'+(mp.name!=='你'?'<span class="nm">'+esc(mp.name)+'</span>':'')+(V.me===V.dealer?'<span class="dl">莊'+(V.lian?' ×'+V.lian:'')+'</span>':'')+'<span class="sc">'+mp.score.toLocaleString()+'</span></span>';
   var dmsg=curMsg();
   els.dock.innerHTML='<div class="actions">'+mep+(dmsg?'<span class="dmsg">'+dmsg+'</span>':'')+acts+'</div>'+(on?tpHTML(U.sel?U.selT:null):'')+'<div class="rack me"><div class="hand'+(on?'':' off')+'">'+hh+'</div><div class="rm">'+rm+'</div></div>';
   if(a&&a.kind==='claim'&&!COARSE&&(!U.cq||U.cq.id!==a.id))U.cq={id:a.id,idx:0};   /* 有得食/碰/槓/上:自動跳去揀動作 */
@@ -3263,6 +3273,7 @@ function drawDock(){
   }
 }
 function tileBtn(act,label,vals,cur,fmt){var i=vals.indexOf(cur);return '<button class="tile" data-act="'+act+'" data-v="'+vals[(i+1)%vals.length]+'"><small>'+label+'</small><b>'+fmt(cur)+'</b></button>';}
+function avHTML(i){return (U.role==='solo'||!V||!V.chars||!V.chars[i])?'':'<img class="av" alt="" draggable="false" src="img/'+V.chars[i]+'/avatar.webp">';}
 function chipRow(act,vals,cur,fmt){return '<div class="opts">'+vals.map(function(v){return '<button class="chip'+(v===cur?' on':'')+'" data-act="'+act+'" data-v="'+v+'">'+fmt(v)+'</button>';}).join('')+'</div>';}
 var VERSION='2026.11.20 #29';
 function savedHTML(){return '';}   /* 讀取存檔功能已移除 */
